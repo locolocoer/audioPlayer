@@ -1,0 +1,35 @@
+{
+  "name": "feiyu-music",
+  "version": "0.5.0",
+  "description": "飞鱼音乐 - WebDAV 桌面音乐播放器",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "start": "chcp 65001 > nul && npx electron out/main/index.js",
+    "package": "electron-builder"
+  },
+  "dependencies": {
+    "chinese-s2t": "^1.0.0",
+    "music-metadata": "^10.4.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.0",
+    "sql.js": "^1.11.0",
+    "webdav": "^5.7.0",
+    "zustand": "^4.5.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@types/sql.js": "^1.4.9",
+    "@vitejs/plugin-react": "^4.3.1",
+    "electron": "^31.3.1",
+    "electron-builder": "^24.13.3",
+    "electron-vite": "^2.3.0",
+    "sharp": "^0.32.6",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.0"
+  }
+}

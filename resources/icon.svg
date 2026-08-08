@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#e94560"/>
+      <stop offset="100%" stop-color="#c0392b"/>
+    </linearGradient>
+    <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ff6b81"/>
+      <stop offset="100%" stop-color="#e94560"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+
+  <!-- fish body - curved arc like a fish jumping -->
+  <g transform="translate(256 280)">
+    <!-- tail -->
+    <path d="M-120 0 L-190 -50 Q-170 0 -190 50 Z" fill="#fff" opacity="0.9"/>
+    <!-- body -->
+    <path d="M-110 0 Q-50 -90 110 -95 Q160 -60 170 0 Q160 60 110 95 Q-50 90 -110 0 Z" fill="#fff"/>
+    <!-- eye -->
+    <circle cx="90" cy="-20" r="14" fill="#e94560"/>
+    <circle cx="94" cy="-22" r="5" fill="#fff"/>
+    <!-- fin -->
+    <path d="M-30 -75 Q-10 -120 30 -75" fill="url(#fade)" opacity="0.6"/>
+  </g>
+
+  <!-- music notes - clean single style -->
+  <g fill="#fff" opacity="0.95">
+    <g transform="translate(370 180)">
+      <circle cx="0" cy="18" r="12"/>
+      <rect x="10" y="-28" width="4" height="46" rx="2"/>
+    </g>
+    <g transform="translate(330 130) scale(0.8)">
+      <circle cx="0" cy="18" r="12"/>
+      <rect x="10" y="-28" width="4" height="46" rx="2"/>
+    </g>
+  </g>
+
+  <!-- title -->
+  <text x="256" y="445" text-anchor="middle" fill="#fff" font-family="system-ui, sans-serif" font-size="44" font-weight="700" letter-spacing="10">飞鱼音乐</text>
+
+  <!-- small subtitle -->
+  <text x="256" y="472" text-anchor="middle" fill="#ffb3c1" font-family="system-ui, sans-serif" font-size="14" font-weight="400" letter-spacing="4">FEIYU MUSIC</text>
+</svg>

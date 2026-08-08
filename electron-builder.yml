@@ -1,0 +1,21 @@
+appId: com.feiYuMusic.app
+productName: FeiYu Music
+directories:
+  buildResources: resources
+  output: dist
+icon: resources/icon.png
+files:
+  - out/**/*
+  - "!node_modules/**/*.{md,ts,map}"
+extraResources:
+  - from: resources
+    to: resources
+    filter:
+      - "**/*"
+win:
+  target:
+    - nsis
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  artifactName: 飞鱼音乐-Setup-${version}.${ext}
