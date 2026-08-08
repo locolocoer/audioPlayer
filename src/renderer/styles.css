@@ -447,7 +447,7 @@ body {
   background: var(--bg-secondary);
   color: var(--text-primary);
   font-size: 13px;
-  width: 320px;
+  width: 250px;
   outline: none;
 }
 
@@ -457,6 +457,7 @@ body {
 
 .filter-select {
   padding: 8px 12px;
+  width: 150px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg-secondary);
