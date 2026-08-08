@@ -49,6 +49,7 @@ export default function AudioEngine(): JSX.Element {
         window.api.log('error', `PLAY FAILED: "${pendingTrack.title}" (${ext}) path=${pendingTrack.path} error=${msg}`)
         usePlayerStore.getState().onAudioError(`${ext} - ${msg}`)
         downloadingRef.current = false
+        if (audioRef.current) audioRef.current.removeAttribute('src')
       })
   }, [pendingTrack])
 
@@ -79,6 +80,10 @@ export default function AudioEngine(): JSX.Element {
       const ext = track ? track.filename.slice(track.filename.lastIndexOf('.')) : '?'
       window.api.log('error', `FORMAT UNSUPPORTED: "${track?.title}" (${ext}) path=${track?.path} error=${audio.error.message}`)
       usePlayerStore.getState().onAudioError(`${ext} not supported - ${audio.error.message}`)
+    }
+    downloadingRef.current = false
+    if (audioRef.current) {
+      audioRef.current.removeAttribute('src')
     }
   }
 

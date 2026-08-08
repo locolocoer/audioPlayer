@@ -1,8 +1,9 @@
-import { app, BrowserWindow, shell, ipcMain, Menu, protocol } from 'electron'
+﻿import { app, BrowserWindow, shell, ipcMain, Menu, protocol } from 'electron'
 import { join } from 'path'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
+import crypto from 'crypto'
 import { execFile } from 'child_process'
 import { registerIpcHandlers } from './ipc'
 import { initDatabase, closeDatabase, getWebDAVConfigs } from './database'
@@ -18,7 +19,7 @@ function createWindow(): void {
     height: 800,
     minWidth: 800,
     minHeight: 600,
-    title: '飞鱼音乐',
+    title: '椋為奔闊充箰',
     icon: iconPath,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -54,8 +55,17 @@ function transcodeToPCM(inputPath: string, outputPath: string): Promise<void> {
     execFile(findFFmpeg(), [
       '-y', '-i', inputPath, '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', outputPath
     ], { timeout: 120000 }, (err) => {
-      if (err) reject(err)
-      else resolve()
+      if (!err) { resolve(); return }
+      const buf = fs.readFileSync(inputPath)
+      const dtsPath = inputPath + '.dts'
+      fs.writeFileSync(dtsPath, buf.subarray(44))
+      execFile(findFFmpeg(), [
+        '-y', '-f', 'dts', '-i', dtsPath, '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', outputPath
+      ], { timeout: 120000 }, (err2) => {
+        try { fs.unlinkSync(dtsPath) } catch { /* */ }
+        if (err2) reject(err2)
+        else resolve()
+      })
     })
   })
 }
@@ -78,13 +88,15 @@ function registerLocalMediaProtocol(): void {
 
 function getCacheKey(configId: string, filePath: string, ext?: string): string {
   const useExt = ext || path.extname(filePath)
-  return configId + '_' + Buffer.from(filePath).toString('base64').replace(/[/+=]/g, '_') + useExt
+  const hash = crypto.createHash('sha1').update(filePath).digest('hex').substring(0, 16)
+  return configId + '_' + hash + useExt
 }
 
 function registerPlayerIpc(): void {
   if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true })
 
   ipcMain.handle('player:getAudioPath', async (_event, configId: string, filePath: string) => {
+    console.log(`[Player] getAudioPath: configId=${configId}`)
     try {
       const configs = getWebDAVConfigs()
       const config = configs.find((c) => c.id === configId)
@@ -92,6 +104,23 @@ function registerPlayerIpc(): void {
 
       if (config.sourceType === 'local') {
         if (fs.existsSync(filePath)) {
+          const ext = path.extname(filePath).toLowerCase()
+          if (ext === '.wav') {
+            const cacheKey = getCacheKey(configId, filePath)
+            const cachedPath = path.join(tempDir, cacheKey)
+            try {
+              if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true })
+              try { fs.unlinkSync(cachedPath) } catch { /* */ }
+              const rawPath = cachedPath + '.raw'
+              fs.copyFileSync(filePath, rawPath)
+              await transcodeToPCM(rawPath, cachedPath)
+              try { fs.unlinkSync(rawPath) } catch { /* */ }
+              console.log(`[Player] LOCAL WAV OK: size=${fs.statSync(cachedPath).size}`)
+              return { localUrl: `local-media://${path.basename(cachedPath)}` }
+            } catch {
+              console.log(`[Player] WAV fallback to direct play`)
+            }
+          }
           console.log(`[Player] LOCAL: "${filePath}"`)
           return { localUrl: `file:///${filePath.replace(/\\/g, '/')}` }
         }
@@ -271,7 +300,7 @@ function registerPlayerIpc(): void {
 }
 
 app.whenReady().then(async () => {
-  console.log('[Player] 飞鱼音乐启动中...')
+  console.log('[Player] 椋為奔闊充箰鍚姩涓?..')
   Menu.setApplicationMenu(null)
   await initDatabase()
   registerIpcHandlers()

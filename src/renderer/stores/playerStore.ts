@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { MusicFile } from '../../main/types'
+import { useMusicStore } from './musicStore'
 
 export type PlayMode = 'sequential' | 'shuffle' | 'single'
 
@@ -14,6 +15,7 @@ interface PlayerState {
   volume: number
   playMode: PlayMode
   queue: MusicFile[]
+  playlist: MusicFile[]
   audioSrc: string | null
 
   requestPlay: (track: MusicFile) => void
@@ -27,6 +29,7 @@ interface PlayerState {
   setDuration: (d: number) => void
   togglePlayMode: () => void
   seek: (time: number) => void
+  syncPlaylist: (list: MusicFile[]) => void
   onAudioLoaded: () => void
   onAudioError: (error: string) => void
   onAudioEnded: () => void
@@ -45,17 +48,18 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   volume: 0.8,
   playMode: 'sequential',
   queue: [],
+  playlist: [],
   audioSrc: null,
 
   requestPlay: (track: MusicFile) => {
     const state = get()
-    const newQueue = state.queue.length === 0
-      ? [track]
-      : state.queue.find((t) => t.id === track.id)
+    const effectiveQueue = state.playlist.length > 0
+      ? state.playlist
+      : state.queue.length > 0
         ? state.queue
-        : [...state.queue, track]
+        : useMusicStore.getState().tracks
     set({
-      queue: newQueue,
+      queue: effectiveQueue,
       pendingTrack: track,
       currentTrack: track,
       loadError: null,
@@ -63,34 +67,48 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     })
   },
 
-  setQueue: (tracks: MusicFile[]) => set({ queue: tracks }),
+  setQueue: (tracks: MusicFile[]) => {
+    const state = get()
+    if (state.playlist.length > 0) return
+    set({ queue: tracks })
+  },
 
   pause: () => set({ isPlaying: false }),
   resume: () => set({ isPlaying: true }),
 
   next: () => {
     const state = get()
-    const { queue, currentTrack, playMode } = state
-    if (queue.length === 0 || !currentTrack) return
-    const idx = queue.findIndex((t) => t.id === currentTrack.id)
+    const effectiveQueue = state.playlist.length > 0
+      ? state.playlist
+      : state.queue.length > 0
+        ? state.queue
+        : useMusicStore.getState().tracks
+    const { currentTrack, playMode } = state
+    if (effectiveQueue.length === 0 || !currentTrack) return
+    const idx = effectiveQueue.findIndex((t) => t.id === currentTrack.id)
     let nextIdx: number
     if (playMode === 'shuffle') {
-      nextIdx = Math.floor(Math.random() * queue.length)
+      nextIdx = Math.floor(Math.random() * effectiveQueue.length)
     } else if (playMode === 'single') {
       nextIdx = idx >= 0 ? idx : 0
     } else {
-      nextIdx = idx >= 0 ? (idx + 1) % queue.length : 0
+      nextIdx = idx >= 0 ? (idx + 1) % effectiveQueue.length : 0
     }
-    get().requestPlay(queue[nextIdx])
+    get().requestPlay(effectiveQueue[nextIdx])
   },
 
   prev: () => {
     const state = get()
-    const { queue, currentTrack } = state
-    if (queue.length === 0 || !currentTrack) return
-    const idx = queue.findIndex((t) => t.id === currentTrack.id)
-    const prevIdx = idx > 0 ? idx - 1 : queue.length - 1
-    get().requestPlay(queue[prevIdx])
+    const effectiveQueue = state.playlist.length > 0
+      ? state.playlist
+      : state.queue.length > 0
+        ? state.queue
+        : useMusicStore.getState().tracks
+    const { currentTrack } = state
+    if (effectiveQueue.length === 0 || !currentTrack) return
+    const idx = effectiveQueue.findIndex((t) => t.id === currentTrack.id)
+    const prevIdx = idx > 0 ? idx - 1 : effectiveQueue.length - 1
+    get().requestPlay(effectiveQueue[prevIdx])
   },
 
   setVolume: (v: number) => set({ volume: v }),
@@ -105,6 +123,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   seek: (time: number) => {
     set({ currentTime: time })
     window.dispatchEvent(new CustomEvent('audioplayer:seek', { detail: time }))
+  },
+
+  syncPlaylist: (list: MusicFile[]) => {
+    set({ playlist: list })
   },
 
   onAudioLoaded: () => {

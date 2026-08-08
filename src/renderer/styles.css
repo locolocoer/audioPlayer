@@ -123,6 +123,17 @@ body {
   font-weight: 500;
 }
 
+.badge {
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  margin-left: auto;
+  min-width: 18px;
+  text-align: center;
+}
+
 .sidebar-footer {
   padding: 16px;
   border-top: 1px solid var(--border);
@@ -1102,6 +1113,19 @@ body {
 .empty-state p {
   margin-bottom: 16px;
   font-size: 15px;
+}
+
+.empty-hint {
+  font-size: 13px !important;
+  opacity: 0.7;
+  color: var(--text-secondary) !important;
+}
+
+.playlist-status {
+  padding: 12px 16px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  border-top: 1px solid var(--border);
 }
 
 /* Scrollbar */

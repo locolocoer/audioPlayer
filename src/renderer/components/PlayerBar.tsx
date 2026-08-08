@@ -1,5 +1,6 @@
 import { useCallback, useState, useEffect, useRef } from 'react'
 import { usePlayerStore } from '../stores/playerStore'
+import { useMusicStore } from '../stores/musicStore'
 
 function formatTime(secs: number): string {
   if (!secs || !isFinite(secs)) return '0:00'
@@ -63,6 +64,12 @@ export default function PlayerBar(): JSX.Element {
   const duration = usePlayerStore((s) => s.duration)
   const volume = usePlayerStore((s) => s.volume)
   const playMode = usePlayerStore((s) => s.playMode)
+  const favorites = useMusicStore((s) => s.favorites)
+  const loadFavorites = useMusicStore((s) => s.loadFavorites)
+
+  useEffect(() => {
+    loadFavorites()
+  }, [loadFavorites])
 
   const handleTogglePlay = useCallback(() => {
     const store = usePlayerStore.getState()
@@ -84,6 +91,14 @@ export default function PlayerBar(): JSX.Element {
     }
   }, [])
 
+  const handleToggleFavorite = useCallback(() => {
+    const track = usePlayerStore.getState().currentTrack
+    if (!track) return
+    useMusicStore.getState().toggleFavorite(track.id)
+  }, [])
+
+  const isFav = currentTrack ? favorites.some((f) => f.id === currentTrack.id) : false
+
   if (!currentTrack) return <div />
 
   return (
@@ -104,11 +119,11 @@ export default function PlayerBar(): JSX.Element {
         <div className="control-buttons">
           <button className="btn-icon" onClick={() => usePlayerStore.getState().togglePlayMode()} title={playMode === 'sequential' ? '顺序播放' : playMode === 'shuffle' ? '随机播放' : '单曲循环'}>
             {playMode === 'sequential' ? (
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M4 6h2v12H4V6zm14 0l-8 6 8 6V6z"/></svg>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
             ) : playMode === 'shuffle' ? (
               <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>
             ) : (
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4zM11 9h2v6h-2z"/></svg>
             )}
           </button>
           <button className="btn-icon" onClick={() => usePlayerStore.getState().prev()} disabled={isLoading}>
@@ -125,6 +140,13 @@ export default function PlayerBar(): JSX.Element {
           </button>
           <button className="btn-icon" onClick={() => usePlayerStore.getState().next()} disabled={isLoading}>
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+          </button>
+          <button className="btn-icon" onClick={handleToggleFavorite} style={{ color: isFav ? '#e94560' : undefined }} title={isFav ? '取消收藏' : '收藏'}>
+            {isFav ? (
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+            ) : (
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M22 9.24l-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24zM12 15.4l-3.76 2.27 1-4.28-3.32-2.88 4.38-.38L12 6.1l1.71 4.04 4.38.38-3.32 2.88 1 4.28L12 15.4z"/></svg>
+            )}
           </button>
         </div>
         <div className="progress-area">

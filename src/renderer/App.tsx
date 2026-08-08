@@ -4,6 +4,7 @@ import ConfigPage from './pages/ConfigPage'
 import LibraryPage from './pages/LibraryPage'
 import PlayerPage from './pages/PlayerPage'
 import FavoritesPage from './pages/FavoritesPage'
+import PlaylistPage from './pages/PlaylistPage'
 import PlayerBar from './components/PlayerBar'
 import AudioEngine from './components/AudioEngine'
 import Sidebar from './components/Sidebar'
@@ -49,6 +50,7 @@ export default function App(): JSX.Element {
               <Route path="/" element={<LibraryPage />} />
               <Route path="/player" element={<PlayerPage />} />
               <Route path="/favorites" element={<FavoritesPage />} />
+              <Route path="/playlist" element={<PlaylistPage />} />
               <Route path="/config" element={<ConfigPage />} />
               </Routes>
             </main>

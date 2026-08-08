@@ -1,11 +1,13 @@
 import { NavLink } from 'react-router-dom'
 import { useMusicStore } from '../stores/musicStore'
 import { useThemeStore } from '../stores/themeStore'
+import { usePlaylistStore } from '../stores/playlistStore'
 import { useEffect } from 'react'
 
 export default function Sidebar(): JSX.Element {
   const count = useMusicStore((s) => s.count)
   const loadCount = useMusicStore((s) => s.loadCount)
+  const playlistCount = usePlaylistStore((s) => s.playlist.length)
   const theme = useThemeStore((s) => s.theme)
   const toggleTheme = useThemeStore((s) => s.toggleTheme)
 
@@ -17,9 +19,8 @@ export default function Sidebar(): JSX.Element {
     <aside className="sidebar">
       <div className="sidebar-logo">
         <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-          <path d="M6.5 20c-.5-1 .5-3 2-5l-1.5 1c-1.5 2.5-4 4-6.5 4 1-2 2-3 3-6s-1-3-3-5 3.5-7 8-7c0 1.5 0 3.5 1 5 .5-1 1.5-2 2.5-2h2c.5-.5 1.5-1 2.5-1.5 1-.5 2-.5 2-.5 0 2-1 2-2 2v5c0 2.5-1.5 4.5-3.5 5.5-1-2-1-4.5 0-6.5l-1 2c-2 2.5-4 4-6.5 4z" opacity="0.7"/>
-          <path d="M20 4c.5 1 .5 2.5 0 4l1-2c1 1.5 1 3.5 0 6l1-2c.5 1.5 .5 4 0 5.5h-1.5c-1-.5-2-2-2-4V5z" opacity="0.5"/>
-          <circle cx="20" cy="4" r="2"/>
+          <circle cx="10" cy="16" r="4"/>
+          <rect x="14" y="2" width="3" height="14" rx="1.5"/>
         </svg>
         <span>飞鱼音乐</span>
       </div>
@@ -36,6 +37,13 @@ export default function Sidebar(): JSX.Element {
             <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
           </svg>
           <span>正在播放</span>
+        </NavLink>
+        <NavLink to="/playlist" className={({ isActive }) => isActive ? 'sidebar-link active' : 'sidebar-link'}>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+            <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+          </svg>
+          <span>播放列表</span>
+          {playlistCount > 0 && <span className="badge">{playlistCount}</span>}
         </NavLink>
         <NavLink to="/favorites" className={({ isActive }) => isActive ? 'sidebar-link active' : 'sidebar-link'}>
           <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">

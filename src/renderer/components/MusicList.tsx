@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import type { MusicFile } from '../../main/types'
 import { usePlayerStore } from '../stores/playerStore'
 import { useMusicStore } from '../stores/musicStore'
+import { usePlaylistStore } from '../stores/playlistStore'
 
 interface MusicListProps {
   tracks: MusicFile[]
@@ -56,7 +57,8 @@ function EditModal({ track, onClose }: { track: MusicFile; onClose: () => void }
     }
   }
 
-  const dirPath = activeTrack.path.substring(0, activeTrack.path.lastIndexOf('/')) || '/'
+  const sep = activeTrack.path.includes('\\') ? '\\' : '/'
+  const dirPath = activeTrack.path.substring(0, activeTrack.path.lastIndexOf(sep)) || activeTrack.path
   const fmt = (f: string) => f.slice(f.lastIndexOf('.') + 1).toUpperCase()
 
   return (
@@ -119,6 +121,10 @@ function ContextMenu({ x, y, track, onClose, onEdit }: {
 }): JSX.Element {
   const toggleFavorite = useMusicStore((s) => s.toggleFavorite)
   const isFav = track.favorite === 1
+  const playlist = usePlaylistStore((s) => s.playlist)
+  const addTrack = usePlaylistStore((s) => s.addTrack)
+  const removeTrack = usePlaylistStore((s) => s.removeTrack)
+  const inPlaylist = playlist.some((t) => t.id === track.id)
 
   useEffect(() => {
     const handler = () => onClose()
@@ -138,6 +144,16 @@ function ContextMenu({ x, y, track, onClose, onEdit }: {
         </svg>
         {isFav ? '取消收藏' : '添加到收藏'}
       </div>
+      <div className="context-menu-item" onClick={() => { inPlaylist ? removeTrack(track.id) : addTrack(track); onClose() }}>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+          {inPlaylist ? (
+            <path d="M6 19h12v2H6v-2z"/>
+          ) : (
+            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+          )}
+        </svg>
+        {inPlaylist ? '从播放列表移除' : '添加到播放列表'}
+      </div>
     </div>
   )
 }
@@ -152,7 +168,7 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
   if (tracks.length === 0) {
     return (
       <div className="empty-state">
-        <p>未发现音乐文件。请配置音乐源并运行扫描。</p>
+        <p>暂无收藏的音乐。</p>
       </div>
     )
   }

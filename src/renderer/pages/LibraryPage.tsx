@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useMusicStore } from '../stores/musicStore'
 import { usePlayerStore } from '../stores/playerStore'
+import { usePlaylistStore } from '../stores/playlistStore'
 import MusicList from '../components/MusicList'
 import { t2s } from 'chinese-s2t'
 import type { MusicFile } from '../../main/types'
@@ -11,6 +12,7 @@ type SortDir = 'asc' | 'desc'
 export default function LibraryPage(): JSX.Element {
   const { tracks, loadTracks, configs, loadConfigs } = useMusicStore()
   const { requestPlay, setQueue } = usePlayerStore()
+  const addTracks = usePlaylistStore((s) => s.addTracks)
   const [search, setSearch] = useState('')
   const [sortField, setSortField] = useState<SortField>('title')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
@@ -100,6 +102,11 @@ export default function LibraryPage(): JSX.Element {
               <option key={c.id} value={c.id}>{c.name || c.url}</option>
             ))}
           </select>
+          {(search || filterConfig) && filtered.length > 0 && (
+            <button className="btn btn-secondary" onClick={() => addTracks(filtered)} title="将当前筛选结果添加到播放列表">
+              + 全部添加到播放列表
+            </button>
+          )}
         </div>
       </div>
       <MusicList
