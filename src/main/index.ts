@@ -5,6 +5,7 @@ import path from 'path'
 import os from 'os'
 import crypto from 'crypto'
 import { execFile } from 'child_process'
+import { pathToFileURL } from 'url'
 import { registerIpcHandlers } from './ipc'
 import { initDatabase, closeDatabase, getWebDAVConfigs } from './database'
 import { buildBaseUrl, createWebDAVClient, downloadFile } from './webdav'
@@ -122,7 +123,7 @@ function registerPlayerIpc(): void {
             }
           }
           console.log(`[Player] LOCAL: "${filePath}"`)
-          return { localUrl: `file:///${filePath.replace(/\\/g, '/')}` }
+          return { localUrl: pathToFileURL(filePath).toString() }
         }
         return { error: 'File not found' }
       }
