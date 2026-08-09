@@ -475,7 +475,17 @@ body {
 
 .music-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
+}
+
+.music-table th.col-index {
+  width: 40px;
+}
+
+.music-table th.col-artist,
+.music-table th.col-album {
+  width: 24%;
 }
 
 .music-table th {
@@ -499,6 +509,9 @@ body {
   padding: 8px 14px;
   font-size: 13px;
   border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .music-table tr:hover td {

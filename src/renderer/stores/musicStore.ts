@@ -3,6 +3,7 @@ import type { MusicFile, ScanProgress, WebDAVConfig, ScanSettings } from '../../
 
 interface MusicState {
   tracks: MusicFile[]
+  tracksLoaded: boolean
   favorites: MusicFile[]
   configs: WebDAVConfig[]
   scanProgress: ScanProgress | null
@@ -10,7 +11,7 @@ interface MusicState {
   count: number
 
   loadConfigs: () => Promise<void>
-  loadTracks: (webdavId?: string) => Promise<void>
+  loadTracks: (webdavId?: string, force?: boolean) => Promise<void>
   loadFavorites: () => Promise<void>
   loadCount: () => Promise<void>
   setScanProgress: (progress: ScanProgress) => void
@@ -25,6 +26,7 @@ interface MusicState {
 
 export const useMusicStore = create<MusicState>((set, get) => ({
   tracks: [],
+  tracksLoaded: false,
   favorites: [],
   configs: [],
   scanProgress: null,
@@ -36,9 +38,10 @@ export const useMusicStore = create<MusicState>((set, get) => ({
     set({ configs })
   },
 
-  loadTracks: async (webdavId?: string) => {
+  loadTracks: async (webdavId?: string, force = false) => {
+    if (!force && get().tracksLoaded) return
     const tracks = await window.api.music.list(webdavId)
-    set({ tracks })
+    set({ tracks, tracksLoaded: true })
   },
 
   loadCount: async () => {
@@ -62,6 +65,7 @@ export const useMusicStore = create<MusicState>((set, get) => ({
   deleteConfig: async (id: string) => {
     await window.api.webdav.delete(id)
     await get().loadConfigs()
+    await get().loadTracks(undefined, true)
     await get().loadCount()
   },
 
@@ -69,7 +73,7 @@ export const useMusicStore = create<MusicState>((set, get) => ({
     const unsubscribe = window.api.scan.onProgress((progress) => {
       set({ scanProgress: progress, isScanning: progress.status === 'scanning' })
       if (progress.status === 'completed' || progress.status === 'cancelled') {
-        get().loadTracks()
+        get().loadTracks(undefined, true)
         get().loadCount()
       }
     })

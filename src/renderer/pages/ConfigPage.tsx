@@ -69,7 +69,7 @@ export default function ConfigPage(): JSX.Element {
     setClearing(true)
     await window.api.cache.clear()
     const store = useMusicStore.getState()
-    await store.loadTracks()
+    await store.loadTracks(undefined, true)
     await store.loadCount()
     setClearing(false)
   }, [])

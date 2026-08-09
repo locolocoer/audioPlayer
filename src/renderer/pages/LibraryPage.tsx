@@ -9,6 +9,15 @@ import type { MusicFile } from '../../main/types'
 type SortField = 'title' | 'artist' | 'album' | 'duration'
 type SortDir = 'asc' | 'desc'
 
+const t2sCache = new Map<string, string>()
+function toSimplified(title: string): string {
+  const cached = t2sCache.get(title)
+  if (cached !== undefined) return cached
+  const s = t2s(title)
+  t2sCache.set(title, s)
+  return s
+}
+
 export default function LibraryPage(): JSX.Element {
   const { tracks, loadTracks, configs, loadConfigs } = useMusicStore()
   const { requestPlay, setQueue } = usePlayerStore()
@@ -58,7 +67,7 @@ export default function LibraryPage(): JSX.Element {
     if (dedup) {
       const seen = new Map<string, MusicFile>()
       result.forEach((t) => {
-        const key = t2s(t.title)
+        const key = toSimplified(t.title)
         const existing = seen.get(key)
         if (!existing) {
           seen.set(key, t)

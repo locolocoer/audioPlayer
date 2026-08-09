@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import type { MusicFile } from '../../main/types'
 import { usePlayerStore } from '../stores/playerStore'
 import { useMusicStore } from '../stores/musicStore'
@@ -12,6 +12,8 @@ interface MusicListProps {
   onRowClick: (track: MusicFile) => void
   showFavorite?: boolean
 }
+
+const OVERSCAN = 10
 
 function formatDuration(secs: number): string {
   if (!secs) return '--:--'
@@ -164,6 +166,41 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; track: MusicFile } | null>(null)
   const [editTrack, setEditTrack] = useState<MusicFile | null>(null)
   const tableRef = useRef<HTMLDivElement>(null)
+  const rowRef = useRef<HTMLTableRowElement | null>(null)
+  const [scrollTop, setScrollTop] = useState(0)
+  const [viewportH, setViewportH] = useState(0)
+  const [rowHeight, setRowHeight] = useState(36)
+
+  useEffect(() => {
+    const container = tableRef.current
+    if (!container) return
+    const update = () => setViewportH(container.clientHeight)
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(container)
+    return () => ro.disconnect()
+  }, [])
+
+  useEffect(() => {
+    const container = tableRef.current
+    if (!container) return
+    const maxScroll = Math.max(0, tracks.length * rowHeight - container.clientHeight)
+    if (container.scrollTop > maxScroll) container.scrollTop = maxScroll
+  }, [tracks.length, rowHeight])
+
+  const start = Math.max(0, Math.floor(scrollTop / rowHeight) - OVERSCAN)
+  const end = Math.min(tracks.length, Math.ceil((scrollTop + viewportH) / rowHeight) + OVERSCAN)
+  const visible = tracks.slice(start, end)
+  const topPad = start * rowHeight
+  const bottomPad = Math.max(0, (tracks.length - end) * rowHeight)
+  const colCount = (showFavorite ? 1 : 0) + 5
+
+  useLayoutEffect(() => {
+    if (rowRef.current) {
+      const h = rowRef.current.offsetHeight
+      if (h > 0 && Math.abs(h - rowHeight) > 0.5) setRowHeight(h)
+    }
+  })
 
   if (tracks.length === 0) {
     return (
@@ -175,7 +212,7 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
 
   return (
     <>
-      <div className="music-table-container" ref={tableRef}>
+      <div className="music-table-container" ref={tableRef} onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}>
         <table className="music-table">
           <thead>
             <tr>
@@ -184,10 +221,10 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
               <th onClick={() => onSort('title')}>
                 歌名 <SortArrow field="title" current={sortField} dir={sortDir} />
               </th>
-              <th onClick={() => onSort('artist')}>
+              <th className="col-artist" onClick={() => onSort('artist')}>
                 歌手 <SortArrow field="artist" current={sortField} dir={sortDir} />
               </th>
-              <th onClick={() => onSort('album')}>
+              <th className="col-album" onClick={() => onSort('album')}>
                 专辑 <SortArrow field="album" current={sortField} dir={sortDir} />
               </th>
               <th onClick={() => onSort('duration')} style={{ width: '100px' }}>
@@ -196,38 +233,48 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
             </tr>
           </thead>
           <tbody>
-            {tracks.map((track, idx) => (
-              <tr
-                key={track.id}
-                className={currentTrack?.id === track.id ? 'playing' : ''}
-                onClick={() => onRowClick(track)}
-                onDoubleClick={() => onRowClick(track)}
-                onContextMenu={(e) => {
-                  e.preventDefault()
-                  setContextMenu({ x: e.clientX, y: e.clientY, track })
-                }}
-              >
-                {showFavorite && (
-                  <td style={{ padding: 0, textAlign: 'center' }}>
-                    <button
-                      className="btn-icon"
-                      style={{ width: 28, height: 28, color: track.favorite ? '#e94560' : undefined }}
-                      onClick={(e) => { e.stopPropagation(); toggleFavorite(track.id) }}
-                      title={track.favorite ? '取消收藏' : '收藏'}
-                    >
-                      <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-                        <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
-                      </svg>
-                    </button>
-                  </td>
-                )}
-                <td className="col-index">{idx + 1}</td>
-                <td className="col-title">{track.title || track.filename}</td>
-                <td className="col-artist">{track.artist || '未知'}</td>
-                <td className="col-album">{track.album || '未知'}</td>
-                <td className="col-duration">{formatDuration(track.duration)}</td>
-              </tr>
-            ))}
+            {topPad > 0 && (
+              <tr key="top-spacer"><td colSpan={colCount} style={{ height: topPad, padding: 0, border: 'none' }} /></tr>
+            )}
+            {visible.map((track, i) => {
+              const idx = start + i
+              return (
+                <tr
+                  key={track.id}
+                  ref={i === 0 ? rowRef : undefined}
+                  className={currentTrack?.id === track.id ? 'playing' : ''}
+                  onClick={() => onRowClick(track)}
+                  onDoubleClick={() => onRowClick(track)}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    setContextMenu({ x: e.clientX, y: e.clientY, track })
+                  }}
+                >
+                  {showFavorite && (
+                    <td style={{ padding: 0, textAlign: 'center' }}>
+                      <button
+                        className="btn-icon"
+                        style={{ width: 28, height: 28, color: track.favorite ? '#e94560' : undefined }}
+                        onClick={(e) => { e.stopPropagation(); toggleFavorite(track.id) }}
+                        title={track.favorite ? '取消收藏' : '收藏'}
+                      >
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                          <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                        </svg>
+                      </button>
+                    </td>
+                  )}
+                  <td className="col-index">{idx + 1}</td>
+                  <td className="col-title">{track.title || track.filename}</td>
+                  <td className="col-artist">{track.artist || '未知'}</td>
+                  <td className="col-album">{track.album || '未知'}</td>
+                  <td className="col-duration">{formatDuration(track.duration)}</td>
+                </tr>
+              )
+            })}
+            {bottomPad > 0 && (
+              <tr key="bottom-spacer"><td colSpan={colCount} style={{ height: bottomPad, padding: 0, border: 'none' }} /></tr>
+            )}
           </tbody>
         </table>
       </div>
