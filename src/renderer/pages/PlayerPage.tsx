@@ -72,9 +72,11 @@ export default function PlayerPage(): JSX.Element {
           const url = URL.createObjectURL(blob)
           if (coverCache.size >= COVER_CACHE_MAX) {
             const firstKey = coverCache.keys().next().value
-            const oldUrl = coverCache.get(firstKey)
-            if (oldUrl) URL.revokeObjectURL(oldUrl)
-            coverCache.delete(firstKey)
+            if (firstKey !== undefined) {
+              const oldUrl = coverCache.get(firstKey)
+              if (oldUrl) URL.revokeObjectURL(oldUrl)
+              coverCache.delete(firstKey)
+            }
           }
           coverCache.set(key, url)
           setCoverUrl(url)

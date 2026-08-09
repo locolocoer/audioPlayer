@@ -66,6 +66,7 @@ function parseFileName(filename: string): { title: string; artist: string } | nu
 }
 
 function isAudioFile(filename: string): boolean {
+  if (filename.startsWith('._')) return false
   const ext = filename.toLowerCase().slice(filename.lastIndexOf('.'))
   return SUPPORTED_EXTENSIONS.includes(ext)
 }
@@ -126,6 +127,7 @@ export async function scanWebDAV(
       const fullPath = dirPath === '/' ? `/${item.basename}` : `${dirPath}/${item.basename}`
 
       if (item.type === 'directory') {
+        if (item.basename === '__MACOSX') continue
         totalCount++
         await scanDirectory(fullPath)
       } else if (isAudioFile(item.basename)) {
@@ -195,7 +197,8 @@ export async function scanWebDAV(
           album,
           duration: durationNum,
           webdavId: config.id,
-          scannedAt: new Date().toISOString()
+          scannedAt: new Date().toISOString(),
+          favorite: 0
         }
 
         try {
@@ -256,7 +259,7 @@ export async function scanLocal(
     if (cancelFlag) return
     onProgress({ currentPath: dir, scannedCount, totalCount, status: 'scanning' })
 
-    let entries: fs.Dirent[]
+    let entries: import('fs').Dirent[]
     try {
       entries = fsLocal.readdirSync(dir, { withFileTypes: true })
     } catch {
@@ -268,6 +271,7 @@ export async function scanLocal(
       const fullPath = pathLocal.join(dir, entry.name)
 
       if (entry.isDirectory()) {
+        if (entry.name === '__MACOSX') continue
         totalCount++
         await walk(fullPath)
       } else if (entry.isFile() && isAudioFile(entry.name)) {
@@ -308,7 +312,8 @@ export async function scanLocal(
           album,
           duration,
           webdavId: config.id,
-          scannedAt: new Date().toISOString()
+          scannedAt: new Date().toISOString(),
+          favorite: 0
         }
 
         try {

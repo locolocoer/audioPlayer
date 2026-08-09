@@ -1,11 +1,23 @@
 import initSqlJs, { Database as SqlJsDatabase } from 'sql.js'
+import type { BindParams, Statement } from 'sql.js'
 import path from 'path'
 import fs from 'fs'
 import { app } from 'electron'
+import { t2s } from 'chinese-s2t'
 import type { WebDAVConfig, MusicFile, Playlist } from './types'
 
 let db: SqlJsDatabase
 let dbPath: string
+
+const titleKeyCache = new Map<string, string>()
+function toTitleKey(title: string): string {
+  const cacheKey = title
+  const cached = titleKeyCache.get(cacheKey)
+  if (cached !== undefined) return cached
+  const key = t2s(title || '')
+  titleKeyCache.set(cacheKey, key)
+  return key
+}
 
 function saveToDisk(): void {
   if (db) {
@@ -70,6 +82,10 @@ export async function initDatabase(): Promise<void> {
     db.run('ALTER TABLE music_files ADD COLUMN favorite INTEGER NOT NULL DEFAULT 0')
   } catch { /* column already exists */ }
 
+  try {
+    db.run('ALTER TABLE music_files ADD COLUMN title_key TEXT NOT NULL DEFAULT \'\'')
+  } catch { /* column already exists */ }
+
   db.run(`
     CREATE TABLE IF NOT EXISTS playlists (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -79,9 +95,30 @@ export async function initDatabase(): Promise<void> {
     )
   `)
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS source_prefs (
+      title_key TEXT PRIMARY KEY,
+      trackId INTEGER NOT NULL,
+      updatedAt TEXT NOT NULL
+    )
+  `)
+
   db.run('CREATE INDEX IF NOT EXISTS idx_music_webdav ON music_files(webdavId)')
   db.run('CREATE INDEX IF NOT EXISTS idx_music_title ON music_files(title)')
+  db.run('CREATE INDEX IF NOT EXISTS idx_music_title_key ON music_files(title_key)')
   db.run('CREATE INDEX IF NOT EXISTS idx_music_artist ON music_files(artist)')
+
+  db.run("DELETE FROM music_files WHERE filename LIKE '._%'")
+
+  const missingKeys = queryAll<{ id: number; title: string; filename: string }>(
+    'SELECT id, title, filename FROM music_files WHERE title_key = \'\''
+  )
+  if (missingKeys.length > 0) {
+    for (const row of missingKeys) {
+      db.run('UPDATE music_files SET title_key = ? WHERE id = ?',
+        [toTitleKey(row.title || row.filename), row.id])
+    }
+  }
 
   saveToDisk()
 }
@@ -107,16 +144,16 @@ function rowsToObjects<T>(result: { columns: string[]; values: unknown[][] }): T
   })
 }
 
-function queryOne<T>(sql: string, params?: unknown[]): T | undefined {
+function queryOne<T>(sql: string, params?: BindParams): T | undefined {
   const results = queryAll<T>(sql, params)
   return results[0]
 }
 
-function queryAll<T>(sql: string, params?: unknown[]): T[] {
-  let stmt: { bind?: (params: unknown[]) => boolean; step: () => boolean; getAsObject: () => Record<string, unknown>; free: () => void } | null = null
+function queryAll<T>(sql: string, params?: BindParams): T[] {
+  let stmt: Statement | null = null
   try {
     stmt = db.prepare(sql)
-    if (params && stmt.bind) {
+    if (params) {
       stmt.bind(params)
     }
     const rows: T[] = []
@@ -143,14 +180,20 @@ export function getWebDAVConfigs(): WebDAVConfig[] {
   return queryAll<WebDAVConfig>('SELECT * FROM webdav_configs WHERE enabled = 1')
 }
 
+export function getAllWebDAVConfigs(): WebDAVConfig[] {
+  return queryAll<WebDAVConfig>('SELECT * FROM webdav_configs')
+}
+
 export function deleteWebDAVConfig(id: string): void {
   db.run('DELETE FROM webdav_configs WHERE id = ?', [id])
   db.run('DELETE FROM music_files WHERE webdavId = ?', [id])
+  db.run('DELETE FROM source_prefs WHERE trackId NOT IN (SELECT id FROM music_files)')
   saveToDisk()
 }
 
 export function clearAllMusicFiles(): void {
   db.run('DELETE FROM music_files')
+  db.run('DELETE FROM source_prefs')
   saveToDisk()
 }
 
@@ -167,9 +210,9 @@ export function deduplicateMusicFiles(): void {
 // Music Files
 export function insertMusicFile(file: Omit<MusicFile, 'id'>): void {
   db.run(
-    `INSERT OR REPLACE INTO music_files (path, filename, size, mtime, title, artist, album, duration, webdavId, scannedAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [file.path, file.filename, file.size, file.mtime, file.title, file.artist, file.album, file.duration, file.webdavId, file.scannedAt]
+    `INSERT OR REPLACE INTO music_files (path, filename, size, mtime, title, title_key, artist, album, duration, webdavId, scannedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [file.path, file.filename, file.size, file.mtime, file.title, toTitleKey(file.title || file.filename), file.artist, file.album, file.duration, file.webdavId, file.scannedAt]
   )
   saveToDisk()
 }
@@ -195,8 +238,8 @@ export function fillEmptyMetaIfEmpty(id: number, meta: { title?: string; artist?
   )
   if (!row) return
   const sets: string[] = []
-  const vals: unknown[] = []
-  if (meta.title && (!row.title || row.title === meta.title)) { sets.push('title = ?'); vals.push(meta.title) }
+  const vals: BindParams = []
+  if (meta.title && (!row.title || row.title === meta.title)) { sets.push('title = ?', 'title_key = ?'); vals.push(meta.title, toTitleKey(meta.title)) }
   if (meta.artist && !row.artist) { sets.push('artist = ?'); vals.push(meta.artist) }
   if (meta.album && !row.album) { sets.push('album = ?'); vals.push(meta.album) }
   if (meta.duration && !row.duration) { sets.push('duration = ?'); vals.push(meta.duration) }
@@ -207,15 +250,32 @@ export function fillEmptyMetaIfEmpty(id: number, meta: { title?: string; artist?
 }
 
 export function getMusicFiles(webdavId?: string): MusicFile[] {
-  if (webdavId) {
-    return queryAll<MusicFile>(
-      'SELECT * FROM music_files WHERE webdavId = ? AND id IN (SELECT MIN(id) FROM music_files GROUP BY webdavId, title) ORDER BY title',
-      [webdavId]
-    )
+  const rows = webdavId
+    ? queryAll<MusicFile>('SELECT * FROM music_files WHERE webdavId = ?', [webdavId])
+    : queryAll<MusicFile>('SELECT * FROM music_files')
+
+  const byKey = new Map<string, MusicFile>()
+  for (const row of rows) {
+    const key = row.title_key || row.title || row.filename
+    const cur = byKey.get(key)
+    if (!cur || row.id < cur.id) byKey.set(key, row)
   }
-  return queryAll<MusicFile>(
-    'SELECT * FROM music_files WHERE id IN (SELECT MIN(id) FROM music_files GROUP BY webdavId, title) ORDER BY title'
-  )
+
+  if (!webdavId) {
+    const prefs = getSourcePrefs()
+    if (prefs.size > 0) {
+      for (const row of rows) {
+        const key = row.title_key || row.title || row.filename
+        if (prefs.get(key) === row.id) byKey.set(key, row)
+      }
+    }
+  }
+
+  return Array.from(byKey.values()).sort((a, b) => {
+    const ta = String(a.title_key || a.title || a.filename || '')
+    const tb = String(b.title_key || b.title || b.filename || '')
+    return ta.localeCompare(tb, 'zh')
+  })
 }
 
 export function getExistingFilePaths(webdavId: string): Map<string, { mtime: string; size: number; id: number; hasArtist: boolean; hasAlbum: boolean; hasDuration: boolean }> {
@@ -243,8 +303,8 @@ export function deleteMusicFileByPath(webdavId: string, filePath: string): void 
 
 export function updateMusicFileMetadata(webdavId: string, filePath: string, meta: { title?: string; artist?: string; album?: string; duration?: number }): void {
   const sets: string[] = []
-  const vals: unknown[] = []
-  if (meta.title !== undefined) { sets.push('title = ?'); vals.push(meta.title) }
+  const vals: BindParams = []
+  if (meta.title !== undefined) { sets.push('title = ?', 'title_key = ?'); vals.push(meta.title, toTitleKey(meta.title)) }
   if (meta.artist !== undefined) { sets.push('artist = ?'); vals.push(meta.artist) }
   if (meta.album !== undefined) { sets.push('album = ?'); vals.push(meta.album) }
   if (meta.duration !== undefined) { sets.push('duration = ?'); vals.push(meta.duration) }
@@ -254,16 +314,44 @@ export function updateMusicFileMetadata(webdavId: string, filePath: string, meta
   saveToDisk()
 }
 
+export function getMusicFilesByIds(ids: number[]): MusicFile[] {
+  if (ids.length === 0) return []
+  const result: MusicFile[] = []
+  const CHUNK = 500
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const chunk = ids.slice(i, i + CHUNK)
+    const placeholders = chunk.map(() => '?').join(',')
+    result.push(...queryAll<MusicFile>(`SELECT * FROM music_files WHERE id IN (${placeholders})`, chunk))
+  }
+  return result
+}
+
 export function getMusicFileCount(): number {
-  const row = queryOne<{ count: number }>('SELECT COUNT(*) as count FROM music_files')
+  const row = queryOne<{ count: number }>('SELECT COUNT(*) as count FROM (SELECT 1 FROM music_files GROUP BY title_key)')
   return row ? row.count : 0
 }
 
 export function findAlternativeSources(title: string, webdavId: string): MusicFile[] {
   return queryAll<MusicFile>(
-    'SELECT * FROM music_files WHERE title = ? AND webdavId = ? ORDER BY CASE WHEN filename LIKE \'%.mp3\' THEN 0 ELSE 1 END, id',
-    [title, webdavId]
+    `SELECT * FROM music_files WHERE title_key = ?
+     ORDER BY CASE WHEN webdavId = ? THEN 0 ELSE 1 END,
+              CASE WHEN filename LIKE '%.mp3' THEN 0 ELSE 1 END,
+              id`,
+    [toTitleKey(title), webdavId]
   )
+}
+
+export function getSourcePrefs(): Map<string, number> {
+  const rows = queryAll<{ title_key: string; trackId: number }>('SELECT title_key, trackId FROM source_prefs')
+  const map = new Map<string, number>()
+  for (const row of rows) map.set(row.title_key, row.trackId)
+  return map
+}
+
+export function setSourcePref(title: string, trackId: number): void {
+  db.run('INSERT OR REPLACE INTO source_prefs (title_key, trackId, updatedAt) VALUES (?, ?, ?)',
+    [toTitleKey(title), trackId, new Date().toISOString()])
+  saveToDisk()
 }
 
 export function toggleFavorite(id: number): boolean {
@@ -281,8 +369,8 @@ export function getFavoriteFiles(): MusicFile[] {
 
 export function updateMusicFileMeta(id: number, meta: { title?: string; artist?: string; album?: string }): void {
   const sets: string[] = []
-  const vals: unknown[] = []
-  if (meta.title !== undefined) { sets.push('title = ?'); vals.push(meta.title) }
+  const vals: BindParams = []
+  if (meta.title !== undefined) { sets.push('title = ?', 'title_key = ?'); vals.push(meta.title, toTitleKey(meta.title)) }
   if (meta.artist !== undefined) { sets.push('artist = ?'); vals.push(meta.artist) }
   if (meta.album !== undefined) { sets.push('album = ?'); vals.push(meta.album) }
   if (sets.length === 0) return

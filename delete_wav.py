@@ -1,3 +1,16 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+⚠️⚠️⚠️  警告：这是一个【破坏性】的一次性维护脚本，请谨慎使用！  ⚠️⚠️⚠️
+
+该脚本会扫描并【删除】 ROOT_DIR（默认 E:\\audio）下的所有 .wav 文件，
+且路径已硬编码，不保证数据可恢复。
+
+- 直接运行只会进入确认流程，不会立即删除；
+- 必须显式附加 `--yes` 参数才会真正执行删除逻辑。
+- 仅用于清理冗余 WAV 文件，执行前请自行确认数据安全。
+"""
+
 import os
 import sys
 
@@ -40,6 +53,15 @@ def delete_files(files, confirm_msg):
     print(f"\n完成: 删除 {deleted} 个, 失败 {errors} 个")
 
 def main():
+    if "--yes" not in sys.argv:
+        print("=" * 60)
+        print("⚠️  这是破坏性删除脚本！")
+        print("    它会删除 WAV 文件，且路径已硬编码，请勿误执行。")
+        print("    如确认要继续，请附加 --yes 参数，例如：")
+        print("      python delete_wav.py --yes")
+        print("=" * 60)
+        sys.exit(0)
+
     if not os.path.exists(ROOT_DIR):
         print(f"目录不存在: {ROOT_DIR}")
         sys.exit(1)

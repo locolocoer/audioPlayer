@@ -20,13 +20,16 @@ const api = {
   },
   music: {
     list: (webdavId?: string): Promise<MusicFile[]> => ipcRenderer.invoke('music:list', webdavId),
+    byIds: (ids: number[]): Promise<MusicFile[]> => ipcRenderer.invoke('music:byIds', ids),
     count: (): Promise<number> => ipcRenderer.invoke('music:count'),
     toggleFavorite: (id: number): Promise<boolean> => ipcRenderer.invoke('music:favorite:toggle', id),
     favoriteList: (): Promise<MusicFile[]> => ipcRenderer.invoke('music:favorite:list'),
     updateMeta: (id: number, meta: { title?: string; artist?: string; album?: string }): Promise<boolean> =>
       ipcRenderer.invoke('music:updateMeta', id, meta),
     alternatives: (title: string, webdavId: string): Promise<MusicFile[]> =>
-      ipcRenderer.invoke('music:alternatives', title, webdavId)
+      ipcRenderer.invoke('music:alternatives', title, webdavId),
+    setSourcePref: (title: string, trackId: number): Promise<boolean> =>
+      ipcRenderer.invoke('music:setSourcePref', title, trackId)
   },
   playlist: {
     save: (playlist: Playlist): Promise<boolean> => ipcRenderer.invoke('playlist:save', playlist),

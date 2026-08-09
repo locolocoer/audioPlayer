@@ -6,6 +6,7 @@ import {
   getWebDAVConfigs,
   deleteWebDAVConfig,
   getMusicFiles,
+  getMusicFilesByIds,
   getMusicFileCount,
   clearAllMusicFiles,
   savePlaylist,
@@ -14,7 +15,8 @@ import {
   toggleFavorite,
   getFavoriteFiles,
   updateMusicFileMeta,
-  findAlternativeSources
+  findAlternativeSources,
+  setSourcePref
 } from './database'
 import type { WebDAVConfig, MusicFile, ScanProgress, Playlist, ScanSettings } from './types'
 import fs from 'fs'
@@ -78,6 +80,10 @@ export function registerIpcHandlers(): void {
     return getMusicFiles(webdavId)
   })
 
+  ipcMain.handle('music:byIds', async (_event, ids: number[]) => {
+    return getMusicFilesByIds(ids)
+  })
+
   ipcMain.handle('music:count', async () => {
     return getMusicFileCount()
   })
@@ -97,6 +103,11 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('music:alternatives', async (_event, title: string, webdavId: string) => {
     return findAlternativeSources(title, webdavId)
+  })
+
+  ipcMain.handle('music:setSourcePref', async (_event, title: string, trackId: number) => {
+    setSourcePref(title, trackId)
+    return true
   })
 
   // Playlist

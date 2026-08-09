@@ -3,20 +3,9 @@ import { useMusicStore } from '../stores/musicStore'
 import { usePlayerStore } from '../stores/playerStore'
 import { usePlaylistStore } from '../stores/playlistStore'
 import MusicList from '../components/MusicList'
-import { t2s } from 'chinese-s2t'
-import type { MusicFile } from '../../main/types'
 
 type SortField = 'title' | 'artist' | 'album' | 'duration'
 type SortDir = 'asc' | 'desc'
-
-const t2sCache = new Map<string, string>()
-function toSimplified(title: string): string {
-  const cached = t2sCache.get(title)
-  if (cached !== undefined) return cached
-  const s = t2s(title)
-  t2sCache.set(title, s)
-  return s
-}
 
 export default function LibraryPage(): JSX.Element {
   const { tracks, loadTracks, configs, loadConfigs } = useMusicStore()
@@ -26,7 +15,6 @@ export default function LibraryPage(): JSX.Element {
   const [sortField, setSortField] = useState<SortField>('title')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [filterConfig, setFilterConfig] = useState<string>('')
-  const [dedup, setDedup] = useState(() => localStorage.getItem('dedup') === '1')
 
   useEffect(() => {
     loadConfigs()
@@ -64,27 +52,6 @@ export default function LibraryPage(): JSX.Element {
       }
       return sortDir === 'asc' ? cmp : -cmp
     })
-    if (dedup) {
-      const seen = new Map<string, MusicFile>()
-      result.forEach((t) => {
-        const key = toSimplified(t.title)
-        const existing = seen.get(key)
-        if (!existing) {
-          seen.set(key, t)
-        } else {
-          const newIsMp3 = t.filename.toLowerCase().endsWith('.mp3')
-          const oldIsMp3 = existing.filename.toLowerCase().endsWith('.mp3')
-          if (newIsMp3 && !oldIsMp3) {
-            seen.set(key, t)
-          } else if (!newIsMp3 && oldIsMp3) {
-            // keep existing mp3
-          } else if (t.title === key && existing.title !== key) {
-            seen.set(key, t)
-          }
-        }
-      })
-      result = Array.from(seen.values())
-    }
     return result
   }, [tracks, search, filterConfig, sortField, sortDir])
 

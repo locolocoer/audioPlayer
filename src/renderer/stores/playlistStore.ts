@@ -4,15 +4,52 @@ import { usePlayerStore } from './playerStore'
 
 interface PlaylistState {
   playlist: MusicFile[]
+  loadPlaylist: () => Promise<void>
   addTrack: (track: MusicFile) => void
   addTracks: (tracks: MusicFile[]) => void
   removeTrack: (id: number) => void
+  replaceTrack: (oldId: number, newTrack: MusicFile) => void
   clearPlaylist: () => void
   isInPlaylist: (id: number) => boolean
 }
 
+const PLAYLIST_ID = 1
+
+function persistPlaylist(playlist: MusicFile[]): void {
+  window.api.playlist.save({
+    id: PLAYLIST_ID,
+    name: '播放列表',
+    trackIds: JSON.stringify(playlist.map((t) => t.id)),
+    createdAt: new Date().toISOString()
+  }).catch(() => {})
+}
+
 export const usePlaylistStore = create<PlaylistState>((set, get) => ({
   playlist: [],
+
+  loadPlaylist: async () => {
+    try {
+      const savedList = await window.api.playlist.list()
+      const saved = savedList.find((p) => p.id === PLAYLIST_ID) || savedList[0]
+      let ids: number[] = []
+      if (saved && saved.trackIds) {
+        try {
+          const parsed = JSON.parse(saved.trackIds)
+          if (Array.isArray(parsed)) {
+            ids = parsed.map((n: unknown) => Number(n)).filter((n: number) => Number.isFinite(n))
+          }
+        } catch { /* ignore */ }
+      }
+      let tracks: MusicFile[] = []
+      if (ids.length > 0) {
+        const fetched = await window.api.music.byIds(ids)
+        const idMap = new Map(fetched.map((t) => [t.id, t]))
+        tracks = ids.map((id) => idMap.get(id)).filter((t): t is MusicFile => !!t)
+      }
+      set({ playlist: tracks })
+      usePlayerStore.getState().syncPlaylist(tracks)
+    } catch { /* ignore */ }
+  },
 
   addTrack: (track: MusicFile) => {
     const state = get()
@@ -20,6 +57,7 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
     const updated = [...state.playlist, track]
     set({ playlist: updated })
     usePlayerStore.getState().syncPlaylist(updated)
+    persistPlaylist(updated)
   },
 
   addTracks: (tracks: MusicFile[]) => {
@@ -30,17 +68,28 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
     const updated = [...state.playlist, ...newTracks]
     set({ playlist: updated })
     usePlayerStore.getState().syncPlaylist(updated)
+    persistPlaylist(updated)
   },
 
   removeTrack: (id: number) => {
     const updated = get().playlist.filter((t) => t.id !== id)
     set({ playlist: updated })
     usePlayerStore.getState().syncPlaylist(updated)
+    persistPlaylist(updated)
+  },
+
+  replaceTrack: (oldId: number, newTrack: MusicFile) => {
+    const updated = get().playlist.map((t) => t.id === oldId ? newTrack : t)
+    if (updated.every((t, i) => t.id === get().playlist[i]?.id)) return
+    set({ playlist: updated })
+    usePlayerStore.getState().syncPlaylist(updated)
+    persistPlaylist(updated)
   },
 
   clearPlaylist: () => {
     set({ playlist: [] })
     usePlayerStore.getState().syncPlaylist([])
+    persistPlaylist([])
   },
 
   isInPlaylist: (id: number) => {

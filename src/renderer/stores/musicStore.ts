@@ -1,5 +1,9 @@
 import { create } from 'zustand'
 import type { MusicFile, ScanProgress, WebDAVConfig, ScanSettings } from '../../main/types'
+import { usePlayerStore } from './playerStore'
+import { usePlaylistStore } from './playlistStore'
+
+let scanProgressUnsub: (() => void) | null = null
 
 interface MusicState {
   tracks: MusicFile[]
@@ -22,6 +26,7 @@ interface MusicState {
   cancelScan: () => Promise<void>
   toggleFavorite: (id: number) => Promise<boolean>
   updateMeta: (id: number, meta: { title?: string; artist?: string; album?: string }) => Promise<void>
+  switchTrackSource: (oldTrackId: number, newTrack: MusicFile) => Promise<void>
 }
 
 export const useMusicStore = create<MusicState>((set, get) => ({
@@ -70,7 +75,8 @@ export const useMusicStore = create<MusicState>((set, get) => ({
   },
 
   startScan: async (config: WebDAVConfig, scanSettings?: ScanSettings) => {
-    const unsubscribe = window.api.scan.onProgress((progress) => {
+    if (scanProgressUnsub) scanProgressUnsub()
+    scanProgressUnsub = window.api.scan.onProgress((progress) => {
       set({ scanProgress: progress, isScanning: progress.status === 'scanning' })
       if (progress.status === 'completed' || progress.status === 'cancelled') {
         get().loadTracks(undefined, true)
@@ -112,5 +118,15 @@ export const useMusicStore = create<MusicState>((set, get) => ({
       tracks: s.tracks.map((t) => t.id === id ? { ...t, ...meta } : t),
       favorites: s.favorites.map((t) => t.id === id ? { ...t, ...meta } : t)
     }))
+  },
+
+  switchTrackSource: async (oldTrackId: number, newTrack: MusicFile) => {
+    await window.api.music.setSourcePref(newTrack.title, newTrack.id)
+    set((s) => ({
+      tracks: s.tracks.map((t) => t.id === oldTrackId ? newTrack : t),
+      favorites: s.favorites.map((t) => t.id === oldTrackId ? newTrack : t)
+    }))
+    usePlayerStore.getState().replaceTrack(oldTrackId, newTrack)
+    usePlaylistStore.getState().replaceTrack(oldTrackId, newTrack)
   }
 }))

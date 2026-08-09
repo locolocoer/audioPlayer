@@ -519,6 +519,11 @@ body {
   cursor: pointer;
 }
 
+.music-table tr.virtual-spacer:hover td {
+  background: transparent;
+  cursor: default;
+}
+
 .music-table tr.playing td {
   background: rgba(233, 69, 96, 0.12);
 }

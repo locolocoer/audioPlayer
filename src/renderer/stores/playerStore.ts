@@ -30,6 +30,7 @@ interface PlayerState {
   togglePlayMode: () => void
   seek: (time: number) => void
   syncPlaylist: (list: MusicFile[]) => void
+  replaceTrack: (oldId: number, newTrack: MusicFile) => void
   onAudioLoaded: () => void
   onAudioError: (error: string) => void
   onAudioEnded: () => void
@@ -127,6 +128,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   syncPlaylist: (list: MusicFile[]) => {
     set({ playlist: list })
+  },
+
+  replaceTrack: (oldId: number, newTrack: MusicFile) => {
+    set((s) => ({
+      currentTrack: s.currentTrack?.id === oldId ? newTrack : s.currentTrack,
+      pendingTrack: s.pendingTrack?.id === oldId ? newTrack : s.pendingTrack,
+      queue: s.queue.map((t) => t.id === oldId ? newTrack : t),
+      playlist: s.playlist.map((t) => t.id === oldId ? newTrack : t)
+    }))
   },
 
   onAudioLoaded: () => {

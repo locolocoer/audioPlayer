@@ -34,20 +34,29 @@ function EditModal({ track, onClose }: { track: MusicFile; onClose: () => void }
   const [sources, setSources] = useState<MusicFile[]>([])
   const [activeTrack, setActiveTrack] = useState<MusicFile>(track)
   const updateMeta = useMusicStore((s) => s.updateMeta)
+  const switchTrackSource = useMusicStore((s) => s.switchTrackSource)
+  const configs = useMusicStore((s) => s.configs)
 
   useEffect(() => {
     window.api.music.alternatives(track.title, track.webdavId).then((list) => {
       setSources(list)
-      const prefId = Number(localStorage.getItem(`source_pref:${track.title}`))
-      const preferred = prefId ? list.find((s) => s.id === prefId) : undefined
-      setActiveTrack(preferred || list.find((s) => s.id === track.id) || track)
+      setActiveTrack(list.find((s) => s.id === track.id) || track)
     }).catch(() => {})
   }, [track.title, track.webdavId, track.id])
 
-  const handleSave = () => {
-    updateMeta(track.id, { title, artist, album })
+  const sourceName = (id: string): string => {
+    const c = configs.find((x) => x.id === id)
+    if (c) return c.name || c.url
+    return id === track.webdavId ? '当前源' : id
+  }
+
+  const handleSave = async () => {
+    const meta = { title, artist, album }
     if (activeTrack.id !== track.id) {
-      localStorage.setItem(`source_pref:${track.title}`, String(activeTrack.id))
+      await updateMeta(activeTrack.id, meta)
+      await switchTrackSource(track.id, { ...activeTrack, ...meta })
+    } else {
+      await updateMeta(track.id, meta)
     }
     onClose()
   }
@@ -91,7 +100,7 @@ function EditModal({ track, onClose }: { track: MusicFile; onClose: () => void }
             <select value={activeTrack.id} onChange={(e) => switchSource(Number(e.target.value))}>
               {sources.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {fmt(s.filename)} — {s.filename}
+                  {sourceName(s.webdavId)} · {fmt(s.filename)} — {s.filename}
                 </option>
               ))}
             </select>
@@ -171,7 +180,7 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
   const [viewportH, setViewportH] = useState(0)
   const [rowHeight, setRowHeight] = useState(36)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const container = tableRef.current
     if (!container) return
     const update = () => setViewportH(container.clientHeight)
@@ -179,7 +188,7 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
     const ro = new ResizeObserver(update)
     ro.observe(container)
     return () => ro.disconnect()
-  }, [])
+  }, [tracks.length > 0])
 
   useEffect(() => {
     const container = tableRef.current
@@ -234,7 +243,7 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
           </thead>
           <tbody>
             {topPad > 0 && (
-              <tr key="top-spacer"><td colSpan={colCount} style={{ height: topPad, padding: 0, border: 'none' }} /></tr>
+              <tr key="top-spacer" className="virtual-spacer"><td colSpan={colCount} style={{ height: topPad, padding: 0, border: 'none' }} /></tr>
             )}
             {visible.map((track, i) => {
               const idx = start + i
@@ -273,7 +282,7 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
               )
             })}
             {bottomPad > 0 && (
-              <tr key="bottom-spacer"><td colSpan={colCount} style={{ height: bottomPad, padding: 0, border: 'none' }} /></tr>
+              <tr key="bottom-spacer" className="virtual-spacer"><td colSpan={colCount} style={{ height: bottomPad, padding: 0, border: 'none' }} /></tr>
             )}
           </tbody>
         </table>

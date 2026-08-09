@@ -1,19 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useMusicStore } from '../stores/musicStore'
+import { usePlaylistStore } from '../stores/playlistStore'
 import type { WebDAVConfig, ScanSettings } from '../../main/types'
 import { DEFAULT_SCAN_SETTINGS } from '../../main/types'
-
-function useSetting(key: string, defaultValue: boolean): [boolean, (v: boolean) => void] {
-  const [value, setValue] = useState(() => {
-    const saved = localStorage.getItem(key)
-    return saved !== null ? saved === '1' : defaultValue
-  })
-  const update = useCallback((v: boolean) => {
-    setValue(v)
-    localStorage.setItem(key, v ? '1' : '0')
-  }, [key])
-  return [value, update]
-}
 
 export default function ConfigPage(): JSX.Element {
   const configs = useMusicStore((s) => s.configs)
@@ -24,7 +13,6 @@ export default function ConfigPage(): JSX.Element {
   const cancelScan = useMusicStore((s) => s.cancelScan)
   const isScanning = useMusicStore((s) => s.isScanning)
   const scanProgress = useMusicStore((s) => s.scanProgress)
-  const [dedup, setDedup] = useSetting('dedup', false)
   const [showForm, setShowForm] = useState(false)
   const [testing, setTesting] = useState(false)
   const [clearing, setClearing] = useState(false)
@@ -38,7 +26,8 @@ export default function ConfigPage(): JSX.Element {
     password: '',
     port: 443,
     enabled: true,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    sourceType: 'webdav'
   })
 
   useEffect(() => {
@@ -50,7 +39,7 @@ export default function ConfigPage(): JSX.Element {
     const config = { ...form, id, createdAt: form.createdAt || new Date().toISOString() }
     await saveConfig(config)
     setShowForm(false)
-    setForm({ id: '', name: '', url: 'https://webdav.123pan.cn/webdav', username: '', password: '', port: 443, enabled: true, createdAt: new Date().toISOString() })
+    setForm({ id: '', name: '', url: 'https://webdav.123pan.cn/webdav', username: '', password: '', port: 443, enabled: true, createdAt: new Date().toISOString(), sourceType: 'webdav' })
   }, [form, saveConfig])
 
   const handleTest = useCallback(async () => {
@@ -71,6 +60,7 @@ export default function ConfigPage(): JSX.Element {
     const store = useMusicStore.getState()
     await store.loadTracks(undefined, true)
     await store.loadCount()
+    await usePlaylistStore.getState().loadPlaylist()
     setClearing(false)
   }, [])
 
@@ -148,22 +138,6 @@ export default function ConfigPage(): JSX.Element {
         <p className="settings-hint">退避公式: 延迟 × 倍数<sup>重试次数</sup> (例: 3000×2⁰=3秒, 3000×2¹=6秒, 3000×2²=12秒...)</p>
       </div>
 
-      <div className="scan-settings">
-        <h3>显示设置</h3>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <span style={{ fontSize: 14 }}>繁简去重</span>
-            <p className="settings-hint" style={{ marginTop: 4 }}>开启后，音乐库中繁简同名的歌曲只保留简体版本</p>
-          </div>
-          <button
-            className={`btn ${dedup ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setDedup(!dedup)}
-          >
-            {dedup ? '已开启' : '已关闭'}
-          </button>
-        </div>
-      </div>
-
       {showForm && (
         <div className="modal-overlay" onClick={() => setShowForm(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -227,7 +201,7 @@ export default function ConfigPage(): JSX.Element {
               {config.sourceType !== 'local' && (
                 <button className="btn btn-sm" onClick={() => { setForm(config); setShowForm(true) }}>编辑</button>
               )}
-              <button className="btn btn-sm btn-danger" onClick={() => deleteConfig(config.id)}>删除</button>
+              <button className="btn btn-sm btn-danger" onClick={() => { deleteConfig(config.id); usePlaylistStore.getState().loadPlaylist() }}>删除</button>
             </div>
           </div>
         ))}

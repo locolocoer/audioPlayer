@@ -1,4 +1,4 @@
-﻿import { app, BrowserWindow, shell, ipcMain, Menu, protocol } from 'electron'
+import { app, BrowserWindow, shell, ipcMain, Menu, protocol } from 'electron'
 import { join } from 'path'
 import fs from 'fs'
 import path from 'path'
@@ -7,21 +7,31 @@ import crypto from 'crypto'
 import { execFile } from 'child_process'
 import { pathToFileURL } from 'url'
 import { registerIpcHandlers } from './ipc'
-import { initDatabase, closeDatabase, getWebDAVConfigs } from './database'
+import { initDatabase, closeDatabase, getAllWebDAVConfigs } from './database'
 import { buildBaseUrl, createWebDAVClient, downloadFile } from './webdav'
 
 let mainWindow: BrowserWindow | null = null
 const tempDir = path.join(os.tmpdir(), 'audioplayer-cache')
 
+function findResourceFile(name: string): string | null {
+  const devPath = path.join(__dirname, '..', '..', 'resources', name)
+  if (fs.existsSync(devPath)) return devPath
+  if (process.resourcesPath) {
+    const bundled = path.join(process.resourcesPath, 'resources', name)
+    if (fs.existsSync(bundled)) return bundled
+  }
+  return null
+}
+
 function createWindow(): void {
-  const iconPath = path.join(__dirname, '../../resources/icon.png')
+  const iconPath = findResourceFile('icon.png')
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     minWidth: 800,
     minHeight: 600,
-    title: '椋為奔闊充箰',
-    icon: iconPath,
+    title: '飞鱼音乐',
+    icon: iconPath ?? undefined,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
@@ -42,13 +52,7 @@ function createWindow(): void {
 }
 
 function findFFmpeg(): string {
-  const devPath = path.join(__dirname, '..', '..', 'resources', 'ffmpeg.exe')
-  if (fs.existsSync(devPath)) return devPath
-  if (process.resourcesPath) {
-    const bundled = path.join(process.resourcesPath, 'ffmpeg.exe')
-    if (fs.existsSync(bundled)) return bundled
-  }
-  return 'ffmpeg'
+  return findResourceFile('ffmpeg.exe') || 'ffmpeg'
 }
 
 function transcodeToPCM(inputPath: string, outputPath: string): Promise<void> {
@@ -99,7 +103,7 @@ function registerPlayerIpc(): void {
   ipcMain.handle('player:getAudioPath', async (_event, configId: string, filePath: string) => {
     console.log(`[Player] getAudioPath: configId=${configId}`)
     try {
-      const configs = getWebDAVConfigs()
+      const configs = getAllWebDAVConfigs()
       const config = configs.find((c) => c.id === configId)
       if (!config) return { error: 'Config not found' }
 
@@ -168,7 +172,7 @@ function registerPlayerIpc(): void {
 
   ipcMain.handle('player:getCover', async (_event, configId: string, filePath: string) => {
     try {
-      const configs = getWebDAVConfigs()
+      const configs = getAllWebDAVConfigs()
       const config = configs.find((c) => c.id === configId)
 
       let targetPath: string
@@ -203,7 +207,7 @@ function registerPlayerIpc(): void {
 
   ipcMain.handle('player:getLrc', async (_event, configId: string, filePath: string) => {
     try {
-      const configs = getWebDAVConfigs()
+      const configs = getAllWebDAVConfigs()
       const config = configs.find((c) => c.id === configId)
       console.log(`[Lrc] request: configId=${configId} path=${filePath}`)
 
@@ -301,7 +305,7 @@ function registerPlayerIpc(): void {
 }
 
 app.whenReady().then(async () => {
-  console.log('[Player] 椋為奔闊充箰鍚姩涓?..')
+  console.log('[Player] 飞鱼音乐启动中...')
   Menu.setApplicationMenu(null)
   await initDatabase()
   registerIpcHandlers()

@@ -8,6 +8,7 @@ import PlaylistPage from './pages/PlaylistPage'
 import PlayerBar from './components/PlayerBar'
 import AudioEngine from './components/AudioEngine'
 import Sidebar from './components/Sidebar'
+import { usePlaylistStore } from './stores/playlistStore'
 import { useEffect, Component } from 'react'
 
 class ErrorBoundary extends Component<{ children: React.ReactNode }, { hasError: boolean; error: string }> {
@@ -37,6 +38,10 @@ export default function App(): JSX.Element {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
+
+  useEffect(() => {
+    usePlaylistStore.getState().loadPlaylist()
+  }, [])
 
   return (
     <ErrorBoundary>

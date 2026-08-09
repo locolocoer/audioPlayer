@@ -35,9 +35,11 @@ function BarCover({ track }: { track: { webdavId: string; path: string } }): JSX
         const url = URL.createObjectURL(blob)
         if (coverCache.size >= 5) {
           const first = coverCache.keys().next().value
-          const old = coverCache.get(first)
-          if (old) URL.revokeObjectURL(old)
-          coverCache.delete(first)
+          if (first !== undefined) {
+            const old = coverCache.get(first)
+            if (old) URL.revokeObjectURL(old)
+            coverCache.delete(first)
+          }
         }
         coverCache.set(key, url)
         setCoverUrl(url)

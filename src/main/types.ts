@@ -23,6 +23,7 @@ export interface MusicFile {
   webdavId: string
   scannedAt: string
   favorite: number
+  title_key?: string
 }
 
 export interface Playlist {

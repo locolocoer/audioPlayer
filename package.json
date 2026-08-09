@@ -7,7 +7,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "start": "chcp 65001 > nul && npx electron out/main/index.js",
+    "start": "chcp 65001 > nul && electron-vite preview",
     "package": "electron-builder"
   },
   "dependencies": {

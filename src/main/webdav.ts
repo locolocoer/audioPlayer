@@ -52,20 +52,6 @@ export async function getDirectoryContents(
   }))
 }
 
-export async function createReadStream(
-  client: WebDAVClient,
-  filePath: string
-): Promise<{ headers: Record<string, string>; readable: NodeJS.ReadableStream }> {
-  const response = await client.customRequest(filePath, {
-    method: 'GET',
-    responseType: 'stream'
-  })
-  return {
-    headers: (response.headers || {}) as Record<string, string>,
-    readable: response.data as NodeJS.ReadableStream
-  }
-}
-
 export async function downloadFile(
   client: WebDAVClient,
   filePath: string
@@ -80,8 +66,9 @@ export async function downloadFile(
   if (content instanceof ArrayBuffer) {
     return Buffer.from(content)
   }
-  if (content && typeof content === 'object' && Array.isArray((content as { data: number[] }).data)) {
-    return Buffer.from((content as { data: number[] }).data)
+  if (content && typeof content === 'object') {
+    const data = (content as unknown as { data?: number[] }).data
+    if (Array.isArray(data)) return Buffer.from(data)
   }
   return Buffer.from(String(content), 'binary')
 }

@@ -5,5 +5,11 @@
     "outDir": "out/renderer",
     "jsx": "react-jsx"
   },
-  "include": ["src/renderer/**/*.ts", "src/renderer/**/*.tsx"]
+  "include": [
+    "src/renderer/**/*.ts",
+    "src/renderer/**/*.tsx",
+    "src/preload/**/*.ts",
+    "src/main/types.ts",
+    "src/main/chinese-s2t.d.ts"
+  ]
 }
