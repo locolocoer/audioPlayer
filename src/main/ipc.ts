@@ -112,13 +112,15 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('music:updateMeta', async (_event, id: number, meta: { title?: string; artist?: string; album?: string }) => {
     updateMusicFileMeta(id, meta)
     const row = getMusicFileById(id)
+    let writeback: { attempted: boolean; ok: boolean; error?: string } = { attempted: false, ok: true }
     if (row) {
       const config = getAllWebDAVConfigs().find((c) => c.id === row.webdavId)
       if (config && config.sourceType === 'local') {
-        await writeTagsToLocalMp3(row.path, meta)
+        const r = await writeTagsToLocalMp3(row.path, meta)
+        writeback = { attempted: true, ok: r.ok, error: r.error }
       }
     }
-    return true
+    return { ok: true, writeback }
   })
 
   ipcMain.handle('music:recent', async (_event, limit?: number) => {
@@ -131,17 +133,25 @@ export function registerIpcHandlers(): void {
   })
 
   ipcMain.handle('music:updateMetaBatch', async (_event, ids: number[], meta: { title?: string; artist?: string; album?: string }) => {
+    let attempted = 0
+    let failed = 0
+    let firstError = ''
     for (const id of ids) {
       updateMusicFileMeta(id, meta)
       const row = getMusicFileById(id)
       if (row) {
         const config = getAllWebDAVConfigs().find((c) => c.id === row.webdavId)
         if (config && config.sourceType === 'local') {
-          await writeTagsToLocalMp3(row.path, meta)
+          attempted++
+          const r = await writeTagsToLocalMp3(row.path, meta)
+          if (!r.ok) {
+            failed++
+            if (!firstError) firstError = r.error || '写入失败'
+          }
         }
       }
     }
-    return true
+    return { ok: true, writeback: { attempted, failed, error: firstError } }
   })
 
   ipcMain.handle('music:alternatives', async (_event, title: string, webdavId: string) => {

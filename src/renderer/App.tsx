@@ -12,6 +12,7 @@ import AudioEngine from './components/AudioEngine'
 import Sidebar from './components/Sidebar'
 import QueuePanel from './components/QueuePanel'
 import DesktopLyrics from './components/DesktopLyrics'
+import Toaster from './components/Toaster'
 import { usePlaylistStore } from './stores/playlistStore'
 import { usePlayerStore } from './stores/playerStore'
 import { useMusicStore } from './stores/musicStore'
@@ -100,6 +101,7 @@ export default function App(): JSX.Element {
           <QueuePanel />
         </div>
       </HashRouter>
+      <Toaster />
     </ErrorBoundary>
   )
 }

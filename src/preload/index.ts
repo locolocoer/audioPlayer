@@ -29,9 +29,9 @@ const api = {
     count: (): Promise<number> => ipcRenderer.invoke('music:count'),
     toggleFavorite: (id: number): Promise<boolean> => ipcRenderer.invoke('music:favorite:toggle', id),
     favoriteList: (): Promise<MusicFile[]> => ipcRenderer.invoke('music:favorite:list'),
-    updateMeta: (id: number, meta: { title?: string; artist?: string; album?: string }): Promise<boolean> =>
+    updateMeta: (id: number, meta: { title?: string; artist?: string; album?: string }): Promise<{ ok: boolean; writeback: { attempted: boolean; ok: boolean; error?: string } }> =>
       ipcRenderer.invoke('music:updateMeta', id, meta),
-    updateMetaBatch: (ids: number[], meta: { title?: string; artist?: string; album?: string }): Promise<boolean> =>
+    updateMetaBatch: (ids: number[], meta: { title?: string; artist?: string; album?: string }): Promise<{ ok: boolean; writeback: { attempted: number; failed: number; error?: string } }> =>
       ipcRenderer.invoke('music:updateMetaBatch', ids, meta),
     duplicates: (): Promise<{ title: string; trackCount: number; tracks: MusicFile[] }[]> =>
       ipcRenderer.invoke('music:duplicates'),
