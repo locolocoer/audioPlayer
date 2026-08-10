@@ -239,11 +239,16 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
     else onRowClick(track)
   }
 
+  const rowHeightCalibrated = useRef(false)
+
   useLayoutEffect(() => {
-    if (rowRef.current) {
-      const h = rowRef.current.offsetHeight
-      if (h > 0 && Math.abs(h - rowHeight) > 0.5) setRowHeight(h)
-    }
+    if (rowHeightCalibrated.current) return
+    const el = rowRef.current
+    if (!el) return
+    const h = el.offsetHeight
+    if (h <= 0) return
+    rowHeightCalibrated.current = true
+    if (Math.abs(h - rowHeight) > 0.5) setRowHeight(h)
   })
 
   if (tracks.length === 0) {
