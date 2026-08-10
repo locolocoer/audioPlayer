@@ -13,6 +13,8 @@ import { buildBaseUrl, createWebDAVClient, downloadFile } from './webdav'
 
 app.setName('feiyu-music')
 
+const MAX_WINDOW_WIDTH = 1600
+
 let mainWindow: BrowserWindow | null = null
 let miniWindow: BrowserWindow | null = null
 let lyricsWindow: BrowserWindow | null = null
@@ -103,12 +105,13 @@ function createWindow(): void {
   const iconPath = findResourceFile('icon.ico')
   const saved = loadWindowState()
   mainWindow = new BrowserWindow({
-    width: saved.width || 1200,
+    width: Math.min(saved.width || 1200, MAX_WINDOW_WIDTH),
     height: saved.height || 800,
     x: saved.x,
     y: saved.y,
     minWidth: 800,
     minHeight: 600,
+    maxWidth: MAX_WINDOW_WIDTH,
     title: '飞鱼音乐',
     icon: iconPath ?? undefined,
     webPreferences: {

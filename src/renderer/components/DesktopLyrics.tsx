@@ -80,7 +80,7 @@ export default function DesktopLyrics(): JSX.Element {
           const start = lyrics[idx].time
           const next = idx + 1 < lyrics.length ? lyrics[idx + 1].time : start + 5000
           const span = Math.max(0.1, next - start)
-          lit = Math.floor(Math.max(0, Math.min(1, (time - start) / span)) * text.length)
+          lit = Math.floor(Math.max(0, Math.min(1, (time - start) / span)) * Array.from(text).length)
         } else if (lyrics.length > 0) {
           text = lyrics[0].text
         } else {
@@ -115,7 +115,7 @@ export default function DesktopLyrics(): JSX.Element {
         style={{ fontSize: style.fontSize, textAlign: style.align }}
       >
         {current && current !== '暂无歌词' ? (
-          current.split('').map((ch, i) => (
+          Array.from(current).map((ch, i) => (
             <span
               key={i}
               className="dlk-char"

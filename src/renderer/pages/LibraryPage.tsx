@@ -227,9 +227,8 @@ export default function LibraryPage(): JSX.Element {
     if (albums.length === 0) return
     const album = albums[Math.floor(Math.random() * albums.length)]
     const albumTracks = album.tracks
-    setQueue(albumTracks)
     usePlayerStore.getState().setPlayMode('sequential')
-    if (albumTracks.length > 0) requestPlay(albumTracks[0])
+    usePlayerStore.getState().playSelection(albumTracks)
   }
 
   const MOODS: { key: string; label: string; desc: string }[] = [
@@ -248,8 +247,7 @@ export default function LibraryPage(): JSX.Element {
     if (pool.length === 0) pool = tracks
     const shuffled = [...pool].sort(() => Math.random() - 0.5)
     usePlayerStore.getState().setPlayMode('shuffle')
-    setQueue(shuffled)
-    if (shuffled.length > 0) requestPlay(shuffled[0])
+    usePlayerStore.getState().playSelection(shuffled)
   }
 
   const handleRenameArtist = async (): Promise<void> => {

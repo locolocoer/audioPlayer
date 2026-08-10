@@ -27,6 +27,7 @@ interface PlayerState {
   removeQueueItem: (id: number) => void
   reorderQueue: (from: number, to: number) => void
   setQueue: (tracks: MusicFile[]) => void
+  playSelection: (tracks: MusicFile[], first?: MusicFile) => void
   pause: () => void
   resume: () => void
   next: () => void
@@ -130,6 +131,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const state = get()
     if (state.playlist.length > 0) return
     set({ queue: tracks })
+  },
+
+  playSelection: (tracks: MusicFile[], first?: MusicFile) => {
+    if (tracks.length === 0) return
+    set({ queue: tracks, playlist: [] })
+    get().requestPlay(first || tracks[0])
   },
 
   pause: () => {
@@ -236,7 +243,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   onAudioLoaded: () => {
-    set({ isLoading: false, isPlaying: true, loadError: null })
+    set((s) => ({ isLoading: false, isPlaying: !s.autoPlayBlocked, loadError: null }))
   },
 
   onAudioError: (error: string) => {
