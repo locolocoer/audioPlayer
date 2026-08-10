@@ -20,13 +20,17 @@ interface EqualizerState {
   enabled: boolean
   gains: number[]
   presetName: string
+  customPresets: EqPreset[]
   toggleEnabled: () => void
   setGain: (index: number, value: number) => void
   applyPreset: (preset: EqPreset) => void
+  savePreset: (name: string) => void
+  deletePreset: (name: string) => void
   reset: () => void
 }
 
 const STORAGE_KEY = 'eq_state'
+const CUSTOM_KEY = 'eq_custom_presets'
 
 function clamp(v: number): number {
   if (!Number.isFinite(v)) return 0
@@ -52,8 +56,24 @@ function loadStored(): { enabled: boolean; gains: number[]; presetName: string }
   }
 }
 
+function loadCustomPresets(): EqPreset[] {
+  try {
+    const raw = localStorage.getItem(CUSTOM_KEY)
+    if (raw) {
+      const arr = JSON.parse(raw)
+      if (Array.isArray(arr)) {
+        return arr
+          .filter((p) => p && typeof p.name === 'string' && Array.isArray(p.gains) && p.gains.length === EQ_BANDS.length)
+          .map((p) => ({ name: p.name, gains: p.gains.map((n: unknown) => clamp(Number(n))) }))
+      }
+    }
+  } catch { /* ignore */ }
+  return []
+}
+
 export const useEqualizerStore = create<EqualizerState>((set, get) => {
   const stored = loadStored()
+  const customPresets = loadCustomPresets()
 
   const save = (): void => {
     const s = get()
@@ -66,10 +86,17 @@ export const useEqualizerStore = create<EqualizerState>((set, get) => {
     } catch { /* ignore */ }
   }
 
+  const persistCustom = (presets: EqPreset[]): void => {
+    try {
+      localStorage.setItem(CUSTOM_KEY, JSON.stringify(presets))
+    } catch { /* ignore */ }
+  }
+
   return {
     enabled: stored.enabled,
     gains: stored.gains,
     presetName: stored.presetName,
+    customPresets,
 
     toggleEnabled: () => {
       set((s) => ({ enabled: !s.enabled }))
@@ -87,6 +114,29 @@ export const useEqualizerStore = create<EqualizerState>((set, get) => {
 
     applyPreset: (preset: EqPreset) => {
       set({ gains: preset.gains.slice(), presetName: preset.name })
+      save()
+    },
+
+    savePreset: (name: string) => {
+      const s = get()
+      const trimmed = (name || '').trim()
+      if (!trimmed) return
+      const exists = s.customPresets.some((p) => p.name === trimmed)
+      const presets = exists
+        ? s.customPresets.map((p) => (p.name === trimmed ? { name: trimmed, gains: s.gains.slice() } : p))
+        : [...s.customPresets, { name: trimmed, gains: s.gains.slice() }]
+      set({ customPresets: presets, presetName: trimmed, gains: s.gains.slice() })
+      persistCustom(presets)
+      save()
+    },
+
+    deletePreset: (name: string) => {
+      const presets = get().customPresets.filter((p) => p.name !== name)
+      set((s) => ({
+        customPresets: presets,
+        presetName: s.presetName === name ? 'Custom' : s.presetName
+      }))
+      persistCustom(presets)
       save()
     },
 

@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { usePlayerStore } from '../stores/playerStore'
 import { useLyricsStyleStore } from '../stores/lyricsStyleStore'
+import { useSkinStore } from '../stores/skinStore'
 import Equalizer from '../components/Equalizer'
 import Visualizer from '../components/Visualizer'
 
@@ -29,6 +30,8 @@ export default function PlayerPage(): JSX.Element {
   const duration = usePlayerStore((s) => s.duration)
   const lyricsFontSize = useLyricsStyleStore((s) => s.fontSize)
   const lyricsAlign = useLyricsStyleStore((s) => s.align)
+  const skin = useSkinStore((s) => s.skin)
+  const isPlaying = usePlayerStore((s) => s.isPlaying)
   const [coverUrl, setCoverUrl] = useState('')
   const [lrcText, setLrcText] = useState('')
   const [eqOpen, setEqOpen] = useState(() => localStorage.getItem('eq_panel') === '1')
@@ -113,7 +116,7 @@ export default function PlayerPage(): JSX.Element {
   }
 
   return (
-    <div className="page player-page">
+    <div className={`page player-page${skin !== 'base' ? ` skin-${skin}` : ''}${isPlaying ? ' playing' : ''}`}>
       <div className="player-layout">
         <div className="player-left">
           <div className="player-artwork-large">

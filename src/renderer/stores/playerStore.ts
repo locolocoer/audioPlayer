@@ -35,6 +35,7 @@ interface PlayerState {
   setCurrentTime: (t: number) => void
   setDuration: (d: number) => void
   togglePlayMode: () => void
+  setPlayMode: (mode: PlayMode) => void
   seek: (time: number) => void
   syncPlaylist: (list: MusicFile[]) => void
   replaceTrack: (oldId: number, newTrack: MusicFile) => void
@@ -205,12 +206,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   togglePlayMode: () => {
     const current = get().playMode
     const nextIdx = (MODE_ORDER.indexOf(current) + 1) % MODE_ORDER.length
-    const next = MODE_ORDER[nextIdx]
-    localStorage.setItem('player_playMode', next)
-    if (next === 'heartbeat') {
+    get().setPlayMode(MODE_ORDER[nextIdx])
+  },
+
+  setPlayMode: (mode: PlayMode) => {
+    localStorage.setItem('player_playMode', mode)
+    if (mode === 'heartbeat') {
       useMusicStore.getState().loadFavorites()
     }
-    set({ playMode: next })
+    set({ playMode: mode })
   },
   seek: (time: number) => {
     const t = Number.isFinite(time) ? Math.max(0, time) : 0

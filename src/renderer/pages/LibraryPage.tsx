@@ -1,8 +1,9 @@
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { useMusicStore } from '../stores/musicStore'
 import { usePlayerStore } from '../stores/playerStore'
 import { usePlaylistStore } from '../stores/playlistStore'
 import MusicList from '../components/MusicList'
+import Modal from '../components/Modal'
 import type { MusicFile } from '../../main/types'
 
 type SortField = 'title' | 'artist' | 'album' | 'duration' | 'playCount' | 'lastPlayed'
@@ -75,6 +76,8 @@ export default function LibraryPage(): JSX.Element {
   const [artistMenu, setArtistMenu] = useState<{ x: number; y: number; name: string } | null>(null)
   const [editArtistName, setEditArtistName] = useState<string | null>(null)
   const [editArtistInput, setEditArtistInput] = useState('')
+  const [moodOpen, setMoodOpen] = useState(false)
+  const moodMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     loadConfigs()
@@ -211,6 +214,44 @@ export default function LibraryPage(): JSX.Element {
   const browsing = !!browseAlbum || !!browseArtist || !!browseFolder
   const parentFolder = browseFolder ? browseFolder.slice(0, browseFolder.lastIndexOf('/')) : null
 
+  useEffect(() => {
+    if (!moodOpen) return
+    const handler = (e: MouseEvent): void => {
+      if (moodMenuRef.current && !moodMenuRef.current.contains(e.target as Node)) setMoodOpen(false)
+    }
+    document.addEventListener('click', handler)
+    return () => document.removeEventListener('click', handler)
+  }, [moodOpen])
+
+  const playRandomAlbum = (): void => {
+    if (albums.length === 0) return
+    const album = albums[Math.floor(Math.random() * albums.length)]
+    const albumTracks = album.tracks
+    setQueue(albumTracks)
+    usePlayerStore.getState().setPlayMode('sequential')
+    if (albumTracks.length > 0) requestPlay(albumTracks[0])
+  }
+
+  const MOODS: { key: string; label: string; desc: string }[] = [
+    { key: 'focus', label: '专注学习', desc: '整库随机，沉浸不分心' },
+    { key: 'relax', label: '放松', desc: '从你收藏的歌曲随机' },
+    { key: 'energetic', label: '运动高能', desc: '从高频播放歌曲随机' },
+    { key: 'immersion', label: '沉浸', desc: '从听过的歌曲随机' }
+  ]
+
+  const playMood = (mood: string): void => {
+    setMoodOpen(false)
+    let pool = tracks
+    if (mood === 'relax') pool = tracks.filter((t) => t.favorite === 1)
+    else if (mood === 'energetic') pool = tracks.filter((t) => (t.playCount || 0) >= 3)
+    else if (mood === 'immersion') pool = tracks.filter((t) => (t.playCount || 0) > 0)
+    if (pool.length === 0) pool = tracks
+    const shuffled = [...pool].sort(() => Math.random() - 0.5)
+    usePlayerStore.getState().setPlayMode('shuffle')
+    setQueue(shuffled)
+    if (shuffled.length > 0) requestPlay(shuffled[0])
+  }
+
   const handleRenameArtist = async (): Promise<void> => {
     const oldName = editArtistName
     const newName = editArtistInput.trim()
@@ -249,6 +290,20 @@ export default function LibraryPage(): JSX.Element {
             <button className={`browse-tab${viewMode === 'albums' ? ' active' : ''}`} onClick={() => { setViewMode('albums'); backToBrowse() }}>专辑</button>
             <button className={`browse-tab${viewMode === 'artists' ? ' active' : ''}`} onClick={() => { setViewMode('artists'); backToBrowse() }}>歌手</button>
             <button className={`browse-tab${viewMode === 'folders' ? ' active' : ''}`} onClick={() => { setViewMode('folders'); backToBrowse() }}>文件夹</button>
+          </div>
+          <button className="btn btn-sm" onClick={playRandomAlbum} title="随机挑选一张专辑整张播放">🎲 随机专辑</button>
+          <div className="mood-wrap" ref={moodMenuRef}>
+            <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); setMoodOpen((o) => !o) }}>心情电台 ▾</button>
+            {moodOpen && (
+              <div className="mood-menu">
+                {MOODS.map((m) => (
+                  <div key={m.key} className="mood-item" onClick={() => playMood(m.key)}>
+                    <span className="mood-name">{m.label}</span>
+                    <span className="mood-desc">{m.desc}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <input
             type="text"
@@ -377,25 +432,23 @@ export default function LibraryPage(): JSX.Element {
       )}
 
       {editArtistName !== null && (
-        <div className="modal-overlay" onClick={() => setEditArtistName(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 360 }}>
-            <h3>修改歌手名</h3>
-            <div className="form-group">
-              <label>将「{editArtistName}」下所有歌曲的歌手改为</label>
-              <input
-                type="text"
-                value={editArtistInput}
-                onChange={(e) => setEditArtistInput(e.target.value)}
-                placeholder="新歌手名"
-                autoFocus
-              />
-            </div>
-            <div className="modal-actions">
-              <button className="btn btn-secondary" onClick={() => setEditArtistName(null)}>取消</button>
-              <button className="btn btn-primary" onClick={handleRenameArtist}>保存</button>
-            </div>
+        <Modal onClose={() => setEditArtistName(null)} width={360}>
+          <h3>修改歌手名</h3>
+          <div className="form-group">
+            <label>将「{editArtistName}」下所有歌曲的歌手改为</label>
+            <input
+              type="text"
+              value={editArtistInput}
+              onChange={(e) => setEditArtistInput(e.target.value)}
+              placeholder="新歌手名"
+              autoFocus
+            />
           </div>
-        </div>
+          <div className="modal-actions">
+            <button className="btn btn-secondary" onClick={() => setEditArtistName(null)}>取消</button>
+            <button className="btn btn-primary" onClick={handleRenameArtist}>保存</button>
+          </div>
+        </Modal>
       )}
     </div>
   )

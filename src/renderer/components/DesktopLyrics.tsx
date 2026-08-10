@@ -22,8 +22,15 @@ function loadStyle(): LyricsStyle {
   return DEFAULT_STYLE
 }
 
+function hexToRgba(hex: string, alpha: number): string {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex.trim())
+  if (!m) return `rgba(255, 255, 255, ${alpha})`
+  return `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, ${alpha})`
+}
+
 export default function DesktopLyrics(): JSX.Element {
   const [current, setCurrent] = useState('')
+  const [litCount, setLitCount] = useState(0)
   const [style, setStyle] = useState<LyricsStyle>(loadStyle)
   const [settingsOpen, setSettingsOpen] = useState(false)
 
@@ -43,6 +50,8 @@ export default function DesktopLyrics(): JSX.Element {
     let raf = 0
     let cacheTrack = -1
     let lyrics: { time: number; text: string }[] = []
+    let lastText = ''
+    let lastLit = -1
 
     const tick = (): void => {
       raf = requestAnimationFrame(tick)
@@ -64,7 +73,27 @@ export default function DesktopLyrics(): JSX.Element {
           if (t.trackId === trackId) time = t.time
         }
         const idx = activeLyricIndex(lyrics, time)
-        setCurrent(idx >= 0 ? lyrics[idx].text : lyrics.length > 0 ? lyrics[0].text : trackId > 0 ? '暂无歌词' : '')
+        let text = ''
+        let lit = 0
+        if (idx >= 0) {
+          text = lyrics[idx].text
+          const start = lyrics[idx].time
+          const next = idx + 1 < lyrics.length ? lyrics[idx + 1].time : start + 5000
+          const span = Math.max(0.1, next - start)
+          lit = Math.floor(Math.max(0, Math.min(1, (time - start) / span)) * text.length)
+        } else if (lyrics.length > 0) {
+          text = lyrics[0].text
+        } else {
+          text = trackId > 0 ? '暂无歌词' : ''
+        }
+        if (text !== lastText) {
+          lastText = text
+          setCurrent(text)
+        }
+        if (lit !== lastLit) {
+          lastLit = lit
+          setLitCount(lit)
+        }
       } catch { /* ignore */ }
     }
     tick()
@@ -82,10 +111,22 @@ export default function DesktopLyrics(): JSX.Element {
       }}
     >
       <div
-        className="desktop-lyrics-current"
-        style={{ fontSize: style.fontSize, color: style.color, textAlign: style.align }}
+        className="desktop-lyrics-karaoke"
+        style={{ fontSize: style.fontSize, textAlign: style.align }}
       >
-        {current}
+        {current && current !== '暂无歌词' ? (
+          current.split('').map((ch, i) => (
+            <span
+              key={i}
+              className="dlk-char"
+              style={{ color: i < litCount ? style.color : hexToRgba(style.color, 0.4) }}
+            >
+              {ch === ' ' ? '\u00A0' : ch}
+            </span>
+          ))
+        ) : (
+          <span className="desktop-lyrics-current" style={{ color: style.color }}>{current}</span>
+        )}
       </div>
 
       <div className="desktop-lyrics-tools">

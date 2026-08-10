@@ -6,7 +6,7 @@ export default defineConfig({
   main: {
     plugins: [
       externalizeDepsPlugin({
-        exclude: ['webdav', 'music-metadata']
+        exclude: ['webdav', 'music-metadata', 'node-id3', 'iconv-lite', 'chinese-s2t']
       })
     ],
     build: {

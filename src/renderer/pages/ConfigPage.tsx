@@ -3,6 +3,8 @@ import { useMusicStore } from '../stores/musicStore'
 import { usePlaylistStore } from '../stores/playlistStore'
 import { useThemeStore } from '../stores/themeStore'
 import { useLyricsStyleStore } from '../stores/lyricsStyleStore'
+import { useSkinStore, SKINS } from '../stores/skinStore'
+import Modal from '../components/Modal'
 import type { WebDAVConfig, ScanSettings } from '../../main/types'
 import { DEFAULT_SCAN_SETTINGS } from '../../main/types'
 
@@ -42,6 +44,8 @@ export default function ConfigPage(): JSX.Element {
   const lyricsAlign = useLyricsStyleStore((s) => s.align)
   const setLyricsFontSize = useLyricsStyleStore((s) => s.setFontSize)
   const setLyricsAlign = useLyricsStyleStore((s) => s.setAlign)
+  const skin = useSkinStore((s) => s.skin)
+  const setSkin = useSkinStore((s) => s.setSkin)
 
   const [showForm, setShowForm] = useState(false)
   const [testing, setTesting] = useState(false)
@@ -243,6 +247,16 @@ export default function ConfigPage(): JSX.Element {
             <span className="settings-hint">全局按钮/高亮主色调</span>
           </div>
         </div>
+        <div className="settings-row">
+          <span className="settings-label">播放页皮肤</span>
+          <div className="settings-controls">
+            {SKINS.map((s) => (
+              <button key={s.key} className={`btn btn-sm${skin === s.key ? ' btn-primary' : ' btn-secondary'}`} onClick={() => setSkin(s.key)}>
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* 歌词 */}
@@ -374,37 +388,35 @@ export default function ConfigPage(): JSX.Element {
       </div>
 
       {showForm && (
-        <div className="modal-overlay" onClick={() => setShowForm(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>编辑服务器</h3>
-            <div className="form-group">
-              <label>名称</label>
-              <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="我的服务器" />
-            </div>
-            <div className="form-group">
-              <label>地址</label>
-              <input type="text" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="http://localhost" />
-            </div>
-            <div className="form-group">
-              <label>端口</label>
-              <input type="number" value={form.port} onChange={(e) => setForm({ ...form, port: parseInt(e.target.value) || 80 })} />
-            </div>
-            <div className="form-group">
-              <label>用户名</label>
-              <input type="text" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
-            </div>
-            <div className="form-group">
-              <label>密码</label>
-              <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-            </div>
-            {testResult && <div className={`test-result ${testResult.ok ? 'success' : 'error'}`}>{testResult.message}</div>}
-            <div className="modal-actions">
-              <button className="btn" onClick={handleTest} disabled={testing}>{testing ? '测试中...' : '测试连接'}</button>
-              <button className="btn btn-secondary" onClick={() => setShowForm(false)}>取消</button>
-              <button className="btn btn-primary" onClick={handleSave}>保存</button>
-            </div>
+        <Modal onClose={() => setShowForm(false)}>
+          <h3>编辑服务器</h3>
+          <div className="form-group">
+            <label>名称</label>
+            <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="我的服务器" />
           </div>
-        </div>
+          <div className="form-group">
+            <label>地址</label>
+            <input type="text" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="http://localhost" />
+          </div>
+          <div className="form-group">
+            <label>端口</label>
+            <input type="number" value={form.port} onChange={(e) => setForm({ ...form, port: parseInt(e.target.value) || 80 })} />
+          </div>
+          <div className="form-group">
+            <label>用户名</label>
+            <input type="text" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
+          </div>
+          <div className="form-group">
+            <label>密码</label>
+            <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+          </div>
+          {testResult && <div className={`test-result ${testResult.ok ? 'success' : 'error'}`}>{testResult.message}</div>}
+          <div className="modal-actions">
+            <button className="btn" onClick={handleTest} disabled={testing}>{testing ? '测试中...' : '测试连接'}</button>
+            <button className="btn btn-secondary" onClick={() => setShowForm(false)}>取消</button>
+            <button className="btn btn-primary" onClick={handleSave}>保存</button>
+          </div>
+        </Modal>
       )}
     </div>
   )

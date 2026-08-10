@@ -25,7 +25,9 @@ import {
   getMusicFileById,
   getRecentMusicFiles,
   getDBPath,
-  getDuplicateGroups
+  getDuplicateGroups,
+  getStatsReport,
+  getPlayTrend
 } from './database'
 import type { WebDAVConfig, MusicFile, ScanProgress, Playlist, ScanSettings } from './types'
 import fs from 'fs'
@@ -231,6 +233,15 @@ export function registerIpcHandlers(): void {
   // Duplicates
   ipcMain.handle('music:duplicates', async () => {
     return getDuplicateGroups()
+  })
+
+  // Stats
+  ipcMain.handle('stats:report', async () => {
+    return getStatsReport()
+  })
+
+  ipcMain.handle('stats:trend', async (_event, days?: number) => {
+    return getPlayTrend(days || 30)
   })
 
   // MusicBrainz enrich

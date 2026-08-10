@@ -1,13 +1,13 @@
 {
   "name": "feiyu-music",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "飞鱼音乐 - WebDAV 桌面音乐播放器",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "start": "chcp 65001 > nul && electron-vite preview",
+    "start": "chcp 65001 > nul && electron-vite preview --skipBuild",
     "package": "electron-builder"
   },
   "dependencies": {

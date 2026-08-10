@@ -111,6 +111,15 @@ export async function initDatabase(): Promise<void> {
     )
   `)
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS play_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      trackId INTEGER NOT NULL,
+      playedAt TEXT NOT NULL
+    )
+  `)
+  db.run('CREATE INDEX IF NOT EXISTS idx_play_history_playedAt ON play_history(playedAt)')
+
   db.run('CREATE INDEX IF NOT EXISTS idx_music_webdav ON music_files(webdavId)')
   db.run('CREATE INDEX IF NOT EXISTS idx_music_title ON music_files(title)')
   db.run('CREATE INDEX IF NOT EXISTS idx_music_title_key ON music_files(title_key)')
@@ -413,11 +422,39 @@ export function getFavoriteFiles(): MusicFile[] {
 }
 
 export function recordPlay(id: number): void {
-  db.run(
-    'UPDATE music_files SET playCount = playCount + 1, lastPlayed = ? WHERE id = ?',
-    [new Date().toISOString(), id]
-  )
+  const now = new Date().toISOString()
+  db.run('UPDATE music_files SET playCount = playCount + 1, lastPlayed = ? WHERE id = ?', [now, id])
+  db.run('INSERT INTO play_history (trackId, playedAt) VALUES (?, ?)', [id, now])
   saveToDisk()
+}
+
+export function getStatsReport(): {
+  totalPlays: number
+  playedCount: number
+  totalMinutes: number
+  topSongs: MusicFile[]
+  topArtists: { artist: string; plays: number }[]
+  topAlbums: { album: string; plays: number }[]
+} {
+  const totalPlays = queryOne<{ c: number }>('SELECT COALESCE(SUM(playCount), 0) as c FROM music_files')?.c || 0
+  const playedCount = queryOne<{ c: number }>('SELECT COUNT(*) as c FROM music_files WHERE playCount > 0')?.c || 0
+  const totalMinutes = queryOne<{ c: number }>('SELECT COALESCE(SUM(playCount * duration), 0) as c FROM music_files')?.c || 0
+  const topSongs = queryAll<MusicFile>('SELECT * FROM music_files WHERE playCount > 0 ORDER BY playCount DESC, lastPlayed DESC LIMIT 10')
+  const topArtists = queryAll<{ artist: string; plays: number }>(
+    'SELECT artist, SUM(playCount) as plays FROM music_files WHERE playCount > 0 AND artist != \'\' GROUP BY artist ORDER BY plays DESC LIMIT 10'
+  )
+  const topAlbums = queryAll<{ album: string; plays: number }>(
+    'SELECT album, SUM(playCount) as plays FROM music_files WHERE playCount > 0 AND album != \'\' GROUP BY album ORDER BY plays DESC LIMIT 10'
+  )
+  return { totalPlays, playedCount, totalMinutes, topSongs, topArtists, topAlbums }
+}
+
+export function getPlayTrend(days: number): { date: string; plays: number }[] {
+  const since = new Date(Date.now() - days * 86400000).toISOString()
+  return queryAll<{ date: string; plays: number }>(
+    'SELECT substr(playedAt, 1, 10) as date, COUNT(*) as plays FROM play_history WHERE playedAt >= ? GROUP BY date ORDER BY date',
+    [since]
+  )
 }
 
 export function updateMusicFileMeta(id: number, meta: { title?: string; artist?: string; album?: string }): void {

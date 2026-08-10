@@ -79,6 +79,17 @@ const api = {
   backup: {
     export: (): Promise<{ ok: boolean; path?: string; error?: string }> => ipcRenderer.invoke('backup:export')
   },
+  stats: {
+    report: (): Promise<{
+      totalPlays: number
+      playedCount: number
+      totalMinutes: number
+      topSongs: MusicFile[]
+      topArtists: { artist: string; plays: number }[]
+      topAlbums: { album: string; plays: number }[]
+    }> => ipcRenderer.invoke('stats:report'),
+    trend: (days?: number): Promise<{ date: string; plays: number }[]> => ipcRenderer.invoke('stats:trend', days)
+  },
   window: {
     mini: (open: boolean): Promise<boolean> => ipcRenderer.invoke('window:mini', open),
     lyrics: (open: boolean): Promise<boolean> => ipcRenderer.invoke('window:lyrics', open)

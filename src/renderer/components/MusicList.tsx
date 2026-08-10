@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useLayoutEffect } from 'react'
+import Modal from './Modal'
 import type { MusicFile } from '../../main/types'
 import { usePlayerStore } from '../stores/playerStore'
 import { useMusicStore } from '../stores/musicStore'
@@ -74,8 +75,7 @@ function EditModal({ track, onClose }: { track: MusicFile; onClose: () => void }
   const fmt = (f: string) => f.slice(f.lastIndexOf('.') + 1).toUpperCase()
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 480 }}>
+    <Modal onClose={onClose} width={480}>
         <h3>歌曲详情</h3>
         <div className="song-detail-info">
           <div className="detail-row">
@@ -123,8 +123,7 @@ function EditModal({ track, onClose }: { track: MusicFile; onClose: () => void }
           <button className="btn btn-secondary" onClick={onClose}>关闭</button>
           <button className="btn btn-primary" onClick={handleSave}>保存</button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }
 
