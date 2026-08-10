@@ -334,6 +334,43 @@ export function getMusicFilesByIds(ids: number[]): MusicFile[] {
   return result
 }
 
+export function getMusicFileById(id: number): MusicFile | undefined {
+  return queryOne<MusicFile>('SELECT * FROM music_files WHERE id = ?', [id])
+}
+
+export function getDBPath(): string {
+  return dbPath
+}
+
+export function getDuplicateGroups(): { title: string; trackCount: number; tracks: MusicFile[] }[] {
+  const rows = queryAll<MusicFile>('SELECT * FROM music_files')
+  const map = new Map<string, MusicFile[]>()
+  for (const r of rows) {
+    const key = r.title_key || r.title || r.filename
+    const list = map.get(key)
+    if (list) list.push(r)
+    else map.set(key, [r])
+  }
+  return Array.from(map.entries())
+    .filter(([, list]) => list.length > 1)
+    .map(([, list]) => ({
+      title: list[0].title || list[0].filename,
+      trackCount: list.length,
+      tracks: list
+    }))
+    .sort((a, b) => a.title.localeCompare(b.title, 'zh'))
+}
+
+export function getRecentMusicFiles(limit: number): MusicFile[] {
+  return queryAll<MusicFile>(
+    `SELECT * FROM music_files
+     WHERE lastPlayed != ''
+     ORDER BY lastPlayed DESC
+     LIMIT ?`,
+    [Math.max(1, Math.min(500, limit))]
+  )
+}
+
 export function getMusicFileCount(): number {
   const row = queryOne<{ count: number }>('SELECT COUNT(*) as count FROM (SELECT 1 FROM music_files GROUP BY title_key)')
   return row ? row.count : 0

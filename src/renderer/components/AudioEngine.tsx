@@ -2,9 +2,11 @@ import { useEffect, useRef } from 'react'
 import { usePlayerStore } from '../stores/playerStore'
 import { useMusicStore } from '../stores/musicStore'
 import { useEqualizerStore, EQ_BANDS } from '../stores/equalizerStore'
+import { useAudioGraphStore } from '../stores/audioGraphStore'
 
 const RESUME_THROTTLE = 5000
 let lastResumeSave = 0
+let lastLyricsTimeSave = 0
 let recordedPlayId = -1
 
 export default function AudioEngine(): JSX.Element {
@@ -22,6 +24,19 @@ export default function AudioEngine(): JSX.Element {
 
   const audioCtxRef = useRef<AudioContext | null>(null)
   const filtersRef = useRef<BiquadFilterNode[]>([])
+  const volumeGainRef = useRef<GainNode | null>(null)
+  const lyricsFetchedRef = useRef('')
+
+  const syncLyrics = (): void => {
+    const track = usePlayerStore.getState().pendingTrack
+    if (!track) return
+    const lyrKey = `${track.webdavId}:${track.path}`
+    if (lyricsFetchedRef.current === lyrKey) return
+    lyricsFetchedRef.current = lyrKey
+    window.api.player.getLrc(track.webdavId, track.path).then((r) => {
+      localStorage.setItem('lyrics_sync', JSON.stringify({ trackId: track.id, lrcText: r.text || '' }))
+    }).catch(() => {})
+  }
 
   const applyEq = (): void => {
     const ctx = audioCtxRef.current
@@ -39,6 +54,11 @@ export default function AudioEngine(): JSX.Element {
       const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
       const ctx = new Ctor()
       const source = ctx.createMediaElementSource(audio)
+      const analyser = ctx.createAnalyser()
+      analyser.fftSize = 256
+      analyser.smoothingTimeConstant = 0.8
+      const volumeGain = ctx.createGain()
+      volumeGain.gain.value = usePlayerStore.getState().volume
       filtersRef.current = EQ_BANDS.map((freq) => {
         const filter = ctx.createBiquadFilter()
         filter.type = 'peaking'
@@ -48,42 +68,42 @@ export default function AudioEngine(): JSX.Element {
         return filter
       })
       let node: AudioNode = source
+      node.connect(analyser)
+      node = analyser
+      node.connect(volumeGain)
+      node = volumeGain
       for (const f of filtersRef.current) {
         node.connect(f)
         node = f
       }
       node.connect(ctx.destination)
+      audio.volume = 1
       audioCtxRef.current = ctx
+      volumeGainRef.current = volumeGain
+      useAudioGraphStore.getState().setAnalyser(analyser)
       applyEq()
     } catch { /* AudioContext unavailable */ }
   }
 
   useEffect(() => {
-    if (!eqEnabled) {
-      if (audioCtxRef.current) {
-        filtersRef.current.forEach((f) => { f.gain.value = 0 })
-        const ctx = audioCtxRef.current
-        if (ctx.state === 'suspended') ctx.resume().catch(() => {})
-      }
-      return
+    if (audioCtxRef.current) {
+      filtersRef.current.forEach((f, i) => {
+        f.gain.value = eqEnabled ? (eqGains[i] ?? 0) : 0
+      })
+      const ctx = audioCtxRef.current
+      if (eqEnabled && ctx.state === 'suspended') ctx.resume().catch(() => {})
     }
-    ensureEqGraph()
-    applyEq()
   }, [eqEnabled, eqGains])
 
   useEffect(() => {
-    if (!eqEnabled) return
-    const resume = (): void => {
-      const ctx = audioCtxRef.current
-      if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {})
-    }
-    document.addEventListener('pointerdown', resume)
-    document.addEventListener('keydown', resume)
+    const ensure = (): void => ensureEqGraph()
+    document.addEventListener('pointerdown', ensure)
+    document.addEventListener('keydown', ensure)
     return () => {
-      document.removeEventListener('pointerdown', resume)
-      document.removeEventListener('keydown', resume)
+      document.removeEventListener('pointerdown', ensure)
+      document.removeEventListener('keydown', ensure)
     }
-  }, [eqEnabled])
+  }, [])
 
   useEffect(() => {
     if (!pendingTrack || downloadingRef.current) return
@@ -116,7 +136,11 @@ export default function AudioEngine(): JSX.Element {
         }
 
         audio.src = result.localUrl
+        ensureEqGraph()
         audio.load()
+
+        syncLyrics()
+
         if (!usePlayerStore.getState().autoPlayBlocked) {
           return audio.play()
         }
@@ -135,9 +159,25 @@ export default function AudioEngine(): JSX.Element {
   }, [pendingTrack])
 
   useEffect(() => {
+    const id = setInterval(() => {
+      const st = usePlayerStore.getState()
+      if (st.sleepUntil && Date.now() >= st.sleepUntil) {
+        st.setSleepTimer(null)
+        st.pause()
+      }
+    }, 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
-    audio.volume = volume
+    if (volumeGainRef.current) {
+      volumeGainRef.current.gain.value = volume
+      audio.volume = 1
+    } else {
+      audio.volume = volume
+    }
   }, [volume])
 
   useEffect(() => {
@@ -151,6 +191,7 @@ export default function AudioEngine(): JSX.Element {
   }, [isPlaying])
 
   const handleCanPlay = () => {
+    ensureEqGraph()
     usePlayerStore.getState().onAudioLoaded()
 
     const state = usePlayerStore.getState()
@@ -250,6 +291,13 @@ export default function AudioEngine(): JSX.Element {
     if (now - lastResumeSave > RESUME_THROTTLE) {
       lastResumeSave = now
       localStorage.setItem('resume_time', String(Math.floor(audio.currentTime)))
+    }
+    if (now - lastLyricsTimeSave > 200) {
+      lastLyricsTimeSave = now
+      const track = usePlayerStore.getState().currentTrack
+      if (track) {
+        localStorage.setItem('lyrics_time', JSON.stringify({ trackId: track.id, time: audio.currentTime }))
+      }
     }
   }
 

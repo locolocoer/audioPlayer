@@ -31,8 +31,16 @@ const api = {
     favoriteList: (): Promise<MusicFile[]> => ipcRenderer.invoke('music:favorite:list'),
     updateMeta: (id: number, meta: { title?: string; artist?: string; album?: string }): Promise<boolean> =>
       ipcRenderer.invoke('music:updateMeta', id, meta),
+    updateMetaBatch: (ids: number[], meta: { title?: string; artist?: string; album?: string }): Promise<boolean> =>
+      ipcRenderer.invoke('music:updateMetaBatch', ids, meta),
+    duplicates: (): Promise<{ title: string; trackCount: number; tracks: MusicFile[] }[]> =>
+      ipcRenderer.invoke('music:duplicates'),
+    enrich: (id: number): Promise<{ ok: boolean; meta?: { title?: string; artist?: string; album?: string } }> =>
+      ipcRenderer.invoke('music:enrich', id),
     recordPlay: (id: number): Promise<boolean> =>
       ipcRenderer.invoke('music:recordPlay', id),
+    recent: (limit?: number): Promise<MusicFile[]> =>
+      ipcRenderer.invoke('music:recent', limit),
     alternatives: (title: string, webdavId: string): Promise<MusicFile[]> =>
       ipcRenderer.invoke('music:alternatives', title, webdavId),
     setSourcePref: (title: string, trackId: number): Promise<boolean> =>
@@ -52,10 +60,11 @@ const api = {
       ipcRenderer.invoke('player:getLrc', configId, filePath),
     getFallbackAudio: (configId: string, filePath: string): Promise<{ localUrl?: string; error?: string }> =>
       ipcRenderer.invoke('player:getFallbackAudio', configId, filePath),
-    fetchLyrics: (title: string, artist: string, duration: number): Promise<{ text: string }> =>
-      ipcRenderer.invoke('player:fetchLyrics', title, artist, duration),
-    fetchCover: (title: string, artist: string, album: string): Promise<{ url: string }> =>
-      ipcRenderer.invoke('player:fetchCover', title, artist, album),
+    saveLyrics: (configId: string, filePath: string, text: string): Promise<{ ok: boolean; path?: string; error?: string }> =>
+      ipcRenderer.invoke('player:saveLyrics', configId, filePath, text),
+    saveCover: (configId: string, filePath: string, url: string): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke('player:saveCover', configId, filePath, url),
+    sendCommand: (cmd: string): Promise<boolean> => ipcRenderer.invoke('player:sendCommand', cmd),
     onCommand: (callback: (cmd: string) => void): (() => void) => {
       const handler = (_event: Electron.IpcRendererEvent, cmd: string): void => callback(cmd)
       ipcRenderer.on('player:command', handler)
@@ -63,7 +72,16 @@ const api = {
     }
   },
   cache: {
-    clear: (): Promise<boolean> => ipcRenderer.invoke('cache:clear')
+    clear: (): Promise<boolean> => ipcRenderer.invoke('cache:clear'),
+    info: (): Promise<{ size: number; files: { name: string; size: number }[] }> => ipcRenderer.invoke('cache:info'),
+    removeFile: (name: string): Promise<boolean> => ipcRenderer.invoke('cache:removeFile', name)
+  },
+  backup: {
+    export: (): Promise<{ ok: boolean; path?: string; error?: string }> => ipcRenderer.invoke('backup:export')
+  },
+  window: {
+    mini: (open: boolean): Promise<boolean> => ipcRenderer.invoke('window:mini', open),
+    lyrics: (open: boolean): Promise<boolean> => ipcRenderer.invoke('window:lyrics', open)
   },
   log: (level: string, ...args: unknown[]): void => {
     ipcRenderer.send('log', level, ...args)

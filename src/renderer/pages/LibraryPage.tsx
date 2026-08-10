@@ -7,7 +7,11 @@ import type { MusicFile } from '../../main/types'
 
 type SortField = 'title' | 'artist' | 'album' | 'duration' | 'playCount' | 'lastPlayed'
 type SortDir = 'asc' | 'desc'
-type ViewMode = 'songs' | 'albums' | 'artists'
+type ViewMode = 'songs' | 'albums' | 'artists' | 'folders'
+
+function splitPath(p: string): string[] {
+  return p.split(/[\\/]+/).filter(Boolean)
+}
 
 const SORT_OPTIONS: { value: string; label: string; field: SortField; dir: SortDir }[] = [
   { value: 'title', label: '歌名 ↑', field: 'title', dir: 'asc' },
@@ -55,17 +59,47 @@ export default function LibraryPage(): JSX.Element {
   const { requestPlay, setQueue } = usePlayerStore()
   const addTracks = usePlaylistStore((s) => s.addTracks)
   const [search, setSearch] = useState('')
-  const [sortField, setSortField] = useState<SortField>('title')
-  const [sortDir, setSortDir] = useState<SortDir>('asc')
-  const [filterConfig, setFilterConfig] = useState<string>('')
-  const [viewMode, setViewMode] = useState<ViewMode>('songs')
+  const [sortField, setSortField] = useState<SortField>(() => {
+    const saved = localStorage.getItem('library_sortField') as SortField | null
+    return saved && ['title', 'artist', 'album', 'duration', 'playCount', 'lastPlayed'].includes(saved) ? saved : 'title'
+  })
+  const [sortDir, setSortDir] = useState<SortDir>(() => (localStorage.getItem('library_sortDir') === 'desc' ? 'desc' : 'asc'))
+  const [filterConfig, setFilterConfig] = useState<string>(() => localStorage.getItem('library_filterConfig') || '')
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const saved = localStorage.getItem('library_viewMode') as ViewMode | null
+    return saved === 'albums' || saved === 'artists' || saved === 'folders' ? saved : 'songs'
+  })
   const [browseAlbum, setBrowseAlbum] = useState<string | null>(null)
   const [browseArtist, setBrowseArtist] = useState<string | null>(null)
+  const [browseFolder, setBrowseFolder] = useState<string | null>(null)
+  const [artistMenu, setArtistMenu] = useState<{ x: number; y: number; name: string } | null>(null)
+  const [editArtistName, setEditArtistName] = useState<string | null>(null)
+  const [editArtistInput, setEditArtistInput] = useState('')
 
   useEffect(() => {
     loadConfigs()
     loadTracks()
   }, [loadConfigs, loadTracks])
+
+  useEffect(() => {
+    localStorage.setItem('library_viewMode', viewMode)
+  }, [viewMode])
+  useEffect(() => {
+    localStorage.setItem('library_sortField', sortField)
+  }, [sortField])
+  useEffect(() => {
+    localStorage.setItem('library_sortDir', sortDir)
+  }, [sortDir])
+  useEffect(() => {
+    localStorage.setItem('library_filterConfig', filterConfig)
+  }, [filterConfig])
+
+  useEffect(() => {
+    if (!artistMenu) return
+    const handler = (): void => setArtistMenu(null)
+    document.addEventListener('click', handler)
+    return () => document.removeEventListener('click', handler)
+  }, [artistMenu])
 
   const handleSort = useCallback((field: SortField) => {
     if (sortField === field) {
@@ -133,6 +167,34 @@ export default function LibraryPage(): JSX.Element {
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, 'zh'))
   }, [tracks])
 
+  const folderData = useMemo(() => {
+    const subdirs = new Map<string, { label: string; key: string; count: number }>()
+    const files: MusicFile[] = []
+    const root = browseFolder || ''
+    for (const t of tracks) {
+      const segs = splitPath(t.path)
+      if (segs.length === 0) continue
+      segs.pop()
+      const dirKey = segs.join('/')
+      if (dirKey === root) {
+        files.push(t)
+      } else if (root === '' || dirKey.startsWith(root + '/')) {
+        const rest = root === '' ? dirKey : dirKey.slice(root.length + 1)
+        const child = rest.split('/')[0]
+        if (child) {
+          const childKey = root === '' ? child : root + '/' + child
+          const existing = subdirs.get(childKey)
+          if (existing) existing.count++
+          else subdirs.set(childKey, { label: child, key: childKey, count: 1 })
+        }
+      }
+    }
+    return {
+      subdirs: Array.from(subdirs.values()).sort((a, b) => a.label.localeCompare(b.label, 'zh')),
+      files
+    }
+  }, [tracks, browseFolder])
+
   const handleRowClick = useCallback((track: typeof tracks[0]) => {
     setQueue(filtered)
     requestPlay(track)
@@ -143,16 +205,32 @@ export default function LibraryPage(): JSX.Element {
   const backToBrowse = useCallback(() => {
     setBrowseAlbum(null)
     setBrowseArtist(null)
+    setBrowseFolder(null)
   }, [])
 
-  const browsing = !!browseAlbum || !!browseArtist
+  const browsing = !!browseAlbum || !!browseArtist || !!browseFolder
+  const parentFolder = browseFolder ? browseFolder.slice(0, browseFolder.lastIndexOf('/')) : null
+
+  const handleRenameArtist = async (): Promise<void> => {
+    const oldName = editArtistName
+    const newName = editArtistInput.trim()
+    setEditArtistName(null)
+    setArtistMenu(null)
+    if (oldName === null || !newName || newName === oldName) return
+    const targets = tracks
+      .filter((t) => (oldName === '未知歌手' ? !t.artist : t.artist === oldName))
+      .map((t) => t.id)
+    if (targets.length > 0) {
+      await useMusicStore.getState().updateMetaBatch(targets, { artist: newName })
+    }
+  }
 
   return (
     <div className="page library-page" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="page-header">
         <h2>
           {browsing ? (
-            <span className="browse-back" onClick={backToBrowse}>‹ {browseAlbum || browseArtist}</span>
+            <span className="browse-back" onClick={backToBrowse}>‹ {browseAlbum || browseArtist || browseFolder}</span>
           ) : (
             '音乐库'
           )}
@@ -170,6 +248,7 @@ export default function LibraryPage(): JSX.Element {
             <button className={`browse-tab${viewMode === 'songs' ? ' active' : ''}`} onClick={() => { setViewMode('songs'); backToBrowse() }}>歌曲</button>
             <button className={`browse-tab${viewMode === 'albums' ? ' active' : ''}`} onClick={() => { setViewMode('albums'); backToBrowse() }}>专辑</button>
             <button className={`browse-tab${viewMode === 'artists' ? ' active' : ''}`} onClick={() => { setViewMode('artists'); backToBrowse() }}>歌手</button>
+            <button className={`browse-tab${viewMode === 'folders' ? ' active' : ''}`} onClick={() => { setViewMode('folders'); backToBrowse() }}>文件夹</button>
           </div>
           <input
             type="text"
@@ -198,7 +277,39 @@ export default function LibraryPage(): JSX.Element {
         </div>
       </div>
 
-      {viewMode === 'songs' || browsing ? (
+      {viewMode === 'folders' ? (
+        <div className="folder-view">
+          {browseFolder && (
+            <div className="folder-path" onClick={() => setBrowseFolder(parentFolder)}>
+              <span className="folder-back-arrow">‹</span> {browseFolder}
+            </div>
+          )}
+          {folderData.subdirs.length > 0 && (
+            <div className="folder-subdirs">
+              {folderData.subdirs.map((d) => (
+                <div key={d.key} className="folder-row" onClick={() => { setBrowseFolder(d.key); setSearch('') }}>
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                    <path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
+                  </svg>
+                  <span className="folder-name">{d.label}</span>
+                  <span className="album-meta">{d.count} 首</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {folderData.files.length > 0 ? (
+            <MusicList
+              tracks={folderData.files}
+              sortField={sortField}
+              sortDir={sortDir}
+              onSort={handleSort}
+              onRowClick={handleRowClick}
+            />
+          ) : folderData.subdirs.length === 0 ? (
+            <div className="empty-state"><p>空文件夹</p></div>
+          ) : null}
+        </div>
+      ) : viewMode === 'songs' || browsing ? (
         <MusicList
           tracks={filtered}
           sortField={sortField}
@@ -224,7 +335,15 @@ export default function LibraryPage(): JSX.Element {
         <div className="browse-scroll">
           <div className="artist-list">
             {artists.map((ar) => (
-              <div key={ar.name} className="artist-row" onClick={() => { setBrowseArtist(ar.name); setSearch('') }}>
+              <div
+                key={ar.name}
+                className="artist-row"
+                onClick={() => { setBrowseArtist(ar.name); setSearch('') }}
+                onContextMenu={(e) => {
+                  e.preventDefault()
+                  setArtistMenu({ x: e.clientX, y: e.clientY, name: ar.name })
+                }}
+              >
                 <div className="artist-avatar">
                   <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
                     <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
@@ -234,6 +353,47 @@ export default function LibraryPage(): JSX.Element {
                 <span className="album-meta">{ar.count} 首</span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {artistMenu && (
+        <div
+          className="context-menu"
+          style={{ left: artistMenu.x, top: artistMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div
+            className="context-menu-item"
+            onClick={() => {
+              setEditArtistName(artistMenu.name)
+              setEditArtistInput(artistMenu.name === '未知歌手' ? '' : artistMenu.name)
+              setArtistMenu(null)
+            }}
+          >
+            修改歌手名
+          </div>
+        </div>
+      )}
+
+      {editArtistName !== null && (
+        <div className="modal-overlay" onClick={() => setEditArtistName(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 360 }}>
+            <h3>修改歌手名</h3>
+            <div className="form-group">
+              <label>将「{editArtistName}」下所有歌曲的歌手改为</label>
+              <input
+                type="text"
+                value={editArtistInput}
+                onChange={(e) => setEditArtistInput(e.target.value)}
+                placeholder="新歌手名"
+                autoFocus
+              />
+            </div>
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={() => setEditArtistName(null)}>取消</button>
+              <button className="btn btn-primary" onClick={handleRenameArtist}>保存</button>
+            </div>
           </div>
         </div>
       )}

@@ -1,6 +1,7 @@
 import { useCallback, useState, useEffect, useRef } from 'react'
 import { usePlayerStore } from '../stores/playerStore'
 import { useMusicStore } from '../stores/musicStore'
+import { useUiStore } from '../stores/uiStore'
 
 function formatTime(secs: number): string {
   if (!secs || !isFinite(secs)) return '0:00'
@@ -66,12 +67,47 @@ export default function PlayerBar(): JSX.Element {
   const duration = usePlayerStore((s) => s.duration)
   const volume = usePlayerStore((s) => s.volume)
   const playMode = usePlayerStore((s) => s.playMode)
+  const sleepUntil = usePlayerStore((s) => s.sleepUntil)
+  const setSleepTimer = usePlayerStore((s) => s.setSleepTimer)
   const favorites = useMusicStore((s) => s.favorites)
   const loadFavorites = useMusicStore((s) => s.loadFavorites)
+  const toggleQueue = useUiStore((s) => s.toggleQueue)
+  const [sleepOpen, setSleepOpen] = useState(false)
+  const [lyricsOn, setLyricsOn] = useState(() => localStorage.getItem('desktop_lyrics') === '1')
+  const [sleepNow, setSleepNow] = useState(() => Date.now())
+  const sleepMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handler = (e: MouseEvent): void => {
+      if (sleepMenuRef.current && !sleepMenuRef.current.contains(e.target as Node)) setSleepOpen(false)
+    }
+    document.addEventListener('click', handler)
+    return () => document.removeEventListener('click', handler)
+  }, [])
+
+  useEffect(() => {
+    if (!sleepUntil) return
+    setSleepNow(Date.now())
+    const id = setInterval(() => setSleepNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [sleepUntil])
+
+  const sleepRemaining = sleepUntil ? Math.max(0, Math.round((sleepUntil - sleepNow) / 1000)) : 0
+
+  useEffect(() => {
+    if (lyricsOn) window.api.window.lyrics(true)
+  }, [lyricsOn])
 
   useEffect(() => {
     loadFavorites()
   }, [loadFavorites])
+
+  const toggleDesktopLyrics = (): void => {
+    const next = !lyricsOn
+    setLyricsOn(next)
+    localStorage.setItem('desktop_lyrics', next ? '1' : '0')
+    window.api.window.lyrics(next)
+  }
 
   const handleTogglePlay = useCallback(() => {
     const store = usePlayerStore.getState()
@@ -155,6 +191,38 @@ export default function PlayerBar(): JSX.Element {
               <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M22 9.24l-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24zM12 15.4l-3.76 2.27 1-4.28-3.32-2.88 4.38-.38L12 6.1l1.71 4.04 4.38.38-3.32 2.88 1 4.28L12 15.4z"/></svg>
             )}
           </button>
+          <button className="btn-icon" onClick={toggleQueue} title="播放队列">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
+          </button>
+          <div className="sleep-wrap" ref={sleepMenuRef}>
+            <button className="btn-icon" onClick={(e) => { e.stopPropagation(); setSleepOpen((o) => !o) }} title="睡眠定时">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                {sleepUntil ? (
+                  <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/>
+                ) : (
+                  <path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zm0-5C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
+                )}
+              </svg>
+            </button>
+            <button className={`btn-icon${lyricsOn ? ' active' : ''}`} onClick={toggleDesktopLyrics} title="桌面歌词" style={{ color: lyricsOn ? 'var(--accent)' : undefined }}>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+              </svg>
+            </button>
+            {sleepOpen && (
+              <div className="sleep-menu">
+                <div className="sleep-menu-title">{sleepUntil ? `剩余 ${Math.floor(sleepRemaining / 60)}:${String(sleepRemaining % 60).padStart(2, '0')}` : '睡眠定时'}</div>
+                {[15, 30, 45, 60, 90].map((m) => (
+                  <div key={m} className="sleep-menu-item" onClick={() => { setSleepTimer(m); setSleepOpen(false) }}>
+                    {m} 分钟
+                  </div>
+                ))}
+                <div className="sleep-menu-item danger" onClick={() => { setSleepTimer(null); setSleepOpen(false) }}>
+                  关闭
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         <div className="progress-area">
           <span className="time">{formatTime(currentTime)}</span>

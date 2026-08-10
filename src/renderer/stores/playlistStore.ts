@@ -1,10 +1,16 @@
 import { create } from 'zustand'
-import type { MusicFile } from '../../main/types'
+import type { MusicFile, Playlist } from '../../main/types'
 import { usePlayerStore } from './playerStore'
 
 interface PlaylistState {
+  playlists: Playlist[]
+  activeId: number | null
   playlist: MusicFile[]
-  loadPlaylist: () => Promise<void>
+  loadPlaylists: () => Promise<void>
+  createPlaylist: (name: string) => Promise<void>
+  renamePlaylist: (id: number, name: string) => Promise<void>
+  deletePlaylist: (id: number) => Promise<void>
+  selectPlaylist: (id: number) => Promise<void>
   addTrack: (track: MusicFile) => void
   addTracks: (tracks: MusicFile[]) => void
   removeTrack: (id: number) => void
@@ -12,44 +18,101 @@ interface PlaylistState {
   reorder: (from: number, to: number) => void
   clearPlaylist: () => void
   isInPlaylist: (id: number) => boolean
+  persistTracks: (tracks: MusicFile[]) => void
 }
 
-const PLAYLIST_ID = 1
+function parseIds(trackIds: string): number[] {
+  try {
+    const parsed = JSON.parse(trackIds)
+    if (Array.isArray(parsed)) {
+      return parsed.map((n: unknown) => Number(n)).filter((n: number) => Number.isFinite(n))
+    }
+  } catch { /* ignore */ }
+  return []
+}
 
-function persistPlaylist(playlist: MusicFile[]): void {
-  window.api.playlist.save({
-    id: PLAYLIST_ID,
-    name: '播放列表',
-    trackIds: JSON.stringify(playlist.map((t) => t.id)),
-    createdAt: new Date().toISOString()
-  }).catch(() => {})
+async function resolveTracks(ids: number[]): Promise<MusicFile[]> {
+  if (ids.length === 0) return []
+  const fetched = await window.api.music.byIds(ids)
+  const idMap = new Map(fetched.map((t) => [t.id, t]))
+  return ids.map((id) => idMap.get(id)).filter((t): t is MusicFile => !!t)
 }
 
 export const usePlaylistStore = create<PlaylistState>((set, get) => ({
+  playlists: [],
+  activeId: null,
   playlist: [],
 
-  loadPlaylist: async () => {
+  loadPlaylists: async () => {
     try {
-      const savedList = await window.api.playlist.list()
-      const saved = savedList.find((p) => p.id === PLAYLIST_ID) || savedList[0]
-      let ids: number[] = []
-      if (saved && saved.trackIds) {
-        try {
-          const parsed = JSON.parse(saved.trackIds)
-          if (Array.isArray(parsed)) {
-            ids = parsed.map((n: unknown) => Number(n)).filter((n: number) => Number.isFinite(n))
-          }
-        } catch { /* ignore */ }
+      let list = await window.api.playlist.list()
+      if (list.length === 0) {
+        const def: Playlist = {
+          id: Date.now(),
+          name: '我的播放列表',
+          trackIds: '[]',
+          createdAt: new Date().toISOString()
+        }
+        await window.api.playlist.save(def)
+        list = [def]
       }
-      let tracks: MusicFile[] = []
-      if (ids.length > 0) {
-        const fetched = await window.api.music.byIds(ids)
-        const idMap = new Map(fetched.map((t) => [t.id, t]))
-        tracks = ids.map((id) => idMap.get(id)).filter((t): t is MusicFile => !!t)
-      }
-      set({ playlist: tracks })
+      let activeId = get().activeId
+      if (!list.some((p) => p.id === activeId)) activeId = list[0].id
+      const active = list.find((p) => p.id === activeId)
+      const tracks = active ? await resolveTracks(parseIds(active.trackIds)) : []
+      set({ playlists: list, activeId, playlist: tracks })
       usePlayerStore.getState().syncPlaylist(tracks)
     } catch { /* ignore */ }
+  },
+
+  createPlaylist: async (name) => {
+    const playlist: Playlist = {
+      id: Date.now(),
+      name: name || '新建播放列表',
+      trackIds: '[]',
+      createdAt: new Date().toISOString()
+    }
+    await window.api.playlist.save(playlist)
+    set((s) => ({ playlists: [...s.playlists, playlist], activeId: playlist.id, playlist: [] }))
+    usePlayerStore.getState().syncPlaylist([])
+  },
+
+  renamePlaylist: async (id, name) => {
+    const meta = get().playlists.find((p) => p.id === id)
+    if (!meta) return
+    const updated = { ...meta, name }
+    await window.api.playlist.save(updated)
+    set((s) => ({ playlists: s.playlists.map((p) => (p.id === id ? updated : p)) }))
+  },
+
+  deletePlaylist: async (id) => {
+    await window.api.playlist.delete(id)
+    const remaining = get().playlists.filter((p) => p.id !== id)
+    let activeId = get().activeId === id ? (remaining.length > 0 ? remaining[0].id : null) : get().activeId
+    const active = remaining.find((p) => p.id === activeId)
+    const tracks = active ? await resolveTracks(parseIds(active.trackIds)) : []
+    set({ playlists: remaining, activeId, playlist: tracks })
+    usePlayerStore.getState().syncPlaylist(tracks)
+  },
+
+  selectPlaylist: async (id) => {
+    if (get().activeId === id) return
+    const active = get().playlists.find((p) => p.id === id)
+    const tracks = active ? await resolveTracks(parseIds(active.trackIds)) : []
+    set({ activeId: id, playlist: tracks })
+    usePlayerStore.getState().syncPlaylist(tracks)
+  },
+
+  persistTracks: (tracks: MusicFile[]) => {
+    const activeId = get().activeId
+    if (activeId === null) return
+    const meta = get().playlists.find((p) => p.id === activeId)
+    window.api.playlist.save({
+      id: activeId,
+      name: meta ? meta.name : '我的播放列表',
+      trackIds: JSON.stringify(tracks.map((t) => t.id)),
+      createdAt: meta ? meta.createdAt : new Date().toISOString()
+    }).catch(() => {})
   },
 
   addTrack: (track: MusicFile) => {
@@ -58,7 +121,7 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
     const updated = [...state.playlist, track]
     set({ playlist: updated })
     usePlayerStore.getState().syncPlaylist(updated)
-    persistPlaylist(updated)
+    get().persistTracks(updated)
   },
 
   addTracks: (tracks: MusicFile[]) => {
@@ -69,14 +132,14 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
     const updated = [...state.playlist, ...newTracks]
     set({ playlist: updated })
     usePlayerStore.getState().syncPlaylist(updated)
-    persistPlaylist(updated)
+    get().persistTracks(updated)
   },
 
   removeTrack: (id: number) => {
     const updated = get().playlist.filter((t) => t.id !== id)
     set({ playlist: updated })
     usePlayerStore.getState().syncPlaylist(updated)
-    persistPlaylist(updated)
+    get().persistTracks(updated)
   },
 
   replaceTrack: (oldId: number, newTrack: MusicFile) => {
@@ -84,7 +147,7 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
     if (updated.every((t, i) => t.id === get().playlist[i]?.id)) return
     set({ playlist: updated })
     usePlayerStore.getState().syncPlaylist(updated)
-    persistPlaylist(updated)
+    get().persistTracks(updated)
   },
 
   reorder: (from: number, to: number) => {
@@ -95,13 +158,13 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
     updated.splice(to, 0, moved)
     set({ playlist: updated })
     usePlayerStore.getState().syncPlaylist(updated)
-    persistPlaylist(updated)
+    get().persistTracks(updated)
   },
 
   clearPlaylist: () => {
     set({ playlist: [] })
     usePlayerStore.getState().syncPlaylist([])
-    persistPlaylist([])
+    get().persistTracks([])
   },
 
   isInPlaylist: (id: number) => {

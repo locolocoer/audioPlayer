@@ -7,13 +7,24 @@ type SortField = 'order' | 'title' | 'artist' | 'album' | 'duration' | 'playCoun
 type SortDir = 'asc' | 'desc'
 
 export default function PlaylistPage(): JSX.Element {
+  const playlists = usePlaylistStore((s) => s.playlists)
+  const activeId = usePlaylistStore((s) => s.activeId)
   const playlist = usePlaylistStore((s) => s.playlist)
+  const createPlaylist = usePlaylistStore((s) => s.createPlaylist)
+  const renamePlaylist = usePlaylistStore((s) => s.renamePlaylist)
+  const deletePlaylist = usePlaylistStore((s) => s.deletePlaylist)
+  const selectPlaylist = usePlaylistStore((s) => s.selectPlaylist)
   const clearPlaylist = usePlaylistStore((s) => s.clearPlaylist)
   const reorder = usePlaylistStore((s) => s.reorder)
   const { requestPlay, setQueue } = usePlayerStore()
   const [search, setSearch] = useState('')
   const [sortField, setSortField] = useState<SortField>('order')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
+  const [newName, setNewName] = useState('')
+  const [editing, setEditing] = useState(false)
+  const [editName, setEditName] = useState('')
+
+  const activeName = playlists.find((p) => p.id === activeId)?.name || ''
 
   const handleSort = useCallback((field: 'title' | 'artist' | 'album' | 'duration' | 'playCount' | 'lastPlayed') => {
     if (sortField === field) {
@@ -39,6 +50,10 @@ export default function PlaylistPage(): JSX.Element {
         let cmp = 0
         if (sortField === 'duration') {
           cmp = a.duration - b.duration
+        } else if (sortField === 'playCount') {
+          cmp = (a.playCount || 0) - (b.playCount || 0)
+        } else if (sortField === 'lastPlayed') {
+          cmp = String(a.lastPlayed || '').localeCompare(String(b.lastPlayed || ''))
         } else {
           cmp = String(a[sortField] || '').localeCompare(String(b[sortField] || ''))
         }
@@ -55,18 +70,14 @@ export default function PlaylistPage(): JSX.Element {
     requestPlay(track)
   }, [filtered, requestPlay, setQueue])
 
-  if (playlist.length === 0) {
+  if (playlists.length === 0) {
     return (
       <div className="page" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         <div className="page-header">
           <h2>播放列表</h2>
         </div>
         <div className="empty-state">
-          <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor" opacity={0.3}>
-            <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
-          </svg>
           <p>播放列表为空</p>
-          <p className="empty-hint">在音乐库中右键歌曲，选择"添加到播放列表"</p>
         </div>
       </div>
     )
@@ -75,18 +86,61 @@ export default function PlaylistPage(): JSX.Element {
   return (
     <div className="page" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="page-header">
-        <h2>播放列表</h2>
+        <h2>{activeName || '播放列表'}</h2>
         <div className="library-controls">
-          <input
-            type="text"
-            placeholder="搜索播放列表..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="search-input"
-          />
-          <button className="btn btn-secondary" onClick={clearPlaylist} title="清空播放列表">
-            清空列表
-          </button>
+          <div className="playlist-switcher">
+            {playlists.map((p) => (
+              <button key={p.id} className={`browse-tab${p.id === activeId ? ' active' : ''}`} onClick={() => selectPlaylist(p.id)}>
+                {p.name}
+              </button>
+            ))}
+          </div>
+          {editing ? (
+            <>
+              <input
+                type="text"
+                className="filter-select"
+                style={{ width: 140 }}
+                value={editName}
+                autoFocus
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="列表名称"
+              />
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  if (activeId !== null && editName.trim()) {
+                    renamePlaylist(activeId, editName.trim())
+                  }
+                  setEditing(false)
+                }}
+              >保存</button>
+              <button className="btn btn-secondary" onClick={() => setEditing(false)}>取消</button>
+            </>
+          ) : (
+            <>
+              <input
+                type="text"
+                className="filter-select"
+                style={{ width: 140 }}
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="新建列表名"
+              />
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  if (newName.trim()) {
+                    createPlaylist(newName.trim())
+                    setNewName('')
+                  }
+                }}
+              >新建</button>
+              <button className="btn btn-secondary" onClick={() => { setEditName(activeName); setEditing(true) }}>重命名</button>
+            </>
+          )}
+          <button className="btn btn-secondary" onClick={() => { if (activeId !== null) deletePlaylist(activeId) }}>删除列表</button>
+          <button className="btn btn-secondary" onClick={clearPlaylist} title="清空当前列表">清空</button>
         </div>
       </div>
       <MusicList

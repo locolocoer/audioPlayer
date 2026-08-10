@@ -173,8 +173,11 @@ function ContextMenu({ x, y, track, onClose, onEdit }: {
 export default function MusicList({ tracks, sortField, sortDir, onSort, onRowClick, showFavorite, onReorder }: MusicListProps): JSX.Element {
   const currentTrack = usePlayerStore((s) => s.currentTrack)
   const toggleFavorite = useMusicStore((s) => s.toggleFavorite)
+  const addTracks = usePlaylistStore((s) => s.addTracks)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; track: MusicFile } | null>(null)
   const [editTrack, setEditTrack] = useState<MusicFile | null>(null)
+  const [selectMode, setSelectMode] = useState(false)
+  const [selected, setSelected] = useState<Set<number>>(new Set())
   const tableRef = useRef<HTMLDivElement>(null)
   const rowRef = useRef<HTMLTableRowElement | null>(null)
   const dragIndexRef = useRef<number>(-1)
@@ -204,7 +207,38 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
   const visible = tracks.slice(start, end)
   const topPad = start * rowHeight
   const bottomPad = Math.max(0, (tracks.length - end) * rowHeight)
-  const colCount = (showFavorite ? 1 : 0) + 5
+  const colCount = (showFavorite ? 1 : 0) + (selectMode ? 1 : 0) + 5
+
+  const toggleSelect = (id: number): void => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const exitSelectMode = (): void => {
+    setSelectMode(false)
+    setSelected(new Set())
+  }
+
+  const batchAddToPlaylist = (): void => {
+    const sel = tracks.filter((t) => selected.has(t.id))
+    if (sel.length > 0) addTracks(sel)
+    exitSelectMode()
+  }
+
+  const batchFavorite = (): void => {
+    const sel = tracks.filter((t) => selected.has(t.id))
+    for (const t of sel) toggleFavorite(t.id)
+    exitSelectMode()
+  }
+
+  const handleRowClick = (track: MusicFile): void => {
+    if (selectMode) toggleSelect(track.id)
+    else onRowClick(track)
+  }
 
   useLayoutEffect(() => {
     if (rowRef.current) {
@@ -223,11 +257,24 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
 
   return (
     <>
+      {selectMode ? (
+        <div className="list-select-bar">
+          <span className="select-count">已选 {selected.size} 首</span>
+          <button className="btn btn-secondary" onClick={batchAddToPlaylist}>加入播放列表</button>
+          <button className="btn btn-secondary" onClick={batchFavorite}>收藏</button>
+          <button className="btn btn-secondary" onClick={exitSelectMode}>取消</button>
+        </div>
+      ) : (
+        <div className="list-toolbar">
+          <button className="btn btn-sm" onClick={() => setSelectMode(true)}>多选</button>
+        </div>
+      )}
       <div className="music-table-container" ref={tableRef} onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}>
         <table className="music-table">
           <thead>
             <tr>
               {showFavorite && <th style={{ width: 36 }} />}
+              {selectMode && <th style={{ width: 36 }} />}
               <th className="col-index">#</th>
               <th onClick={() => onSort('title')}>
                 歌名 <SortArrow field="title" current={sortField} dir={sortDir} />
@@ -272,13 +319,24 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
                     dragIndexRef.current = -1
                     if (from >= 0 && from !== idx && onReorder) onReorder(from, idx)
                   }}
-                  onClick={() => onRowClick(track)}
-                  onDoubleClick={() => onRowClick(track)}
+                  onClick={() => handleRowClick(track)}
+                  onDoubleClick={() => { if (!selectMode) onRowClick(track) }}
                   onContextMenu={(e) => {
                     e.preventDefault()
                     setContextMenu({ x: e.clientX, y: e.clientY, track })
                   }}
                 >
+                  {selectMode && (
+                    <td style={{ padding: 0, textAlign: 'center' }}>
+                      <input
+                        type="checkbox"
+                        className="row-check"
+                        checked={selected.has(track.id)}
+                        onChange={() => toggleSelect(track.id)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </td>
+                  )}
                   {showFavorite && (
                     <td style={{ padding: 0, textAlign: 'center' }}>
                       <button

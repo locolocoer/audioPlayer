@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { MusicFile } from '../../main/types'
 import { useMusicStore } from './musicStore'
+import { usePlaylistStore } from './playlistStore'
 
 export type PlayMode = 'sequential' | 'shuffle' | 'single' | 'heartbeat'
 
@@ -18,9 +19,13 @@ interface PlayerState {
   playlist: MusicFile[]
   audioSrc: string | null
   autoPlayBlocked: boolean
+  sleepUntil: number | null
 
   requestPlay: (track: MusicFile) => void
   setAutoPlayBlocked: (blocked: boolean) => void
+  setSleepTimer: (minutes: number | null) => void
+  removeQueueItem: (id: number) => void
+  reorderQueue: (from: number, to: number) => void
   setQueue: (tracks: MusicFile[]) => void
   pause: () => void
   resume: () => void
@@ -41,7 +46,9 @@ interface PlayerState {
 const MODE_ORDER: PlayMode[] = ['sequential', 'shuffle', 'single', 'heartbeat']
 
 function getStoredVolume(): number {
-  const v = Number(localStorage.getItem('player_volume'))
+  const saved = localStorage.getItem('player_volume')
+  if (saved === null || saved === '') return 0.8
+  const v = Number(saved)
   if (!Number.isFinite(v)) return 0.8
   return Math.max(0, Math.min(1, v))
 }
@@ -66,6 +73,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   playlist: [],
   audioSrc: null,
   autoPlayBlocked: false,
+  sleepUntil: null,
 
   requestPlay: (track: MusicFile) => {
     const state = get()
@@ -87,6 +95,34 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   setAutoPlayBlocked: (blocked: boolean) => {
     set({ autoPlayBlocked: blocked })
+  },
+
+  setSleepTimer: (minutes: number | null) => {
+    if (minutes === null) set({ sleepUntil: null })
+    else set({ sleepUntil: Date.now() + minutes * 60000 })
+  },
+
+  removeQueueItem: (id: number) => {
+    const s = get()
+    if (s.playlist.length > 0) {
+      usePlaylistStore.getState().removeTrack(id)
+      return
+    }
+    set({ queue: s.queue.filter((t) => t.id !== id) })
+  },
+
+  reorderQueue: (from: number, to: number) => {
+    const s = get()
+    if (s.playlist.length > 0) {
+      usePlaylistStore.getState().reorder(from, to)
+      return
+    }
+    const q = s.queue
+    if (from < 0 || from >= q.length || to < 0 || to >= q.length || from === to) return
+    const updated = [...q]
+    const [moved] = updated.splice(from, 1)
+    updated.splice(to, 0, moved)
+    set({ queue: updated })
   },
 
   setQueue: (tracks: MusicFile[]) => {

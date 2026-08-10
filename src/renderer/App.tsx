@@ -1,13 +1,16 @@
 import { HashRouter, Routes, Route } from 'react-router-dom'
-import { useThemeStore } from './stores/themeStore'
+import { useThemeStore, lightenHex } from './stores/themeStore'
 import ConfigPage from './pages/ConfigPage'
 import LibraryPage from './pages/LibraryPage'
 import PlayerPage from './pages/PlayerPage'
 import FavoritesPage from './pages/FavoritesPage'
 import PlaylistPage from './pages/PlaylistPage'
+import RecentPage from './pages/RecentPage'
 import PlayerBar from './components/PlayerBar'
 import AudioEngine from './components/AudioEngine'
 import Sidebar from './components/Sidebar'
+import QueuePanel from './components/QueuePanel'
+import DesktopLyrics from './components/DesktopLyrics'
 import { usePlaylistStore } from './stores/playlistStore'
 import { usePlayerStore } from './stores/playerStore'
 import { useMusicStore } from './stores/musicStore'
@@ -36,13 +39,17 @@ class ErrorBoundary extends Component<{ children: React.ReactNode }, { hasError:
 
 export default function App(): JSX.Element {
   const theme = useThemeStore((s) => s.theme)
+  const accent = useThemeStore((s) => s.accent)
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme)
-  }, [theme])
+    const root = document.documentElement
+    root.setAttribute('data-theme', theme)
+    root.style.setProperty('--accent', accent)
+    root.style.setProperty('--accent-hover', lightenHex(accent, 0.2))
+  }, [theme, accent])
 
   useEffect(() => {
-    usePlaylistStore.getState().loadPlaylist()
+    usePlaylistStore.getState().loadPlaylists()
   }, [])
 
   useEffect(() => {
@@ -67,6 +74,10 @@ export default function App(): JSX.Element {
     return unsub
   }, [])
 
+  if (window.location.hash === '#lyrics') {
+    return <DesktopLyrics />
+  }
+
   return (
     <ErrorBoundary>
       <HashRouter>
@@ -80,11 +91,13 @@ export default function App(): JSX.Element {
               <Route path="/player" element={<PlayerPage />} />
               <Route path="/favorites" element={<FavoritesPage />} />
               <Route path="/playlist" element={<PlaylistPage />} />
+              <Route path="/recent" element={<RecentPage />} />
               <Route path="/config" element={<ConfigPage />} />
               </Routes>
             </main>
             <PlayerBar />
           </div>
+          <QueuePanel />
         </div>
       </HashRouter>
     </ErrorBoundary>

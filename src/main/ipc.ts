@@ -1,10 +1,13 @@
-import { ipcMain, BrowserWindow, dialog } from 'electron'
+import { ipcMain, BrowserWindow, dialog, app } from 'electron'
+import NodeID3 from 'node-id3'
 import { createWebDAVClient, testConnection } from './webdav'
 import { scanWebDAV, cancelScan, scanLocal } from './scanner'
 import { setupFolderWatchers } from './folderWatch'
+import { writeTagsToLocalMp3 } from './tags'
 import {
   saveWebDAVConfig,
   getWebDAVConfigs,
+  getAllWebDAVConfigs,
   deleteWebDAVConfig,
   getMusicFiles,
   getMusicFilesByIds,
@@ -18,7 +21,11 @@ import {
   updateMusicFileMeta,
   findAlternativeSources,
   setSourcePref,
-  recordPlay
+  recordPlay,
+  getMusicFileById,
+  getRecentMusicFiles,
+  getDBPath,
+  getDuplicateGroups
 } from './database'
 import type { WebDAVConfig, MusicFile, ScanProgress, Playlist, ScanSettings } from './types'
 import fs from 'fs'
@@ -102,11 +109,36 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('music:updateMeta', async (_event, id: number, meta: { title?: string; artist?: string; album?: string }) => {
     updateMusicFileMeta(id, meta)
+    const row = getMusicFileById(id)
+    if (row) {
+      const config = getAllWebDAVConfigs().find((c) => c.id === row.webdavId)
+      if (config && config.sourceType === 'local') {
+        await writeTagsToLocalMp3(row.path, meta)
+      }
+    }
     return true
+  })
+
+  ipcMain.handle('music:recent', async (_event, limit?: number) => {
+    return getRecentMusicFiles(limit || 200)
   })
 
   ipcMain.handle('music:recordPlay', async (_event, id: number) => {
     recordPlay(id)
+    return true
+  })
+
+  ipcMain.handle('music:updateMetaBatch', async (_event, ids: number[], meta: { title?: string; artist?: string; album?: string }) => {
+    for (const id of ids) {
+      updateMusicFileMeta(id, meta)
+      const row = getMusicFileById(id)
+      if (row) {
+        const config = getAllWebDAVConfigs().find((c) => c.id === row.webdavId)
+        if (config && config.sourceType === 'local') {
+          await writeTagsToLocalMp3(row.path, meta)
+        }
+      }
+    }
     return true
   })
 
@@ -147,6 +179,123 @@ export function registerIpcHandlers(): void {
       }
     } catch { /* ignore */ }
     return true
+  })
+
+  ipcMain.handle('cache:info', async () => {
+    const tempDir = path.join(os.tmpdir(), 'audioplayer-cache')
+    try {
+      if (!fs.existsSync(tempDir)) return { size: 0, files: [] }
+      const files = fs.readdirSync(tempDir).map((name) => {
+        const p = path.join(tempDir, name)
+        let size = 0
+        try { size = fs.statSync(p).size } catch { /* ignore */ }
+        return { name, size }
+      })
+      const size = files.reduce((a, b) => a + b.size, 0)
+      return { size, files }
+    } catch {
+      return { size: 0, files: [] }
+    }
+  })
+
+  ipcMain.handle('cache:removeFile', async (_event, name: string) => {
+    const tempDir = path.join(os.tmpdir(), 'audioplayer-cache')
+    try {
+      const safe = path.basename(name)
+      const p = path.join(tempDir, safe)
+      if (fs.existsSync(p)) fs.unlinkSync(p)
+      return true
+    } catch {
+      return false
+    }
+  })
+
+  // Backup
+  ipcMain.handle('backup:export', async () => {
+    const win = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0]
+    if (!win) return { ok: false, error: 'no window' }
+    const defaultPath = path.join(app.getPath('documents'), `feiyu-music-backup-${new Date().toISOString().slice(0, 10)}.db`)
+    const result = await dialog.showSaveDialog(win, {
+      defaultPath,
+      filters: [{ name: 'SQLite 数据库', extensions: ['db'] }]
+    })
+    if (result.canceled || !result.filePath) return { ok: false, error: 'cancelled' }
+    try {
+      fs.copyFileSync(getDBPath(), result.filePath)
+      return { ok: true, path: result.filePath }
+    } catch (err) {
+      return { ok: false, error: (err instanceof Error ? err.message : String(err)) }
+    }
+  })
+
+  // Duplicates
+  ipcMain.handle('music:duplicates', async () => {
+    return getDuplicateGroups()
+  })
+
+  // MusicBrainz enrich
+  ipcMain.handle('music:enrich', async (_event, id: number) => {
+    const row = getMusicFileById(id)
+    if (!row) return { ok: false }
+    try {
+      const name = (row.title || row.filename.replace(/\.[^.]+$/, '')).replace(/"/g, '')
+      const artist = (row.artist || '').replace(/"/g, '')
+      const query = `recording:"${name}"` + (artist ? ` AND artist:"${artist}"` : '')
+      const url = `https://musicbrainz.org/ws/2/recording/?query=${encodeURIComponent(query)}&fmt=json&limit=1`
+      const res = await fetch(url, {
+        headers: { 'User-Agent': 'FeiYuMusic/0.7.0 (feiyu-music.local)' },
+        signal: AbortSignal.timeout(10000)
+      })
+      if (!res.ok) return { ok: false }
+      const data = await res.json()
+      const rec = data && data.recordings && data.recordings[0]
+      if (!rec) return { ok: false }
+      const meta: { title?: string; artist?: string; album?: string } = {}
+      if (rec.title) meta.title = rec.title
+      const credit = rec['artist-credit']
+      if (credit && credit[0] && (credit[0].name || credit[0].artist?.name)) {
+        meta.artist = credit[0].name || credit[0].artist.name
+      }
+      const release = rec.releases && rec.releases[0]
+      if (release && release.title) meta.album = release.title
+      updateMusicFileMeta(id, meta)
+      const config = getAllWebDAVConfigs().find((c) => c.id === row.webdavId)
+      if (config && config.sourceType === 'local') {
+        await writeTagsToLocalMp3(row.path, meta)
+      }
+      return { ok: true, meta }
+    } catch {
+      return { ok: false }
+    }
+  })
+
+  // Save lyrics / cover
+  ipcMain.handle('player:saveLyrics', async (_event, configId: string, filePath: string, text: string) => {
+    try {
+      const config = getAllWebDAVConfigs().find((c) => c.id === configId)
+      if (!config || config.sourceType !== 'local') return { ok: false, error: '仅本地文件支持保存歌词' }
+      const lrcPath = filePath.replace(/\.[^.]+$/, '.lrc')
+      fs.writeFileSync(lrcPath, text, 'utf-8')
+      return { ok: true, path: lrcPath }
+    } catch (err) {
+      return { ok: false, error: (err instanceof Error ? err.message : String(err)) }
+    }
+  })
+
+  ipcMain.handle('player:saveCover', async (_event, configId: string, filePath: string, url: string) => {
+    try {
+      const config = getAllWebDAVConfigs().find((c) => c.id === configId)
+      if (!config || config.sourceType !== 'local') return { ok: false, error: '仅本地文件支持保存封面' }
+      if (!filePath.toLowerCase().endsWith('.mp3')) return { ok: false, error: '仅 MP3 支持写回封面' }
+      const res = await fetch(url, { signal: AbortSignal.timeout(10000) })
+      if (!res.ok) return { ok: false, error: '封面下载失败' }
+      const imageBuffer = Buffer.from(await res.arrayBuffer())
+      const mime = res.headers.get('content-type') || 'image/jpeg'
+      const result = await NodeID3.update({ image: { mime, imageBuffer, description: 'cover', type: { id: 3 } } }, filePath)
+      return result ? { ok: true } : { ok: false, error: '写入失败' }
+    } catch (err) {
+      return { ok: false, error: (err instanceof Error ? err.message : String(err)) }
+    }
   })
 
   // Log from renderer to terminal

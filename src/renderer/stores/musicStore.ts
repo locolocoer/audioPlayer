@@ -26,6 +26,7 @@ interface MusicState {
   cancelScan: () => Promise<void>
   toggleFavorite: (id: number) => Promise<boolean>
   updateMeta: (id: number, meta: { title?: string; artist?: string; album?: string }) => Promise<void>
+  updateMetaBatch: (ids: number[], meta: { title?: string; artist?: string; album?: string }) => Promise<void>
   switchTrackSource: (oldTrackId: number, newTrack: MusicFile) => Promise<void>
 }
 
@@ -117,6 +118,16 @@ export const useMusicStore = create<MusicState>((set, get) => ({
     set((s) => ({
       tracks: s.tracks.map((t) => t.id === id ? { ...t, ...meta } : t),
       favorites: s.favorites.map((t) => t.id === id ? { ...t, ...meta } : t)
+    }))
+  },
+
+  updateMetaBatch: async (ids: number[], meta) => {
+    if (ids.length === 0) return
+    await window.api.music.updateMetaBatch(ids, meta)
+    const idSet = new Set(ids)
+    set((s) => ({
+      tracks: s.tracks.map((t) => idSet.has(t.id) ? { ...t, ...meta } : t),
+      favorites: s.favorites.map((t) => idSet.has(t.id) ? { ...t, ...meta } : t)
     }))
   },
 

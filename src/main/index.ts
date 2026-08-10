@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, ipcMain, Menu, protocol, Tray, globalShortcut } from 'electron'
+import { app, BrowserWindow, shell, ipcMain, Menu, protocol, Tray, globalShortcut, screen } from 'electron'
 import { join } from 'path'
 import fs from 'fs'
 import path from 'path'
@@ -11,13 +11,37 @@ import { initDatabase, closeDatabase, getAllWebDAVConfigs } from './database'
 import { setupFolderWatchers, closeFolderWatchers } from './folderWatch'
 import { buildBaseUrl, createWebDAVClient, downloadFile } from './webdav'
 
+app.setName('feiyu-music')
+
 let mainWindow: BrowserWindow | null = null
+let miniWindow: BrowserWindow | null = null
+let lyricsWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 const tempDir = path.join(os.tmpdir(), 'audioplayer-cache')
 
+function windowStatePath(): string {
+  return path.join(app.getPath('userData'), 'window-state.json')
+}
+
+function loadWindowState(): { width?: number; height?: number; x?: number; y?: number } {
+  try {
+    const raw = fs.readFileSync(windowStatePath(), 'utf-8')
+    const s = JSON.parse(raw)
+    if (s && s.width && s.height) return s
+  } catch { /* ignore */ }
+  return {}
+}
+
+function saveWindowState(win: BrowserWindow): void {
+  try {
+    if (win.isDestroyed() || win.isFullScreen() || win.isMinimized() || win.isMaximized()) return
+    fs.writeFileSync(windowStatePath(), JSON.stringify(win.getBounds()))
+  } catch { /* ignore */ }
+}
+
 function sendPlayerCommand(cmd: string): void {
-  const win = BrowserWindow.getAllWindows()[0]
-  if (win && !win.isDestroyed()) {
+  const win = BrowserWindow.getAllWindows().find((w) => w !== miniWindow && !w.isDestroyed())
+  if (win) {
     win.webContents.send('player:command', cmd)
   }
 }
@@ -77,9 +101,12 @@ function findResourceFile(name: string): string | null {
 
 function createWindow(): void {
   const iconPath = findResourceFile('icon.ico')
+  const saved = loadWindowState()
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    width: saved.width || 1200,
+    height: saved.height || 800,
+    x: saved.x,
+    y: saved.y,
     minWidth: 800,
     minHeight: 600,
     title: '飞鱼音乐',
@@ -92,6 +119,16 @@ function createWindow(): void {
     }
   })
   mainWindow.on('ready-to-show', () => mainWindow?.show())
+
+  let boundsTimer: ReturnType<typeof setTimeout> | null = null
+  const onBoundsChange = (): void => {
+    if (boundsTimer) clearTimeout(boundsTimer)
+    boundsTimer = setTimeout(() => { if (mainWindow) saveWindowState(mainWindow) }, 500)
+  }
+  mainWindow.on('resize', onBoundsChange)
+  mainWindow.on('move', onBoundsChange)
+  mainWindow.on('close', () => { if (mainWindow) saveWindowState(mainWindow) })
+
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }
@@ -101,6 +138,112 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+}
+
+function createMiniWindow(): void {
+  if (miniWindow && !miniWindow.isDestroyed()) {
+    miniWindow.show()
+    miniWindow.focus()
+    return
+  }
+  miniWindow = new BrowserWindow({
+    width: 380,
+    height: 88,
+    alwaysOnTop: true,
+    resizable: false,
+    frame: false,
+    skipTaskbar: true,
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false,
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  })
+  miniWindow.setAlwaysOnTop(true, 'floating')
+  if (process.env.ELECTRON_RENDERER_URL) {
+    miniWindow.loadURL(process.env.ELECTRON_RENDERER_URL + '#mini')
+  } else {
+    miniWindow.loadFile(join(__dirname, '../renderer/index.html'), { hash: 'mini' })
+  }
+  miniWindow.on('closed', () => { miniWindow = null })
+}
+
+function lyricsWindowStatePath(): string {
+  return path.join(app.getPath('userData'), 'lyrics-window-state.json')
+}
+
+function createLyricsWindow(): void {
+  if (lyricsWindow && !lyricsWindow.isDestroyed()) {
+    lyricsWindow.show()
+    return
+  }
+  const win = BrowserWindow.getAllWindows().find((w) => w !== miniWindow && !w.isDestroyed())
+  const bounds: Electron.Rectangle = win?.getBounds() || { x: 0, y: 0, width: 1200, height: 800 }
+  const lw = Math.min(900, Math.max(480, bounds.width - 200))
+  let savedPos: { x?: number; y?: number } = {}
+  try {
+    const raw = fs.readFileSync(lyricsWindowStatePath(), 'utf-8')
+    const parsed = JSON.parse(raw)
+    if (parsed && typeof parsed.x === 'number' && typeof parsed.y === 'number') savedPos = parsed
+  } catch { /* ignore */ }
+  const display = screen.getDisplayMatching(bounds)
+  lyricsWindow = new BrowserWindow({
+    width: lw,
+    height: 96,
+    x: savedPos.x ?? Math.round(bounds.x + (bounds.width - lw) / 2),
+    y: savedPos.y ?? Math.max(24, Math.round(display.workArea.y + display.workArea.height * 0.78)),
+    alwaysOnTop: true,
+    transparent: true,
+    frame: false,
+    resizable: false,
+    skipTaskbar: true,
+    hasShadow: false,
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false,
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  })
+  lyricsWindow.setAlwaysOnTop(true, 'screen-saver')
+  if (process.env.ELECTRON_RENDERER_URL) {
+    lyricsWindow.loadURL(process.env.ELECTRON_RENDERER_URL + '#lyrics')
+  } else {
+    lyricsWindow.loadFile(join(__dirname, '../renderer/index.html'), { hash: 'lyrics' })
+  }
+  let lyrTimer: ReturnType<typeof setTimeout> | null = null
+  const onLyrMove = (): void => {
+    if (lyrTimer) clearTimeout(lyrTimer)
+    lyrTimer = setTimeout(() => {
+      if (lyricsWindow && !lyricsWindow.isDestroyed()) {
+        try {
+          fs.writeFileSync(lyricsWindowStatePath(), JSON.stringify(lyricsWindow.getBounds()))
+        } catch { /* ignore */ }
+      }
+    }, 300)
+  }
+  lyricsWindow.on('moved', onLyrMove)
+  lyricsWindow.on('closed', () => { lyricsWindow = null })
+}
+
+function registerWindowIpc(): void {
+  ipcMain.handle('window:mini', (_e, open: boolean) => {
+    if (open) createMiniWindow()
+    else if (miniWindow && !miniWindow.isDestroyed()) miniWindow.close()
+    return true
+  })
+
+  ipcMain.handle('window:lyrics', (_e, open: boolean) => {
+    if (open) createLyricsWindow()
+    else if (lyricsWindow && !lyricsWindow.isDestroyed()) lyricsWindow.close()
+    return true
+  })
+
+  ipcMain.handle('player:sendCommand', (_e, cmd: string) => {
+    sendPlayerCommand(cmd)
+    return true
+  })
 }
 
 function findFFmpeg(): string {
@@ -355,45 +498,6 @@ function registerPlayerIpc(): void {
     }
   })
 
-  ipcMain.handle('player:fetchLyrics', async (_event, title: string, artist: string, duration: number) => {
-    try {
-      const params = new URLSearchParams()
-      if (title) params.set('track_name', title)
-      if (artist) params.set('artist_name', artist)
-      if (duration > 0) params.set('duration', String(Math.round(duration)))
-      const res = await fetch(`https://lrclib.net/api/get?${params.toString()}`, { signal: AbortSignal.timeout(8000) })
-      if (!res.ok) return { text: '' }
-      const data = await res.json()
-      if (data && typeof data.syncedLyrics === 'string' && data.syncedLyrics.length > 10) {
-        return { text: data.syncedLyrics }
-      }
-      if (data && typeof data.plainLyrics === 'string' && data.plainLyrics.length > 10) {
-        return { text: data.plainLyrics }
-      }
-      return { text: '' }
-    } catch {
-      return { text: '' }
-    }
-  })
-
-  ipcMain.handle('player:fetchCover', async (_event, title: string, artist: string, album: string) => {
-    try {
-      const term = [artist, title, album].filter(Boolean).slice(0, 2).join(' ')
-      if (!term) return { url: '' }
-      const url = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&limit=1`
-      const res = await fetch(url, { signal: AbortSignal.timeout(8000) })
-      if (!res.ok) return { url: '' }
-      const data = await res.json()
-      const first = data && data.results && data.results[0]
-      if (first && first.artworkUrl100) {
-        return { url: first.artworkUrl100.replace('100x100', '300x300') }
-      }
-      return { url: '' }
-    } catch {
-      return { url: '' }
-    }
-  })
-
   ipcMain.handle('player:getFallbackAudio', async (_event, configId: string, filePath: string) => {
     try {
       const configs = getAllWebDAVConfigs()
@@ -443,6 +547,7 @@ app.whenReady().then(async () => {
   registerIpcHandlers()
   registerLocalMediaProtocol()
   registerPlayerIpc()
+  registerWindowIpc()
   createWindow()
   createTray()
   registerGlobalShortcuts()

@@ -43,6 +43,10 @@ export default function FavoritesPage(): JSX.Element {
       let cmp = 0
       if (sortField === 'duration') {
         cmp = a.duration - b.duration
+      } else if (sortField === 'playCount') {
+        cmp = (a.playCount || 0) - (b.playCount || 0)
+      } else if (sortField === 'lastPlayed') {
+        cmp = String(a.lastPlayed || '').localeCompare(String(b.lastPlayed || ''))
       } else {
         cmp = String(a[sortField] || '').localeCompare(String(b[sortField] || ''))
       }

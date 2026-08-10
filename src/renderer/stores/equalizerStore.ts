@@ -26,22 +26,73 @@ interface EqualizerState {
   reset: () => void
 }
 
-export const useEqualizerStore = create<EqualizerState>((set) => ({
-  enabled: false,
-  gains: EQ_PRESETS[0].gains.slice(),
-  presetName: 'Flat',
-  toggleEnabled: () => set((s) => ({ enabled: !s.enabled })),
-  setGain: (index: number, value: number) => {
-    set((s) => {
-      const newGains = s.gains.slice()
-      newGains[index] = value
-      return { gains: newGains, presetName: 'Custom' }
-    })
-  },
-  applyPreset: (preset: EqPreset) => {
-    set({ gains: preset.gains.slice(), presetName: preset.name })
-  },
-  reset: () => {
-    set({ gains: EQ_PRESETS[0].gains.slice(), presetName: 'Flat', enabled: false })
+const STORAGE_KEY = 'eq_state'
+
+function clamp(v: number): number {
+  if (!Number.isFinite(v)) return 0
+  return Math.max(-12, Math.min(12, v))
+}
+
+function loadStored(): { enabled: boolean; gains: number[]; presetName: string } {
+  const fallback = { enabled: false, gains: EQ_PRESETS[0].gains.slice(), presetName: 'Flat' }
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return fallback
+    const parsed = JSON.parse(raw)
+    const gains = Array.isArray(parsed.gains) && parsed.gains.length === EQ_BANDS.length
+      ? parsed.gains.map((n: unknown) => clamp(Number(n)))
+      : fallback.gains
+    return {
+      enabled: !!parsed.enabled,
+      gains,
+      presetName: typeof parsed.presetName === 'string' ? parsed.presetName : 'Flat'
+    }
+  } catch {
+    return fallback
   }
-}))
+}
+
+export const useEqualizerStore = create<EqualizerState>((set, get) => {
+  const stored = loadStored()
+
+  const save = (): void => {
+    const s = get()
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        enabled: s.enabled,
+        gains: s.gains,
+        presetName: s.presetName
+      }))
+    } catch { /* ignore */ }
+  }
+
+  return {
+    enabled: stored.enabled,
+    gains: stored.gains,
+    presetName: stored.presetName,
+
+    toggleEnabled: () => {
+      set((s) => ({ enabled: !s.enabled }))
+      save()
+    },
+
+    setGain: (index: number, value: number) => {
+      set((s) => {
+        const newGains = s.gains.slice()
+        newGains[index] = clamp(value)
+        return { gains: newGains, presetName: 'Custom' }
+      })
+      save()
+    },
+
+    applyPreset: (preset: EqPreset) => {
+      set({ gains: preset.gains.slice(), presetName: preset.name })
+      save()
+    },
+
+    reset: () => {
+      set({ gains: EQ_PRESETS[0].gains.slice(), presetName: 'Flat', enabled: false })
+      save()
+    }
+  }
+})

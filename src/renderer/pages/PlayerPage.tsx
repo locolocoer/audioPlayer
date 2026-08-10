@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { usePlayerStore } from '../stores/playerStore'
+import { useLyricsStyleStore } from '../stores/lyricsStyleStore'
 import Equalizer from '../components/Equalizer'
+import Visualizer from '../components/Visualizer'
 
 function parseLrc(lrcText: string): { time: number; text: string }[] {
   const lines = lrcText.split('\n')
@@ -25,11 +27,17 @@ export default function PlayerPage(): JSX.Element {
   const currentTrack = usePlayerStore((s) => s.currentTrack)
   const currentTime = usePlayerStore((s) => s.currentTime)
   const duration = usePlayerStore((s) => s.duration)
+  const lyricsFontSize = useLyricsStyleStore((s) => s.fontSize)
+  const lyricsAlign = useLyricsStyleStore((s) => s.align)
   const [coverUrl, setCoverUrl] = useState('')
   const [lrcText, setLrcText] = useState('')
-  const [eqOpen, setEqOpen] = useState(false)
+  const [eqOpen, setEqOpen] = useState(() => localStorage.getItem('eq_panel') === '1')
   const loadedRef = useRef(0)
   const activeIdxRef = useRef(-1)
+
+  useEffect(() => {
+    localStorage.setItem('eq_panel', eqOpen ? '1' : '0')
+  }, [eqOpen])
 
   const lyrics = useMemo(() => parseLrc(lrcText), [lrcText])
   const activeIndex = useMemo(() => {
@@ -63,12 +71,13 @@ export default function PlayerPage(): JSX.Element {
     if (!currentTrack || loadedRef.current) return
     loadedRef.current = 1
 
-    const key = `${currentTrack.webdavId}:${currentTrack.path}`
+    const track = currentTrack
+    const key = `${track.webdavId}:${track.path}`
     const cached = coverCache.get(key)
     if (cached) {
       setCoverUrl(cached)
     } else {
-      window.api.player.getCover(currentTrack.webdavId, currentTrack.path).then((r) => {
+      window.api.player.getCover(track.webdavId, track.path).then((r) => {
         if (r.data && r.data.length > 0) {
           const blob = new Blob([new Uint8Array(r.data)], { type: r.format || 'image/jpeg' })
           const url = URL.createObjectURL(blob)
@@ -82,30 +91,14 @@ export default function PlayerPage(): JSX.Element {
           }
           coverCache.set(key, url)
           setCoverUrl(url)
-        } else {
-          window.api.player.fetchCover(currentTrack.title, currentTrack.artist || '', currentTrack.album || '')
-            .then((c) => {
-              if (c.url) setCoverUrl(c.url)
-            }).catch(() => {})
         }
       }).catch(() => {})
-
-    window.api.player.getLrc(currentTrack.webdavId, currentTrack.path).then((r) => {
-      console.log('[Lrc] received:', r.text ? `${r.text.length} chars` : 'empty')
-      if (r.text) {
-        setLrcText(r.text)
-      } else {
-        window.api.player.fetchLyrics(currentTrack.title || '', currentTrack.artist || '', currentTrack.duration)
-          .then((lr) => {
-            if (lr.text) setLrcText(lr.text)
-          }).catch(() => {})
-      }
-    }).catch(() => {})
     }
 
-    window.api.player.getLrc(currentTrack.webdavId, currentTrack.path).then((r) => {
-      console.log('[Lrc] received:', r.text ? `${r.text.length} chars` : 'empty')
-      if (r.text) setLrcText(r.text)
+    window.api.player.getLrc(track.webdavId, track.path).then((r) => {
+      if (r.text) {
+        setLrcText(r.text)
+      }
     }).catch(() => {})
   }, [currentTrack])
 
@@ -141,8 +134,9 @@ export default function PlayerPage(): JSX.Element {
           </div>
         </div>
         <div className="player-right">
+          <Visualizer />
           {lyrics.length > 0 ? (
-            <div className="lyrics-container" ref={lyricsRef}>
+            <div className="lyrics-container" ref={lyricsRef} style={{ fontSize: lyricsFontSize, textAlign: lyricsAlign }}>
               {lyrics.map((line, idx) => (
                 <div key={idx} className={`lyrics-line${activeIndex === idx ? ' active' : ''}`}>
                   {line.text}
