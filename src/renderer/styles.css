@@ -80,6 +80,13 @@ body {
   font-weight: 700;
 }
 
+.sidebar-logo-img {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
 .sidebar-nav {
   flex: 1;
   display: flex;
@@ -191,6 +198,9 @@ body {
 .page-header h2 {
   font-size: 22px;
   font-weight: 600;
+  flex-shrink: 0;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 /* Buttons */
@@ -437,7 +447,26 @@ body {
 /* Filter controls */
 .library-controls {
   display: flex;
+  align-items: center;
   gap: 10px;
+  height: 38px;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.library-controls .btn {
+  height: 36px;
+  padding: 0 18px;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.library-controls .search-input,
+.library-controls .filter-select {
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 .search-input {
@@ -447,7 +476,7 @@ body {
   background: var(--bg-secondary);
   color: var(--text-primary);
   font-size: 13px;
-  width: 250px;
+  width: 170px;
   outline: none;
 }
 
@@ -561,6 +590,153 @@ body {
 
 .sort-arrow.active {
   color: var(--accent);
+}
+
+/* Browse tabs + album/artist views */
+.browse-tabs {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.browse-tab {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.browse-tab:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.browse-tab.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.browse-back {
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+  display: inline-block;
+  max-width: 240px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+}
+
+.browse-scroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 4px 2px;
+}
+
+.album-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 200px));
+  justify-content: center;
+  gap: 16px;
+  padding: 8px;
+}
+
+.album-card {
+  cursor: pointer;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg-card);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.album-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+.album-cover {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  display: block;
+}
+
+.album-cover-placeholder {
+  width: 100%;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+}
+
+.album-card-info {
+  padding: 8px 10px 10px;
+}
+
+.album-name {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.album-meta {
+  display: block;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.artist-list {
+  padding: 8px;
+}
+
+.artist-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.artist-row:hover {
+  background: var(--bg-hover);
+}
+
+.artist-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.artist-name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
 }
 
 /* Cover thumbnail in table */
@@ -770,6 +946,7 @@ body {
 /* Player Page */
 .player-page {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   height: 100%;
@@ -946,8 +1123,40 @@ body {
 }
 
 /* Equalizer */
+.eq-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+  z-index: 1;
+}
+
+.eq-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.eq-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.eq-chevron {
+  font-size: 10px;
+}
+
 .equalizer-panel {
-  margin: 20px auto 0;
+  margin: 12px auto 0;
   max-width: 560px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);

@@ -3,6 +3,7 @@ import { useMusicStore } from '../stores/musicStore'
 import { useThemeStore } from '../stores/themeStore'
 import { usePlaylistStore } from '../stores/playlistStore'
 import { useEffect } from 'react'
+import logoUrl from '../logo.png'
 
 export default function Sidebar(): JSX.Element {
   const count = useMusicStore((s) => s.count)
@@ -18,10 +19,7 @@ export default function Sidebar(): JSX.Element {
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
-        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-          <circle cx="10" cy="16" r="4"/>
-          <rect x="14" y="2" width="3" height="14" rx="1.5"/>
-        </svg>
+        <img src={logoUrl} className="sidebar-logo-img" alt="飞鱼音乐" />
         <span>飞鱼音乐</span>
       </div>
 

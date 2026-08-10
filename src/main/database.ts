@@ -86,6 +86,14 @@ export async function initDatabase(): Promise<void> {
     db.run('ALTER TABLE music_files ADD COLUMN title_key TEXT NOT NULL DEFAULT \'\'')
   } catch { /* column already exists */ }
 
+  try {
+    db.run('ALTER TABLE music_files ADD COLUMN playCount INTEGER NOT NULL DEFAULT 0')
+  } catch { /* column already exists */ }
+
+  try {
+    db.run('ALTER TABLE music_files ADD COLUMN lastPlayed TEXT NOT NULL DEFAULT \'\'')
+  } catch { /* column already exists */ }
+
   db.run(`
     CREATE TABLE IF NOT EXISTS playlists (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -365,6 +373,14 @@ export function toggleFavorite(id: number): boolean {
 
 export function getFavoriteFiles(): MusicFile[] {
   return queryAll<MusicFile>('SELECT * FROM music_files WHERE favorite = 1 ORDER BY title')
+}
+
+export function recordPlay(id: number): void {
+  db.run(
+    'UPDATE music_files SET playCount = playCount + 1, lastPlayed = ? WHERE id = ?',
+    [new Date().toISOString(), id]
+  )
+  saveToDisk()
 }
 
 export function updateMusicFileMeta(id: number, meta: { title?: string; artist?: string; album?: string }): void {

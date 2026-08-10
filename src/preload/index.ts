@@ -16,6 +16,11 @@ const api = {
       const handler = (_event: Electron.IpcRendererEvent, progress: ScanProgress): void => callback(progress)
       ipcRenderer.on('scan:progress', handler)
       return () => ipcRenderer.removeListener('scan:progress', handler)
+    },
+    onAutoComplete: (callback: (configId: string) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, configId: string): void => callback(configId)
+      ipcRenderer.on('scan:autoComplete', handler)
+      return () => ipcRenderer.removeListener('scan:autoComplete', handler)
     }
   },
   music: {
@@ -26,6 +31,8 @@ const api = {
     favoriteList: (): Promise<MusicFile[]> => ipcRenderer.invoke('music:favorite:list'),
     updateMeta: (id: number, meta: { title?: string; artist?: string; album?: string }): Promise<boolean> =>
       ipcRenderer.invoke('music:updateMeta', id, meta),
+    recordPlay: (id: number): Promise<boolean> =>
+      ipcRenderer.invoke('music:recordPlay', id),
     alternatives: (title: string, webdavId: string): Promise<MusicFile[]> =>
       ipcRenderer.invoke('music:alternatives', title, webdavId),
     setSourcePref: (title: string, trackId: number): Promise<boolean> =>
@@ -42,7 +49,18 @@ const api = {
     getCover: (configId: string, filePath: string): Promise<{ data: number[]; format: string }> =>
       ipcRenderer.invoke('player:getCover', configId, filePath),
     getLrc: (configId: string, filePath: string): Promise<{ text: string }> =>
-      ipcRenderer.invoke('player:getLrc', configId, filePath)
+      ipcRenderer.invoke('player:getLrc', configId, filePath),
+    getFallbackAudio: (configId: string, filePath: string): Promise<{ localUrl?: string; error?: string }> =>
+      ipcRenderer.invoke('player:getFallbackAudio', configId, filePath),
+    fetchLyrics: (title: string, artist: string, duration: number): Promise<{ text: string }> =>
+      ipcRenderer.invoke('player:fetchLyrics', title, artist, duration),
+    fetchCover: (title: string, artist: string, album: string): Promise<{ url: string }> =>
+      ipcRenderer.invoke('player:fetchCover', title, artist, album),
+    onCommand: (callback: (cmd: string) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, cmd: string): void => callback(cmd)
+      ipcRenderer.on('player:command', handler)
+      return () => ipcRenderer.removeListener('player:command', handler)
+    }
   },
   cache: {
     clear: (): Promise<boolean> => ipcRenderer.invoke('cache:clear')

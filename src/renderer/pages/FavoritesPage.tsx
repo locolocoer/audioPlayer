@@ -4,7 +4,7 @@ import { usePlayerStore } from '../stores/playerStore'
 import { usePlaylistStore } from '../stores/playlistStore'
 import MusicList from '../components/MusicList'
 
-type SortField = 'title' | 'artist' | 'album' | 'duration'
+type SortField = 'title' | 'artist' | 'album' | 'duration' | 'playCount' | 'lastPlayed'
 type SortDir = 'asc' | 'desc'
 
 export default function FavoritesPage(): JSX.Element {
@@ -20,7 +20,7 @@ export default function FavoritesPage(): JSX.Element {
     loadFavorites()
   }, [loadFavorites])
 
-  const handleSort = useCallback((field: SortField) => {
+  const handleSort = useCallback((field: 'title' | 'artist' | 'album' | 'duration' | 'playCount' | 'lastPlayed') => {
     if (sortField === field) {
       setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
     } else {

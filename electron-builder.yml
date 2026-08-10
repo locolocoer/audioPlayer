@@ -3,7 +3,7 @@ productName: FeiYu Music
 directories:
   buildResources: resources
   output: dist
-icon: resources/icon.png
+icon: resources/icon.ico
 files:
   - out/**/*
   - "!node_modules/**/*.{md,ts,map}"

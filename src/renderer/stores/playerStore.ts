@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import type { MusicFile } from '../../main/types'
 import { useMusicStore } from './musicStore'
 
-export type PlayMode = 'sequential' | 'shuffle' | 'single'
+export type PlayMode = 'sequential' | 'shuffle' | 'single' | 'heartbeat'
 
 interface PlayerState {
   currentTrack: MusicFile | null
@@ -17,8 +17,10 @@ interface PlayerState {
   queue: MusicFile[]
   playlist: MusicFile[]
   audioSrc: string | null
+  autoPlayBlocked: boolean
 
   requestPlay: (track: MusicFile) => void
+  setAutoPlayBlocked: (blocked: boolean) => void
   setQueue: (tracks: MusicFile[]) => void
   pause: () => void
   resume: () => void
@@ -36,7 +38,19 @@ interface PlayerState {
   onAudioEnded: () => void
 }
 
-const MODE_ORDER: PlayMode[] = ['sequential', 'shuffle', 'single']
+const MODE_ORDER: PlayMode[] = ['sequential', 'shuffle', 'single', 'heartbeat']
+
+function getStoredVolume(): number {
+  const v = Number(localStorage.getItem('player_volume'))
+  if (!Number.isFinite(v)) return 0.8
+  return Math.max(0, Math.min(1, v))
+}
+
+function getStoredMode(): PlayMode {
+  const m = localStorage.getItem('player_playMode')
+  if (m === 'sequential' || m === 'shuffle' || m === 'single' || m === 'heartbeat') return m
+  return 'sequential'
+}
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
   currentTrack: null,
@@ -46,11 +60,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   loadError: null,
   currentTime: 0,
   duration: 0,
-  volume: 0.8,
-  playMode: 'sequential',
+  volume: getStoredVolume(),
+  playMode: getStoredMode(),
   queue: [],
   playlist: [],
   audioSrc: null,
+  autoPlayBlocked: false,
 
   requestPlay: (track: MusicFile) => {
     const state = get()
@@ -64,8 +79,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       pendingTrack: track,
       currentTrack: track,
       loadError: null,
-      audioSrc: null
+      audioSrc: null,
+      autoPlayBlocked: false
     })
+    localStorage.setItem('resume_track_id', String(track.id))
+  },
+
+  setAutoPlayBlocked: (blocked: boolean) => {
+    set({ autoPlayBlocked: blocked })
   },
 
   setQueue: (tracks: MusicFile[]) => {
@@ -74,8 +95,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     set({ queue: tracks })
   },
 
-  pause: () => set({ isPlaying: false }),
-  resume: () => set({ isPlaying: true }),
+  pause: () => {
+    set({ isPlaying: false })
+    localStorage.setItem('resume_playing', '0')
+  },
+  resume: () => {
+    set({ isPlaying: true })
+    localStorage.setItem('resume_playing', '1')
+  },
 
   next: () => {
     const state = get()
@@ -88,7 +115,27 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (effectiveQueue.length === 0 || !currentTrack) return
     const idx = effectiveQueue.findIndex((t) => t.id === currentTrack.id)
     let nextIdx: number
-    if (playMode === 'shuffle') {
+    if (playMode === 'heartbeat') {
+      const favs = useMusicStore.getState().favorites
+      const pool = favs.length > 0 ? favs.filter((f) => f.id !== currentTrack.id) : []
+      if (pool.length > 0 && Math.random() < 0.7) {
+        const weights = pool.map((f) => (f.playCount || 0) + 1)
+        const total = weights.reduce((a, b) => a + b, 0)
+        let r = Math.random() * total
+        let pick = pool[pool.length - 1]
+        for (let i = 0; i < pool.length; i++) {
+          r -= weights[i]
+          if (r <= 0) {
+            pick = pool[i]
+            break
+          }
+        }
+        get().requestPlay(pick)
+        return
+      }
+      if (favs.length === 0) useMusicStore.getState().loadFavorites()
+      nextIdx = Math.floor(Math.random() * effectiveQueue.length)
+    } else if (playMode === 'shuffle') {
       nextIdx = Math.floor(Math.random() * effectiveQueue.length)
     } else if (playMode === 'single') {
       nextIdx = idx >= 0 ? idx : 0
@@ -112,18 +159,27 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     get().requestPlay(effectiveQueue[prevIdx])
   },
 
-  setVolume: (v: number) => set({ volume: v }),
+  setVolume: (v: number) => {
+    localStorage.setItem('player_volume', String(v))
+    set({ volume: v })
+  },
   setCurrentTime: (t: number) => set({ currentTime: t }),
   setDuration: (d: number) => set({ duration: d }),
 
   togglePlayMode: () => {
     const current = get().playMode
     const nextIdx = (MODE_ORDER.indexOf(current) + 1) % MODE_ORDER.length
-    set({ playMode: MODE_ORDER[nextIdx] })
+    const next = MODE_ORDER[nextIdx]
+    localStorage.setItem('player_playMode', next)
+    if (next === 'heartbeat') {
+      useMusicStore.getState().loadFavorites()
+    }
+    set({ playMode: next })
   },
   seek: (time: number) => {
-    set({ currentTime: time })
-    window.dispatchEvent(new CustomEvent('audioplayer:seek', { detail: time }))
+    const t = Number.isFinite(time) ? Math.max(0, time) : 0
+    set({ currentTime: t })
+    window.dispatchEvent(new CustomEvent('audioplayer:seek', { detail: t }))
   },
 
   syncPlaylist: (list: MusicFile[]) => {
@@ -140,7 +196,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   onAudioLoaded: () => {
-    set({ isLoading: false, isPlaying: true })
+    set({ isLoading: false, isPlaying: true, loadError: null })
   },
 
   onAudioError: (error: string) => {

@@ -1,17 +1,95 @@
 import { useEffect, useRef } from 'react'
 import { usePlayerStore } from '../stores/playerStore'
+import { useMusicStore } from '../stores/musicStore'
+import { useEqualizerStore, EQ_BANDS } from '../stores/equalizerStore'
+
+const RESUME_THROTTLE = 5000
+let lastResumeSave = 0
+let recordedPlayId = -1
 
 export default function AudioEngine(): JSX.Element {
   const audioRef = useRef<HTMLAudioElement>(null)
   const downloadingRef = useRef(false)
+  const resumeAppliedRef = useRef(false)
+  const fallbackTriedRef = useRef(false)
+  const fallbackSeekRef = useRef<number | null>(null)
 
   const pendingTrack = usePlayerStore((s) => s.pendingTrack)
   const volume = usePlayerStore((s) => s.volume)
   const isPlaying = usePlayerStore((s) => s.isPlaying)
+  const eqEnabled = useEqualizerStore((s) => s.enabled)
+  const eqGains = useEqualizerStore((s) => s.gains)
+
+  const audioCtxRef = useRef<AudioContext | null>(null)
+  const filtersRef = useRef<BiquadFilterNode[]>([])
+
+  const applyEq = (): void => {
+    const ctx = audioCtxRef.current
+    if (!ctx) return
+    filtersRef.current.forEach((f, i) => {
+      f.gain.value = eqEnabled ? (eqGains[i] ?? 0) : 0
+    })
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {})
+  }
+
+  const ensureEqGraph = (): void => {
+    const audio = audioRef.current
+    if (!audio || audioCtxRef.current) return
+    try {
+      const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      const ctx = new Ctor()
+      const source = ctx.createMediaElementSource(audio)
+      filtersRef.current = EQ_BANDS.map((freq) => {
+        const filter = ctx.createBiquadFilter()
+        filter.type = 'peaking'
+        filter.frequency.value = freq
+        filter.Q.value = 1.0
+        filter.gain.value = 0
+        return filter
+      })
+      let node: AudioNode = source
+      for (const f of filtersRef.current) {
+        node.connect(f)
+        node = f
+      }
+      node.connect(ctx.destination)
+      audioCtxRef.current = ctx
+      applyEq()
+    } catch { /* AudioContext unavailable */ }
+  }
+
+  useEffect(() => {
+    if (!eqEnabled) {
+      if (audioCtxRef.current) {
+        filtersRef.current.forEach((f) => { f.gain.value = 0 })
+        const ctx = audioCtxRef.current
+        if (ctx.state === 'suspended') ctx.resume().catch(() => {})
+      }
+      return
+    }
+    ensureEqGraph()
+    applyEq()
+  }, [eqEnabled, eqGains])
+
+  useEffect(() => {
+    if (!eqEnabled) return
+    const resume = (): void => {
+      const ctx = audioCtxRef.current
+      if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {})
+    }
+    document.addEventListener('pointerdown', resume)
+    document.addEventListener('keydown', resume)
+    return () => {
+      document.removeEventListener('pointerdown', resume)
+      document.removeEventListener('keydown', resume)
+    }
+  }, [eqEnabled])
 
   useEffect(() => {
     if (!pendingTrack || downloadingRef.current) return
     downloadingRef.current = true
+    fallbackTriedRef.current = false
+    fallbackSeekRef.current = null
 
     const audio = audioRef.current
     if (!audio) {
@@ -39,7 +117,10 @@ export default function AudioEngine(): JSX.Element {
 
         audio.src = result.localUrl
         audio.load()
-        return audio.play()
+        if (!usePlayerStore.getState().autoPlayBlocked) {
+          return audio.play()
+        }
+        return undefined
       })
       .then(() => {
         downloadingRef.current = false
@@ -71,6 +152,52 @@ export default function AudioEngine(): JSX.Element {
 
   const handleCanPlay = () => {
     usePlayerStore.getState().onAudioLoaded()
+
+    const state = usePlayerStore.getState()
+    if (state.currentTrack && state.currentTrack.id !== recordedPlayId) {
+      recordedPlayId = state.currentTrack.id
+      window.api.music.recordPlay(state.currentTrack.id)
+    }
+
+    const audio = audioRef.current
+    if (audio) {
+      if (fallbackSeekRef.current !== null) {
+        try {
+          audio.currentTime = fallbackSeekRef.current
+        } catch { /* ignore */ }
+        fallbackSeekRef.current = null
+      } else if (!resumeAppliedRef.current) {
+        resumeAppliedRef.current = true
+        const resumeTime = Number(localStorage.getItem('resume_time') || 0)
+        const resumeTrackId = Number(localStorage.getItem('resume_track_id') || 0)
+        if (resumeTime > 0 && resumeTrackId === state.currentTrack?.id) {
+          try {
+            audio.currentTime = resumeTime
+          } catch { /* ignore */ }
+        }
+      }
+    }
+
+    prefetchNext()
+  }
+
+  const prefetchedForRef = useRef<number>(-1)
+
+  const prefetchNext = () => {
+    const state = usePlayerStore.getState()
+    const queue = state.playlist.length > 0
+      ? state.playlist
+      : state.queue.length > 0
+        ? state.queue
+        : useMusicStore.getState().tracks
+    const cur = state.currentTrack
+    if (!cur || queue.length === 0) return
+    const idx = queue.findIndex((t) => t.id === cur.id)
+    const next = idx >= 0 ? queue[(idx + 1) % queue.length] : undefined
+    if (!next || next.id === cur.id) return
+    if (next.id === prefetchedForRef.current) return
+    prefetchedForRef.current = next.id
+    window.api.player.getAudioPath(next.webdavId, next.path).catch(() => {})
   }
 
   const handleError = () => {
@@ -79,6 +206,34 @@ export default function AudioEngine(): JSX.Element {
       const track = usePlayerStore.getState().currentTrack
       const ext = track ? track.filename.slice(track.filename.lastIndexOf('.')) : '?'
       window.api.log('error', `FORMAT UNSUPPORTED: "${track?.title}" (${ext}) path=${track?.path} error=${audio.error.message}`)
+
+      if (track && ext.toLowerCase() === '.flac' && !fallbackTriedRef.current) {
+        fallbackTriedRef.current = true
+        fallbackSeekRef.current = audio.currentTime || 0
+        downloadingRef.current = false
+        window.api.player.getFallbackAudio(track.webdavId, track.path).then((result) => {
+          const st = usePlayerStore.getState()
+          if (st.pendingTrack?.id !== track.id) return
+          const el = audioRef.current
+          if (result.error || !result.localUrl || !el) {
+            st.onAudioError(`${ext} - 转码播放失败`)
+            el?.removeAttribute('src')
+            return
+          }
+          el.src = result.localUrl
+          el.load()
+          if (!st.autoPlayBlocked) {
+            el.play().catch(() => {})
+          }
+        }).catch(() => {
+          const st = usePlayerStore.getState()
+          if (st.pendingTrack?.id !== track.id) return
+          st.onAudioError(`${ext} - 转码播放失败`)
+          audioRef.current?.removeAttribute('src')
+        })
+        return
+      }
+
       usePlayerStore.getState().onAudioError(`${ext} not supported - ${audio.error.message}`)
     }
     downloadingRef.current = false
@@ -88,8 +243,13 @@ export default function AudioEngine(): JSX.Element {
   }
 
   const handleTimeUpdate = () => {
-    if (audioRef.current) {
-      usePlayerStore.getState().setCurrentTime(audioRef.current.currentTime)
+    const audio = audioRef.current
+    if (!audio) return
+    usePlayerStore.getState().setCurrentTime(audio.currentTime)
+    const now = Date.now()
+    if (now - lastResumeSave > RESUME_THROTTLE) {
+      lastResumeSave = now
+      localStorage.setItem('resume_time', String(Math.floor(audio.currentTime)))
     }
   }
 
@@ -100,13 +260,90 @@ export default function AudioEngine(): JSX.Element {
   }
 
   const handleEnded = () => {
+    localStorage.setItem('resume_time', '0')
     usePlayerStore.getState().onAudioEnded()
   }
 
   useEffect(() => {
+    const unsub = window.api.player.onCommand((cmd) => {
+      const st = usePlayerStore.getState()
+      switch (cmd) {
+        case 'toggle':
+          if (st.isPlaying) st.pause()
+          else st.resume()
+          break
+        case 'next':
+          st.next()
+          break
+        case 'prev':
+          st.prev()
+          break
+        case 'seek:+5':
+          st.seek(st.currentTime + 5)
+          break
+        case 'seek:-5':
+          st.seek(Math.max(0, st.currentTime - 5))
+          break
+        case 'volume:+':
+          st.setVolume(Math.min(1, st.volume + 0.05))
+          break
+        case 'volume:-':
+          st.setVolume(Math.max(0, st.volume - 0.05))
+          break
+      }
+    })
+    return unsub
+  }, [])
+
+  useEffect(() => {
+    const isEditable = (target: EventTarget | null): boolean => {
+      if (!(target instanceof HTMLElement)) return false
+      const tag = target.tagName
+      return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON' || target.isContentEditable
+    }
+    const onKeyDown = (e: KeyboardEvent): void => {
+      if (isEditable(e.target)) return
+      const st = usePlayerStore.getState()
+      if (e.code === 'Space') {
+        e.preventDefault()
+        if (st.isPlaying) st.pause()
+        else st.resume()
+      } else if (e.key === 'ArrowLeft' && e.ctrlKey) {
+        e.preventDefault()
+        st.prev()
+      } else if (e.key === 'ArrowRight' && e.ctrlKey) {
+        e.preventDefault()
+        st.next()
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        st.seek(Math.max(0, st.currentTime - 5))
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault()
+        st.seek(st.currentTime + 5)
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        st.setVolume(Math.min(1, st.volume + 0.05))
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        st.setVolume(Math.max(0, st.volume - 0.05))
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
+
+  useEffect(() => {
     const handler = ((e: CustomEvent<number>) => {
-      if (audioRef.current) {
-        audioRef.current.currentTime = e.detail
+      const audio = audioRef.current
+      if (!audio) return
+      const t = e.detail
+      if (Number.isFinite(t) && t >= 0) {
+        if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+          audioCtxRef.current.resume().catch(() => {})
+        }
+        try {
+          audio.currentTime = t
+        } catch { /* ignore */ }
       }
     }) as EventListener
     window.addEventListener('audioplayer:seek', handler)

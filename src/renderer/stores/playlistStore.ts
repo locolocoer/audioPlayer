@@ -9,6 +9,7 @@ interface PlaylistState {
   addTracks: (tracks: MusicFile[]) => void
   removeTrack: (id: number) => void
   replaceTrack: (oldId: number, newTrack: MusicFile) => void
+  reorder: (from: number, to: number) => void
   clearPlaylist: () => void
   isInPlaylist: (id: number) => boolean
 }
@@ -81,6 +82,17 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
   replaceTrack: (oldId: number, newTrack: MusicFile) => {
     const updated = get().playlist.map((t) => t.id === oldId ? newTrack : t)
     if (updated.every((t, i) => t.id === get().playlist[i]?.id)) return
+    set({ playlist: updated })
+    usePlayerStore.getState().syncPlaylist(updated)
+    persistPlaylist(updated)
+  },
+
+  reorder: (from: number, to: number) => {
+    const list = get().playlist
+    if (from < 0 || from >= list.length || to < 0 || to >= list.length || from === to) return
+    const updated = [...list]
+    const [moved] = updated.splice(from, 1)
+    updated.splice(to, 0, moved)
     set({ playlist: updated })
     usePlayerStore.getState().syncPlaylist(updated)
     persistPlaylist(updated)

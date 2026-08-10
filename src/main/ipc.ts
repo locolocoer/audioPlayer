@@ -1,6 +1,7 @@
 import { ipcMain, BrowserWindow, dialog } from 'electron'
 import { createWebDAVClient, testConnection } from './webdav'
 import { scanWebDAV, cancelScan, scanLocal } from './scanner'
+import { setupFolderWatchers } from './folderWatch'
 import {
   saveWebDAVConfig,
   getWebDAVConfigs,
@@ -16,7 +17,8 @@ import {
   getFavoriteFiles,
   updateMusicFileMeta,
   findAlternativeSources,
-  setSourcePref
+  setSourcePref,
+  recordPlay
 } from './database'
 import type { WebDAVConfig, MusicFile, ScanProgress, Playlist, ScanSettings } from './types'
 import fs from 'fs'
@@ -33,6 +35,7 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('webdav:save', async (_event, config: WebDAVConfig) => {
     saveWebDAVConfig(config)
+    setupFolderWatchers()
     return true
   })
 
@@ -42,6 +45,7 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('webdav:delete', async (_event, id: string) => {
     deleteWebDAVConfig(id)
+    setupFolderWatchers()
     return true
   })
 
@@ -98,6 +102,11 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('music:updateMeta', async (_event, id: number, meta: { title?: string; artist?: string; album?: string }) => {
     updateMusicFileMeta(id, meta)
+    return true
+  })
+
+  ipcMain.handle('music:recordPlay', async (_event, id: number) => {
+    recordPlay(id)
     return true
   })
 

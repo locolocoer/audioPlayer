@@ -6,11 +6,12 @@ import { usePlaylistStore } from '../stores/playlistStore'
 
 interface MusicListProps {
   tracks: MusicFile[]
-  sortField: 'title' | 'artist' | 'album' | 'duration'
+  sortField: 'title' | 'artist' | 'album' | 'duration' | 'playCount' | 'lastPlayed' | 'order'
   sortDir: 'asc' | 'desc'
-  onSort: (field: 'title' | 'artist' | 'album' | 'duration') => void
+  onSort: (field: 'title' | 'artist' | 'album' | 'duration' | 'playCount' | 'lastPlayed') => void
   onRowClick: (track: MusicFile) => void
   showFavorite?: boolean
+  onReorder?: (from: number, to: number) => void
 }
 
 const OVERSCAN = 10
@@ -169,13 +170,14 @@ function ContextMenu({ x, y, track, onClose, onEdit }: {
   )
 }
 
-export default function MusicList({ tracks, sortField, sortDir, onSort, onRowClick, showFavorite }: MusicListProps): JSX.Element {
+export default function MusicList({ tracks, sortField, sortDir, onSort, onRowClick, showFavorite, onReorder }: MusicListProps): JSX.Element {
   const currentTrack = usePlayerStore((s) => s.currentTrack)
   const toggleFavorite = useMusicStore((s) => s.toggleFavorite)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; track: MusicFile } | null>(null)
   const [editTrack, setEditTrack] = useState<MusicFile | null>(null)
   const tableRef = useRef<HTMLDivElement>(null)
   const rowRef = useRef<HTMLTableRowElement | null>(null)
+  const dragIndexRef = useRef<number>(-1)
   const [scrollTop, setScrollTop] = useState(0)
   const [viewportH, setViewportH] = useState(0)
   const [rowHeight, setRowHeight] = useState(36)
@@ -214,7 +216,7 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
   if (tracks.length === 0) {
     return (
       <div className="empty-state">
-        <p>暂无收藏的音乐。</p>
+        <p>暂无歌曲。</p>
       </div>
     )
   }
@@ -252,6 +254,24 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
                   key={track.id}
                   ref={i === 0 ? rowRef : undefined}
                   className={currentTrack?.id === track.id ? 'playing' : ''}
+                  draggable={!!onReorder}
+                  onDragStart={(e) => {
+                    if (!onReorder) return
+                    dragIndexRef.current = idx
+                    e.dataTransfer.effectAllowed = 'move'
+                    e.dataTransfer.setData('text/plain', String(track.id))
+                  }}
+                  onDragOver={(e) => {
+                    if (!onReorder) return
+                    e.preventDefault()
+                    e.dataTransfer.dropEffect = 'move'
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    const from = dragIndexRef.current
+                    dragIndexRef.current = -1
+                    if (from >= 0 && from !== idx && onReorder) onReorder(from, idx)
+                  }}
                   onClick={() => onRowClick(track)}
                   onDoubleClick={() => onRowClick(track)}
                   onContextMenu={(e) => {

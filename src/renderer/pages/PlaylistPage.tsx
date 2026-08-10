@@ -3,18 +3,19 @@ import { usePlaylistStore } from '../stores/playlistStore'
 import { usePlayerStore } from '../stores/playerStore'
 import MusicList from '../components/MusicList'
 
-type SortField = 'title' | 'artist' | 'album' | 'duration'
+type SortField = 'order' | 'title' | 'artist' | 'album' | 'duration' | 'playCount' | 'lastPlayed'
 type SortDir = 'asc' | 'desc'
 
 export default function PlaylistPage(): JSX.Element {
   const playlist = usePlaylistStore((s) => s.playlist)
   const clearPlaylist = usePlaylistStore((s) => s.clearPlaylist)
+  const reorder = usePlaylistStore((s) => s.reorder)
   const { requestPlay, setQueue } = usePlayerStore()
   const [search, setSearch] = useState('')
-  const [sortField, setSortField] = useState<SortField>('title')
+  const [sortField, setSortField] = useState<SortField>('order')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
 
-  const handleSort = useCallback((field: SortField) => {
+  const handleSort = useCallback((field: 'title' | 'artist' | 'album' | 'duration' | 'playCount' | 'lastPlayed') => {
     if (sortField === field) {
       setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
     } else {
@@ -33,15 +34,19 @@ export default function PlaylistPage(): JSX.Element {
         t.album.toLowerCase().includes(q)
       )
     }
-    result = [...result].sort((a, b) => {
-      let cmp = 0
-      if (sortField === 'duration') {
-        cmp = a.duration - b.duration
-      } else {
-        cmp = String(a[sortField] || '').localeCompare(String(b[sortField] || ''))
-      }
-      return sortDir === 'asc' ? cmp : -cmp
-    })
+    if (sortField !== 'order') {
+      result = [...result].sort((a, b) => {
+        let cmp = 0
+        if (sortField === 'duration') {
+          cmp = a.duration - b.duration
+        } else {
+          cmp = String(a[sortField] || '').localeCompare(String(b[sortField] || ''))
+        }
+        return sortDir === 'asc' ? cmp : -cmp
+      })
+    } else {
+      result = [...result]
+    }
     return result
   }, [playlist, search, sortField, sortDir])
 
@@ -90,6 +95,7 @@ export default function PlaylistPage(): JSX.Element {
         sortDir={sortDir}
         onSort={handleSort}
         onRowClick={handleRowClick}
+        onReorder={sortField === 'order' ? reorder : undefined}
       />
       <div className="playlist-status">
         共 {playlist.length} 首歌曲

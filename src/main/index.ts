@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, ipcMain, Menu, protocol } from 'electron'
+import { app, BrowserWindow, shell, ipcMain, Menu, protocol, Tray, globalShortcut } from 'electron'
 import { join } from 'path'
 import fs from 'fs'
 import path from 'path'
@@ -8,10 +8,62 @@ import { execFile } from 'child_process'
 import { pathToFileURL } from 'url'
 import { registerIpcHandlers } from './ipc'
 import { initDatabase, closeDatabase, getAllWebDAVConfigs } from './database'
+import { setupFolderWatchers, closeFolderWatchers } from './folderWatch'
 import { buildBaseUrl, createWebDAVClient, downloadFile } from './webdav'
 
 let mainWindow: BrowserWindow | null = null
+let tray: Tray | null = null
 const tempDir = path.join(os.tmpdir(), 'audioplayer-cache')
+
+function sendPlayerCommand(cmd: string): void {
+  const win = BrowserWindow.getAllWindows()[0]
+  if (win && !win.isDestroyed()) {
+    win.webContents.send('player:command', cmd)
+  }
+}
+
+function toggleWindowVisibility(): void {
+  const win = BrowserWindow.getAllWindows()[0]
+  if (!win) return
+  if (win.isVisible()) {
+    win.hide()
+  } else {
+    win.show()
+    win.focus()
+  }
+}
+
+function createTray(): void {
+  const icon = findResourceFile('icon.ico')
+  if (!icon) return
+  tray = new Tray(icon)
+  tray.setToolTip('飞鱼音乐')
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: '显示 / 隐藏', click: () => toggleWindowVisibility() },
+    { type: 'separator' },
+    { label: '播放 / 暂停', click: () => sendPlayerCommand('toggle') },
+    { label: '上一首', click: () => sendPlayerCommand('prev') },
+    { label: '下一首', click: () => sendPlayerCommand('next') },
+    { type: 'separator' },
+    { label: '退出', click: () => app.quit() }
+  ]))
+  tray.on('click', () => toggleWindowVisibility())
+}
+
+function registerGlobalShortcuts(): void {
+  const defs: [string, string][] = [
+    ['MediaPlayPause', 'toggle'],
+    ['MediaNextTrack', 'next'],
+    ['MediaPreviousTrack', 'prev']
+  ]
+  for (const [accelerator, cmd] of defs) {
+    try {
+      globalShortcut.register(accelerator, () => sendPlayerCommand(cmd))
+    } catch { /* ignore */ }
+  }
+}
+
+
 
 function findResourceFile(name: string): string | null {
   const devPath = path.join(__dirname, '..', '..', 'resources', name)
@@ -24,7 +76,7 @@ function findResourceFile(name: string): string | null {
 }
 
 function createWindow(): void {
-  const iconPath = findResourceFile('icon.png')
+  const iconPath = findResourceFile('icon.ico')
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -302,19 +354,107 @@ function registerPlayerIpc(): void {
       return { text: '' }
     }
   })
+
+  ipcMain.handle('player:fetchLyrics', async (_event, title: string, artist: string, duration: number) => {
+    try {
+      const params = new URLSearchParams()
+      if (title) params.set('track_name', title)
+      if (artist) params.set('artist_name', artist)
+      if (duration > 0) params.set('duration', String(Math.round(duration)))
+      const res = await fetch(`https://lrclib.net/api/get?${params.toString()}`, { signal: AbortSignal.timeout(8000) })
+      if (!res.ok) return { text: '' }
+      const data = await res.json()
+      if (data && typeof data.syncedLyrics === 'string' && data.syncedLyrics.length > 10) {
+        return { text: data.syncedLyrics }
+      }
+      if (data && typeof data.plainLyrics === 'string' && data.plainLyrics.length > 10) {
+        return { text: data.plainLyrics }
+      }
+      return { text: '' }
+    } catch {
+      return { text: '' }
+    }
+  })
+
+  ipcMain.handle('player:fetchCover', async (_event, title: string, artist: string, album: string) => {
+    try {
+      const term = [artist, title, album].filter(Boolean).slice(0, 2).join(' ')
+      if (!term) return { url: '' }
+      const url = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&limit=1`
+      const res = await fetch(url, { signal: AbortSignal.timeout(8000) })
+      if (!res.ok) return { url: '' }
+      const data = await res.json()
+      const first = data && data.results && data.results[0]
+      if (first && first.artworkUrl100) {
+        return { url: first.artworkUrl100.replace('100x100', '300x300') }
+      }
+      return { url: '' }
+    } catch {
+      return { url: '' }
+    }
+  })
+
+  ipcMain.handle('player:getFallbackAudio', async (_event, configId: string, filePath: string) => {
+    try {
+      const configs = getAllWebDAVConfigs()
+      const config = configs.find((c) => c.id === configId)
+      if (!config) return { error: 'Config not found' }
+
+      let inputPath: string
+      if (config.sourceType === 'local') {
+        if (!fs.existsSync(filePath)) return { error: 'File not found' }
+        inputPath = filePath
+      } else {
+        if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true })
+        const cacheKey = getCacheKey(configId, filePath)
+        const cachedPath = path.join(tempDir, cacheKey)
+        if (!fs.existsSync(cachedPath) || fs.statSync(cachedPath).size < 1024) {
+          try { fs.unlinkSync(cachedPath) } catch { /* ignore */ }
+          const client = createWebDAVClient(config)
+          const buffer = await downloadFile(client, filePath)
+          if (buffer.length < 1024) return { error: 'Invalid audio data' }
+          fs.writeFileSync(cachedPath, buffer)
+        }
+        inputPath = cachedPath
+      }
+
+      const pcmKey = getCacheKey(configId, filePath, '.pcm.wav')
+      const pcmPath = path.join(tempDir, pcmKey)
+      if (!fs.existsSync(pcmPath) || fs.statSync(pcmPath).size < 1024) {
+        try { fs.unlinkSync(pcmPath) } catch { /* ignore */ }
+        console.log(`[Player] 转码兜底: ${filePath}`)
+        await transcodeToPCM(inputPath, pcmPath)
+      }
+      if (!fs.existsSync(pcmPath) || fs.statSync(pcmPath).size < 1024) {
+        return { error: 'Transcode failed' }
+      }
+      return { localUrl: `local-media://${pcmKey}` }
+    } catch (err) {
+      return { error: (err instanceof Error ? err.message : String(err)) }
+    }
+  })
 }
 
 app.whenReady().then(async () => {
   console.log('[Player] 飞鱼音乐启动中...')
+  app.setAppUserModelId('com.feiYuMusic.app')
   Menu.setApplicationMenu(null)
   await initDatabase()
   registerIpcHandlers()
   registerLocalMediaProtocol()
   registerPlayerIpc()
   createWindow()
+  createTray()
+  registerGlobalShortcuts()
+  setupFolderWatchers()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
+})
+
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll()
+  closeFolderWatchers()
 })
 
 app.on('window-all-closed', () => {

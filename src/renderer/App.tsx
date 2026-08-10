@@ -9,6 +9,8 @@ import PlayerBar from './components/PlayerBar'
 import AudioEngine from './components/AudioEngine'
 import Sidebar from './components/Sidebar'
 import { usePlaylistStore } from './stores/playlistStore'
+import { usePlayerStore } from './stores/playerStore'
+import { useMusicStore } from './stores/musicStore'
 import { useEffect, Component } from 'react'
 
 class ErrorBoundary extends Component<{ children: React.ReactNode }, { hasError: boolean; error: string }> {
@@ -41,6 +43,28 @@ export default function App(): JSX.Element {
 
   useEffect(() => {
     usePlaylistStore.getState().loadPlaylist()
+  }, [])
+
+  useEffect(() => {
+    const id = Number(localStorage.getItem('resume_track_id') || 0)
+    if (!id) return
+    window.api.music.byIds([id]).then((tracks) => {
+      const track = tracks[0]
+      if (!track) return
+      const st = usePlayerStore.getState()
+      st.requestPlay(track)
+      if (localStorage.getItem('resume_playing') !== '1') {
+        st.setAutoPlayBlocked(true)
+      }
+    }).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    const unsub = window.api.scan.onAutoComplete(() => {
+      useMusicStore.getState().loadTracks(undefined, true)
+      useMusicStore.getState().loadCount()
+    })
+    return unsub
   }, [])
 
   return (

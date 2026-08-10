@@ -24,6 +24,8 @@ export interface MusicFile {
   scannedAt: string
   favorite: number
   title_key?: string
+  playCount?: number
+  lastPlayed?: string
 }
 
 export interface Playlist {

@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { usePlayerStore } from '../stores/playerStore'
+import Equalizer from '../components/Equalizer'
 
 function parseLrc(lrcText: string): { time: number; text: string }[] {
   const lines = lrcText.split('\n')
@@ -26,6 +27,7 @@ export default function PlayerPage(): JSX.Element {
   const duration = usePlayerStore((s) => s.duration)
   const [coverUrl, setCoverUrl] = useState('')
   const [lrcText, setLrcText] = useState('')
+  const [eqOpen, setEqOpen] = useState(false)
   const loadedRef = useRef(0)
   const activeIdxRef = useRef(-1)
 
@@ -80,8 +82,25 @@ export default function PlayerPage(): JSX.Element {
           }
           coverCache.set(key, url)
           setCoverUrl(url)
+        } else {
+          window.api.player.fetchCover(currentTrack.title, currentTrack.artist || '', currentTrack.album || '')
+            .then((c) => {
+              if (c.url) setCoverUrl(c.url)
+            }).catch(() => {})
         }
       }).catch(() => {})
+
+    window.api.player.getLrc(currentTrack.webdavId, currentTrack.path).then((r) => {
+      console.log('[Lrc] received:', r.text ? `${r.text.length} chars` : 'empty')
+      if (r.text) {
+        setLrcText(r.text)
+      } else {
+        window.api.player.fetchLyrics(currentTrack.title || '', currentTrack.artist || '', currentTrack.duration)
+          .then((lr) => {
+            if (lr.text) setLrcText(lr.text)
+          }).catch(() => {})
+      }
+    }).catch(() => {})
     }
 
     window.api.player.getLrc(currentTrack.webdavId, currentTrack.path).then((r) => {
@@ -134,6 +153,16 @@ export default function PlayerPage(): JSX.Element {
             <div className="lyrics-empty">暂无歌词</div>
           )}
         </div>
+      </div>
+      <div className="eq-section">
+        <button className="eq-toggle" onClick={() => setEqOpen((o) => !o)} title="均衡器">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M12 3c-1.66 0-3 1.34-3 3v6.18c-1.16.41-2 1.51-2 2.82 0 1.66 1.34 3 3 3s3-1.34 3-3c0-1.31-.84-2.41-2-2.82V6c0-.55.45-1 1-1s1 .45 1 1v1h2V6c0-1.66-1.34-3-3-3z"/>
+          </svg>
+          均衡器
+          <span className="eq-chevron">{eqOpen ? '▾' : '▸'}</span>
+        </button>
+        {eqOpen && <Equalizer />}
       </div>
     </div>
   )
