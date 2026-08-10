@@ -28,6 +28,24 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Ensure ffmpeg.exe bundled
+        shell: bash
+        run: |
+          if [ ! -f resources/ffmpeg.exe ]; then
+            curl -sL -o "$RUNNER_TEMP/ffmpeg.zip" https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip
+            mkdir -p "$RUNNER_TEMP/ffmpeg"
+            unzip -q -o "$RUNNER_TEMP/ffmpeg.zip" -d "$RUNNER_TEMP/ffmpeg"
+            FFMPEG_BIN="$(find "$RUNNER_TEMP/ffmpeg" -path '*/bin/ffmpeg.exe' | head -n 1)"
+            if [ -n "$FFMPEG_BIN" ]; then
+              cp "$FFMPEG_BIN" resources/ffmpeg.exe
+            fi
+          fi
+          if [ ! -f resources/ffmpeg.exe ]; then
+            echo "::error::FFmpeg 下载失败，resources/ffmpeg.exe 缺失"
+            exit 1
+          fi
+          ls -la resources/ffmpeg.exe
+
       - name: Build
         run: npm run build
 

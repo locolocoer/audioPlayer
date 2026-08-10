@@ -3,14 +3,23 @@ import fs from 'fs'
 import path from 'path'
 import { execFile } from 'child_process'
 
-function findFFmpeg(): string {
-  const dev = path.join(__dirname, '..', '..', 'resources', 'ffmpeg.exe')
-  if (fs.existsSync(dev)) return dev
+function findFFmpeg(): string | null {
+  const candidates: string[] = [
+    path.join(__dirname, '..', '..', 'resources', 'ffmpeg.exe'),
+    path.join(__dirname, '..', 'resources', 'ffmpeg.exe')
+  ]
   if (process.resourcesPath) {
-    const bundled = path.join(process.resourcesPath, 'resources', 'ffmpeg.exe')
-    if (fs.existsSync(bundled)) return bundled
+    candidates.push(
+      path.join(process.resourcesPath, 'resources', 'ffmpeg.exe'),
+      path.join(process.resourcesPath, 'ffmpeg.exe')
+    )
   }
-  return 'ffmpeg'
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p)) return p
+    } catch { /* ignore */ }
+  }
+  return null
 }
 
 function writeFlacMetadata(filePath: string, meta: { title?: string; artist?: string; album?: string }): Promise<{ ok: boolean; error?: string }> {
@@ -30,7 +39,14 @@ function writeFlacMetadata(filePath: string, meta: { title?: string; artist?: st
       try { fs.unlinkSync(tmp) } catch { /* ignore */ }
     }
 
-    execFile(findFFmpeg(), args, { timeout: 120000 }, (err) => {
+    const ffmpeg = findFFmpeg()
+    if (!ffmpeg) {
+      console.log(`[Tags] FLAC 写回需要 ffmpeg，但未找到: ${filePath}`)
+      resolve({ ok: false, error: '未找到 FFmpeg（ffmpeg.exe），请重新安装应用' })
+      return
+    }
+
+    execFile(ffmpeg, args, { timeout: 120000 }, (err) => {
       try {
         if (err) {
           console.log(`[Tags] FLAC 写入失败: ${filePath} ${err.message}`)

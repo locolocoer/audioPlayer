@@ -97,6 +97,8 @@ function findResourceFile(name: string): string | null {
   if (process.resourcesPath) {
     const bundled = path.join(process.resourcesPath, 'resources', name)
     if (fs.existsSync(bundled)) return bundled
+    const legacy = path.join(process.resourcesPath, name)
+    if (fs.existsSync(legacy)) return legacy
   }
   return null
 }
