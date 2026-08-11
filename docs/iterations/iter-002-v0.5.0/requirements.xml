@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<requirements project="AudioPlayer" version="0.2.0">
+  <meta>
+    <created>2026-08-07T14:38:00Z</created>
+    <author>User</author>
+    <description>迭代2：参考 MusicBox 完善 UI 设计，重构布局、封面展示、主题切换、歌词显示、播放页重设计。</description>
+  </meta>
+  <modules>
+    <module id="M007" name="布局重构" priority="high">
+      <description>使用侧边栏导航(Sidebar)替代顶栏，提供图标+文字导航，支持 Library/Now Playing/Settings</description>
+      <features>
+        <feature id="F013" status="completed">
+          <title>侧边栏导航布局</title>
+          <description>左侧固定侧边栏，包含应用 Logo、导航菜单（Library/Now Playing/Settings）、歌曲计数。右侧为主内容区，使用 flex 布局自适应。</description>
+          <acceptance>侧边栏固定宽度约 220px，高亮当前路由；内容区自适应剩余宽度；切换页面时侧边栏保持不动</acceptance>
+          <dependencies></dependencies>
+        </feature>
+      </features>
+    </module>
+    <module id="M008" name="封面展示" priority="high">
+      <description>从 ID3 标签提取内嵌封面图，在播放栏、列表、详情页展示真实封面</description>
+      <features>
+        <feature id="F014" status="completed">
+          <title>专辑封面提取与展示</title>
+          <description>主进程新增 IPC 接口从音频文件提取 ID3 内嵌封面（APIC帧），渲染进程用 data URL 展示。播放栏迷你封面、播放详情页大封面、列表缩略图均使用真实封面。</description>
+          <acceptance>有内嵌封面的歌曲显示真实图片；无封面的显示默认占位图标；封面加载失败不阻塞播放</acceptance>
+          <dependencies></dependencies>
+        </feature>
+      </features>
+    </module>
+    <module id="M009" name="深浅主题" priority="high">
+      <description>支持 Light/Dark 主题切换，CSS 变量动态变更</description>
+      <features>
+        <feature id="F015" status="completed">
+          <title>深浅主题切换</title>
+          <description>定义两套 CSS 变量（Light/Dark），在设置页和播放栏提供切换入口。用户偏好持久化到 localStorage，应用启动时自动应用。</description>
+          <acceptance>点击切换按钮后全局颜色即时切换；刷新/重启后保持用户选择；两者主题均保持可读性</acceptance>
+          <dependencies>F013</dependencies>
+        </feature>
+      </features>
+    </module>
+    <module id="M010" name="歌词显示" priority="medium">
+      <description>解析 LRC 歌词，播放详情页同步滚动展示</description>
+      <features>
+        <feature id="F016" status="completed">
+          <title>LRC歌词解析与同步显示</title>
+          <description>主进程扫描时从同目录读取 .lrc 歌词文件或从 ID3 USLT 帧提取。播放时根据 currentTime 高亮当前行并自动滚动。支持中英文双语歌词合并显示。</description>
+          <acceptance>有歌词文件时播放详情页显示滚动歌词；无歌词时显示"纯音乐"提示；歌词滚动与音频同步误差 &lt; 500ms</acceptance>
+          <dependencies>F012</dependencies>
+        </feature>
+      </features>
+    </module>
+    <module id="M011" name="播放页重设计" priority="medium">
+      <description>沉浸式播放详情页，大封面+模糊背景</description>
+      <features>
+        <feature id="F017" status="completed">
+          <title>沉浸式播放详情页</title>
+          <description>播放详情页采用居中大封面(256px)、毛玻璃模糊背景（取封面主色调或模糊封面图）、歌词区域。播放控件置于底部，进度条支持拖拽。</description>
+          <acceptance>播放页封面清晰，背景有模糊/色彩效果；控件布局合理；切换到无歌曲时显示引导提示</acceptance>
+          <dependencies>F014, F016</dependencies>
+        </feature>
+      </features>
+    </module>
+    <module id="M012" name="迷你模式" priority="low">
+      <description>窗口缩放到紧凑迷你播放器</description>
+      <features>
+        <feature id="F018" status="completed">
+          <title>迷你播放器模式</title>
+          <description>通过按钮或快捷键切换迷你模式：窗口缩小为紧凑条形（~400x80），仅显示封面缩略图、歌名/歌手、播放/暂停、进度条。可拖拽移动、始终置顶。</description>
+          <acceptance>切换后窗口尺寸正确缩小；迷你模式下仍可完整控制播放；再次切换恢复原始尺寸和布局</acceptance>
+          <dependencies>F014</dependencies>
+        </feature>
+      </features>
+    </module>
+    <module id="M013" name="均衡器" priority="low">
+      <description>图形均衡器 UI + Web Audio 处理</description>
+      <features>
+        <feature id="F019" status="completed">
+          <title>图形均衡器</title>
+          <description>10段图形均衡器（32/64/125/250/500/1k/2k/4k/8k/16k Hz），使用 Web Audio API BiquadFilter 实现。UI 包含滑块组、预设管理、开关旁路。内置预设：Flat/Pop/Rock/Jazz/Classical/Bass Boost。</description>
+          <acceptance>滑块拖动后音色可感知变化；旁路开关切换即时生效；预设选择正确应用对应频段增益</acceptance>
+          <dependencies></dependencies>
+        </feature>
+      </features>
+    </module>
+  </modules>
+  <non_functional>
+    <requirement id="NF001">支持 Windows/macOS/Linux 三平台</requirement>
+    <requirement id="NF002">启动速度 &lt; 3秒（含缓存加载）</requirement>
+    <requirement id="NF003">内存占用 &lt; 200MB（含1000首歌曲缓存）</requirement>
+    <requirement id="NF004">支持中文/英文界面</requirement>
+    <requirement id="NF005">主题切换 &lt; 100ms 完成</requirement>
+    <requirement id="NF006">封面加载不阻塞主线程播放</requirement>
+  </non_functional>
+</requirements>

@@ -1,0 +1,84 @@
+{
+  "projectName": "AudioPlayer",
+  "version": "0.7.0",
+  "skillVersion": "3.0",
+  "framework": "nodejs",
+  "currentPhase": "P4",
+  "lastUpdated": "2026-08-10T17:00:00Z",
+  "currentIteration": 4,
+  "phases": {
+    "P1_requirements": { "status": "completed", "completedAt": "2026-08-10T12:00:00Z" },
+    "P2_implementation": { "status": "completed", "startedAt": "2026-08-10T12:10:00Z", "completedAt": "2026-08-10T16:00:00Z" },
+    "P3_testing": { "status": "completed", "startedAt": "2026-08-10T16:00:00Z", "completedAt": "2026-08-10T16:40:00Z", "note": "tsc 双工程 0 错误、构建通过；功能用例需交互验证" },
+    "P4_release": { "status": "completed", "completedAt": "2026-08-10T17:00:00Z", "note": "版本 0.7.0 + CHANGELOG + 构建验证" }
+  },
+  "features": {
+    "F028": { "status": "completed", "title": "队列拖拽排序" },
+    "F029": { "status": "completed", "title": "批量编辑元数据" },
+    "F030": { "status": "completed", "title": "重复曲目检测" },
+    "F031": { "status": "completed", "title": "缓存管理界面" },
+    "F032": { "status": "completed", "title": "数据库备份导出" },
+    "F033": { "status": "completed", "title": "歌词样式设置" },
+    "F034": { "status": "completed", "title": "自定义主题色" },
+    "F035": { "status": "completed", "title": "迷你播放窗口" },
+    "F036": { "status": "completed", "title": "窗口尺寸记忆" },
+    "F037": { "status": "completed", "title": "MusicBrainz 补齐元数据" },
+    "F038": { "status": "completed", "title": "歌词/封面保存" },
+    "F039": { "status": "completed", "title": "桌面歌词显示" },
+    "F040": { "status": "completed", "title": "听歌报告" },
+    "F041": { "status": "completed", "title": "随机专辑冒险" },
+    "F042": { "status": "completed", "title": "播放页皮肤/换装" },
+    "F043": { "status": "completed", "title": "心情电台" },
+    "F044": { "status": "completed", "title": "听歌趋势曲线" }
+  },
+  "versions": [
+    {
+      "version": "0.1.0",
+      "tag": "v0.1.0",
+      "type": "minor",
+      "date": "2026-08-06",
+      "commitHash": "a627b12",
+      "features": ["F001","F002","F003","F004","F005","F006","F007","F008","F009","F010","F011","F012"],
+      "fixes": [],
+      "breaking": false,
+      "artifacts": [],
+      "requirementVersion": "0.1.0"
+    },
+    {
+      "version": "0.6.0",
+      "tag": "v0.6.0",
+      "type": "minor",
+      "date": "2026-08-10",
+      "features": ["F020","F021","F022","F023","F024","F025","F026","F027"],
+      "fixes": [],
+      "breaking": false,
+      "artifacts": [],
+      "requirementVersion": "0.6.0"
+    },
+    {
+      "version": "0.7.0",
+      "tag": "v0.7.0",
+      "type": "minor",
+      "date": "2026-08-10",
+      "features": ["F028","F029","F030","F031","F032","F033","F034","F035","F036","F037","F038","F039","F040","F041","F042","F043","F044"],
+      "fixes": [],
+      "breaking": false,
+      "artifacts": [],
+      "requirementVersion": "0.7.0"
+    }
+  ],
+  "branches": {
+    "current": "main",
+    "model": "git-flow",
+    "active": {
+      "main": "bada4df",
+      "develop": "bada4df"
+    }
+  },
+  "iterations": [
+    { "id": 1, "version": "0.1.0", "goal": "MVP: WebDAV连接 + 扫描 + 缓存 + 播放器核心 + UI", "status": "completed" },
+    { "id": 2, "version": "0.5.0", "goal": "UI重构 + 封面 + 歌词 + 主题 + 迷你模式 + 均衡器 + 跨源/性能增强", "status": "completed" },
+    { "id": 3, "version": "0.6.0", "goal": "播放队列/睡眠定时/可视化/最近播放/批量操作/多播放列表/标签写回/文件夹浏览", "status": "completed" },
+    { "id": 4, "version": "0.7.0", "goal": "桌面歌词/统计/皮肤/趣味玩法/系统集成", "status": "completed" }
+  ]
+}

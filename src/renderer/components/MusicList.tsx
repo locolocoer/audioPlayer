@@ -52,12 +52,28 @@ function EditModal({ track, onClose }: { track: MusicFile; onClose: () => void }
     return id === track.webdavId ? '当前源' : id
   }
 
+  const baseMeta = (): { title: string; artist: string; album: string } => ({
+    title: activeTrack.title || activeTrack.filename,
+    artist: activeTrack.artist || '',
+    album: activeTrack.album || ''
+  })
+
+  const metaChanged = (): boolean => {
+    const base = baseMeta()
+    return title !== base.title || artist !== base.artist || album !== base.album
+  }
+
   const handleSave = async () => {
     const meta = { title, artist, album }
-    if (activeTrack.id !== track.id) {
-      await updateMeta(activeTrack.id, meta)
-      await switchTrackSource(track.id, { ...activeTrack, ...meta })
-    } else {
+    const sourceChanged = activeTrack.id !== track.id
+    if (sourceChanged) {
+      if (metaChanged()) {
+        await updateMeta(activeTrack.id, meta)
+        await switchTrackSource(track.id, { ...activeTrack, ...meta })
+      } else {
+        await switchTrackSource(track.id, { ...activeTrack })
+      }
+    } else if (metaChanged()) {
       await updateMeta(track.id, meta)
     }
     onClose()
@@ -65,9 +81,11 @@ function EditModal({ track, onClose }: { track: MusicFile; onClose: () => void }
 
   const switchSource = (id: number) => {
     const source = sources.find((s) => s.id === id)
-    if (source) {
-      setActiveTrack(source)
-    }
+    if (!source) return
+    setActiveTrack(source)
+    setTitle(source.title || source.filename)
+    setArtist(source.artist || '')
+    setAlbum(source.album || '')
   }
 
   const sep = activeTrack.path.includes('\\') ? '\\' : '/'

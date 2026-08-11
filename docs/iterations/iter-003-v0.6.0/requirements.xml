@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<requirements project="AudioPlayer" version="0.6.0" framework="nodejs">
+  <meta>
+    <created>2026-08-10T00:00:00Z</created>
+    <author>User</author>
+    <description>迭代3：播放体验与数据增强。播放队列面板、睡眠定时器、音频可视化、最近播放、多选批量操作、多命名播放列表、ID3 标签写回、文件夹树浏览。</description>
+  </meta>
+  <modules>
+    <module id="M014" name="播放体验增强" priority="high">
+      <description>围绕正在播放的体验增强：可见的播放队列、睡眠定时、频谱可视化。</description>
+      <features>
+        <feature id="F020" status="pending">
+          <title>播放队列面板</title>
+          <description>在主界面右侧提供可开关的"接下来播放"面板，展示当前有效队列（播放列表或库队列），高亮正在播放项，支持点击跳转、移除单曲。</description>
+          <acceptance>面板可开关；显示完整队列顺序并高亮当前曲；点击任一项即切换播放；可移除指定曲目且队列即时更新</acceptance>
+          <dependencies></dependencies>
+        </feature>
+        <feature id="F021" status="pending">
+          <title>睡眠定时器</title>
+          <description>播放栏提供睡眠定时入口，可选 15/30/45/60/90 分钟或关闭；到点自动暂停播放，按钮显示剩余时间。</description>
+          <acceptance>设置后倒计时生效；到点自动暂停；可随时取消；剩余时间在按钮上可见</acceptance>
+          <dependencies></dependencies>
+        </feature>
+        <feature id="F022" status="pending">
+          <title>音频可视化</title>
+          <description>播放详情页显示实时频谱（Web Audio AnalyserNode + canvas），随音乐节奏跳动；均衡器/可视化共用同一音频图。</description>
+          <acceptance>播放时频谱条动态变化；暂停时静止；无音频图时不报错</acceptance>
+          <dependencies></dependencies>
+        </feature>
+      </features>
+    </module>
+    <module id="M015" name="音乐库数据增强" priority="high">
+      <description>音乐库维度的新能力：最近播放、批量操作、标签写回、目录浏览。</description>
+      <features>
+        <feature id="F023" status="pending">
+          <title>最近播放列表</title>
+          <description>新增侧边栏"最近播放"页面，按 lastPlayed 倒序展示最近播放过的歌曲（复用 MusicList），支持点击播放。</description>
+          <acceptance>显示最近播放歌曲按时间倒序；点击可播放；数量有上限</acceptance>
+          <dependencies>F020</dependencies>
+        </feature>
+        <feature id="F024" status="pending">
+          <title>多选批量操作</title>
+          <description>音乐库列表支持多选模式（复选框/点选），批量加入播放列表、批量收藏。</description>
+          <acceptance>可勾选多行；批量操作一次性生效；可取消选择</acceptance>
+          <dependencies></dependencies>
+        </feature>
+        <feature id="F026" status="pending">
+          <title>ID3 标签写回文件</title>
+          <description>编辑歌曲元数据时，对本地 MP3 文件写入 ID3v2 标签（node-id3），使文件本身元数据与库一致。</description>
+          <acceptance>编辑标题/歌手/专辑后本地 MP3 文件标签被更新；非本地或非 MP3 跳过写回且不报错</acceptance>
+          <dependencies></dependencies>
+        </feature>
+        <feature id="F027" status="pending">
+          <title>文件夹树浏览</title>
+          <description>音乐库新增"文件夹"浏览维度，按目录层级展示本地音乐源，点击进入子目录或查看该目录歌曲。</description>
+          <acceptance>可按目录层级逐级浏览；叶子目录显示其歌曲列表；可返回上级</acceptance>
+          <dependencies></dependencies>
+        </feature>
+      </features>
+    </module>
+    <module id="M016" name="多播放列表管理" priority="medium">
+      <description>从单一播放列表扩展为多个可命名的播放列表。</description>
+      <features>
+        <feature id="F025" status="pending">
+          <title>多命名播放列表</title>
+          <description>支持创建/重命名/删除多个播放列表；播放列表页顶部展示列表切换；当前列表的增删改即时持久化；播放器同步当前列表。</description>
+          <acceptance>可新建/删除多个命名列表；切换列表内容随之变化；各列表独立持久化；播放/同步作用于当前列表</acceptance>
+          <dependencies></dependencies>
+        </feature>
+      </features>
+    </module>
+  </modules>
+  <non_functional>
+    <requirement id="NF001">播放队列面板与可视化不卡顿（虚拟列表 / requestAnimationFrame）</requirement>
+    <requirement id="NF002">睡眠定时到点即暂停，误差 &lt; 1s</requirement>
+    <requirement id="NF003">批量操作对 12k+ 列表不卡 UI</requirement>
+    <requirement id="NF004">标签写回失败不影响库内编辑</requirement>
+  </non_functional>
+</requirements>
