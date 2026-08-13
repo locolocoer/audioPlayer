@@ -65,6 +65,17 @@
       "breaking": false,
       "artifacts": [],
       "requirementVersion": "0.7.0"
+    },
+    {
+      "version": "0.7.1",
+      "tag": "v0.7.1",
+      "type": "patch",
+      "date": "2026-08-13",
+      "features": [],
+      "fixes": ["心动模式切歌始终加权收藏，收藏为空自动重载"],
+      "breaking": false,
+      "artifacts": [],
+      "requirementVersion": "0.7.0"
     }
   ],
   "branches": {
