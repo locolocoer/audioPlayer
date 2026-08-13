@@ -25,7 +25,7 @@ jobs:
             ffmpeg_archive: zip
             ffmpeg_out: resources/ffmpeg.exe
           - name: macos
-            os: macos-13
+            os: macos-latest
             ffmpeg_url: https://evermeet.cx/ffmpeg/getrelease/zip
             ffmpeg_archive: zip
             ffmpeg_out: resources/ffmpeg
