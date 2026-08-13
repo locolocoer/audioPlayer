@@ -3,7 +3,6 @@ productName: FeiYu Music
 directories:
   buildResources: resources
   output: dist
-icon: resources/icon.ico
 files:
   - out/**/*
   - "!node_modules/**/*.{md,ts,map}"
@@ -13,12 +12,28 @@ extraResources:
     filter:
       - "**/*"
 win:
+  icon: resources/icon.ico
   target:
     - nsis
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
-  artifactName: 飞鱼音乐-Setup-${version}.${ext}
+  artifactName: FeiYu-Music-Setup-${version}.${ext}
+mac:
+  icon: resources/icon.png
+  target:
+    - dmg
+    - zip
+  category: public.app-category.music
+  artifactName: FeiYu-Music-${version}-${arch}.${ext}
+linux:
+  icon: resources/icon.png
+  target:
+    - AppImage
+    - deb
+  category: Audio
+  maintainer: locolocoer
+  artifactName: feiyu-music-${version}-${arch}.${ext}
 publish:
   provider: github
   owner: locolocoer

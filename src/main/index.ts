@@ -315,7 +315,8 @@ function registerWindowIpc(): void {
 }
 
 function findFFmpeg(): string {
-  return findResourceFile('ffmpeg.exe') || 'ffmpeg'
+  const name = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'
+  return findResourceFile(name) || 'ffmpeg'
 }
 
 function transcodeToPCM(inputPath: string, outputPath: string): Promise<void> {

@@ -1,6 +1,6 @@
 {
   "name": "feiyu-music",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "飞鱼音乐 - WebDAV 桌面音乐播放器",
   "main": "./out/main/index.js",
   "scripts": {

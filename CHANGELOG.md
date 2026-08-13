@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.9.0] - 2026-08-13
+
+### Added
+- 三平台打包：Windows NSIS + macOS dmg/zip + Linux AppImage/deb（F048）
+- CI 三平台矩阵构建：windows/macos-13/ubuntu 各自捆绑静态 ffmpeg，tag 时合并为单个 GitHub Release（含 latest.yml/latest-mac.yml/latest-linux.yml）（F049）
+
+### Changed
+- Windows 安装包产物名改为 ASCII（FeiYu-Music-Setup-x.y.z.exe），避免中文名在 GitHub Release 上传被吞导致自动更新无法定位
+- findFFmpeg 按平台定位二进制：win 用 `ffmpeg.exe`，mac/linux 用 `ffmpeg`
+
 ## [0.8.0] - 2026-08-13
 
 ### Added

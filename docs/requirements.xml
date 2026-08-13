@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<requirements project="AudioPlayer" version="0.8.0" framework="nodejs">
+<requirements project="AudioPlayer" version="0.9.0" framework="nodejs">
   <meta>
     <created>2026-08-13T10:00:00Z</created>
     <author>User</author>
-    <description>迭代5：设置页版本信息 + GitHub Releases 自动更新。</description>
+    <description>迭代5：设置页版本信息 + GitHub Releases 自动更新 + 三平台打包。</description>
   </meta>
   <modules>
     <module id="M025" name="关于与版本" priority="high">
@@ -40,4 +40,23 @@
     <requirement id="NF006">更新检查与下载不阻塞渲染线程</requirement>
     <requirement id="NF007">无签名环境下安装时出现"未知发布者"提示，属预期行为</requirement>
   </non_functional>
+  <modules>
+    <module id="M027" name="三平台打包" priority="high">
+      <description>electron-builder 支持 Windows/macOS/Linux 安装包；GitHub Actions 三平台矩阵构建并合并发布。</description>
+      <features>
+        <feature id="F048" status="completed">
+          <title>三平台打包目标</title>
+          <description>electron-builder.yml 增加 mac（dmg+zip）与 linux（AppImage+deb）目标及平台图标；findFFmpeg 支持各平台二进制命名（win 用 ffmpeg.exe，其他用 ffmpeg）。</description>
+          <acceptance>三平台目标配置完整；mac/linux 图标生效；运行时按平台定位 ffmpeg</acceptance>
+          <dependencies></dependencies>
+        </feature>
+        <feature id="F049" status="completed">
+          <title>CI 三平台矩阵 + ffmpeg 捆绑 + 合并 Release</title>
+          <description>GitHub Actions 改为 windows/macos/linux 三平台矩阵，各自下载捆绑对应静态 ffmpeg，打包后上传产物；tag 触发时合并发布为单个 GitHub Release（含 latest*.yml 供自动更新）。</description>
+          <acceptance>tag 推送后三平台均产出安装包；mac 无签名；Release 含 latest.yml/latest-mac.yml/latest-linux.yml</acceptance>
+          <dependencies>F048</dependencies>
+        </feature>
+      </features>
+    </module>
+  </modules>
 </requirements>

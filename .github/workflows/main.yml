@@ -1,4 +1,4 @@
-name: Build EXE Installer
+name: Build Installers
 
 on:
   push:
@@ -13,7 +13,27 @@ permissions:
 
 jobs:
   build:
-    runs-on: windows-latest
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows
+            os: windows-latest
+            ffmpeg_url: https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip
+            ffmpeg_archive: zip
+            ffmpeg_out: resources/ffmpeg.exe
+          - name: macos
+            os: macos-13
+            ffmpeg_url: https://evermeet.cx/ffmpeg/getrelease/zip
+            ffmpeg_archive: zip
+            ffmpeg_out: resources/ffmpeg
+          - name: linux
+            os: ubuntu-latest
+            ffmpeg_url: https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz
+            ffmpeg_archive: tarxz
+            ffmpeg_out: resources/ffmpeg
 
     steps:
       - name: Checkout
@@ -28,39 +48,67 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Ensure ffmpeg.exe bundled
+      - name: Linux build dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y fakeroot
+
+      - name: Bundle platform ffmpeg
         shell: bash
         run: |
-          if [ ! -f resources/ffmpeg.exe ]; then
-            curl -sL -o "$RUNNER_TEMP/ffmpeg.zip" https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip
+          set -e
+          if [ -f "${{ matrix.ffmpeg_out }}" ]; then
+            echo "ffmpeg already bundled"
+          else
             mkdir -p "$RUNNER_TEMP/ffmpeg"
-            unzip -q -o "$RUNNER_TEMP/ffmpeg.zip" -d "$RUNNER_TEMP/ffmpeg"
-            FFMPEG_BIN="$(find "$RUNNER_TEMP/ffmpeg" -path '*/bin/ffmpeg.exe' | head -n 1)"
-            if [ -n "$FFMPEG_BIN" ]; then
-              cp "$FFMPEG_BIN" resources/ffmpeg.exe
+            curl -sL -o "$RUNNER_TEMP/ffmpeg.pkg" "${{ matrix.ffmpeg_url }}"
+            if [ "${{ matrix.ffmpeg_archive }}" = "zip" ]; then
+              unzip -q -o "$RUNNER_TEMP/ffmpeg.pkg" -d "$RUNNER_TEMP/ffmpeg"
+            else
+              tar -xf "$RUNNER_TEMP/ffmpeg.pkg" -C "$RUNNER_TEMP/ffmpeg"
             fi
+            BIN="$(find "$RUNNER_TEMP/ffmpeg" -type f \( -name 'ffmpeg' -o -name 'ffmpeg.exe' \) | head -n 1)"
+            if [ -z "$BIN" ]; then
+              echo "::error::ffmpeg binary not found in archive"
+              exit 1
+            fi
+            cp "$BIN" "${{ matrix.ffmpeg_out }}"
+            chmod +x "${{ matrix.ffmpeg_out }}" || true
           fi
-          if [ ! -f resources/ffmpeg.exe ]; then
-            echo "::error::FFmpeg 下载失败，resources/ffmpeg.exe 缺失"
-            exit 1
-          fi
-          ls -la resources/ffmpeg.exe
+          ls -la resources/
 
       - name: Build
         run: npm run build
 
-      - name: Package EXE installer
+      - name: Package installer
         run: npm run package -- --publish never
 
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: FeiYu-Music-Setup-${{ github.sha }}
-          path: dist/*.exe
+          name: installers-${{ matrix.name }}
+          path: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.zip
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.yml
+            dist/*.blockmap
+          if-no-files-found: warn
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
 
       - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.exe
+          files: artifacts/**
           generate_release_notes: true

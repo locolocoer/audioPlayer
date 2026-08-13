@@ -1,21 +1,23 @@
 {
   "projectName": "AudioPlayer",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "skillVersion": "3.0",
   "framework": "nodejs",
   "currentPhase": "P4",
-  "lastUpdated": "2026-08-13T11:00:00Z",
+  "lastUpdated": "2026-08-13T11:45:00Z",
   "currentIteration": 5,
   "phases": {
     "P1_requirements": { "status": "completed", "startedAt": "2026-08-13T10:00:00Z", "completedAt": "2026-08-13T10:05:00Z" },
-    "P2_implementation": { "status": "completed", "startedAt": "2026-08-13T10:05:00Z", "completedAt": "2026-08-13T10:30:00Z", "note": "F045/F046/F047 已实现，tsc 双工程 0 错误，构建通过" },
-    "P3_testing": { "status": "completed", "startedAt": "2026-08-13T10:30:00Z", "completedAt": "2026-08-13T10:40:00Z", "note": "tsc 双工程 0 错误、构建通过；TC046/TC047 需打包安装版联网手工验证" },
+    "P2_implementation": { "status": "completed", "startedAt": "2026-08-13T11:30:00Z", "completedAt": "2026-08-13T11:45:00Z", "note": "F048/F049 三平台打包与 CI 矩阵已实现，tsc 0 错误、构建通过" },
+    "P3_testing": { "status": "completed", "startedAt": "2026-08-13T11:45:00Z", "completedAt": "2026-08-13T11:50:00Z", "note": "tsc 双工程 0 错误、构建通过；CI 三平台与安装需真实运行验证" },
     "P4_release": { "status": "pending" }
   },
   "features": {
     "F045": { "status": "completed", "title": "设置页版本信息展示", "completedAt": "2026-08-13T10:30:00Z" },
     "F046": { "status": "completed", "title": "自动更新链路（electron-updater）", "completedAt": "2026-08-13T10:30:00Z" },
-    "F047": { "status": "completed", "title": "更新检查与安装流程", "completedAt": "2026-08-13T10:30:00Z" }
+    "F047": { "status": "completed", "title": "更新检查与安装流程", "completedAt": "2026-08-13T10:30:00Z" },
+    "F048": { "status": "completed", "title": "三平台打包目标（win/mac/linux）", "completedAt": "2026-08-13T11:30:00Z" },
+    "F049": { "status": "completed", "title": "CI 三平台矩阵 + ffmpeg 捆绑 + 合并 Release", "completedAt": "2026-08-13T11:30:00Z" }
   },
   "versions": [
     {
@@ -74,6 +76,17 @@
       "breaking": false,
       "artifacts": [],
       "requirementVersion": "0.8.0"
+    },
+    {
+      "version": "0.9.0",
+      "tag": "v0.9.0",
+      "type": "minor",
+      "date": "2026-08-13",
+      "features": ["F048","F049"],
+      "fixes": ["Windows 产物名改 ASCII，避免 GitHub Release 上传丢失中文前缀"],
+      "breaking": false,
+      "artifacts": [],
+      "requirementVersion": "0.9.0"
     }
   ],
   "branches": {
