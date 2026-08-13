@@ -20,14 +20,14 @@ nsis:
   allowToChangeInstallationDirectory: true
   artifactName: FeiYu-Music-Setup-${version}.${ext}
 mac:
-  icon: resources/icon.png
+  icon: resources/icon-512.png
   target:
     - dmg
     - zip
   category: public.app-category.music
   artifactName: FeiYu-Music-${version}-${arch}.${ext}
 linux:
-  icon: resources/icon.png
+  icon: resources/icon-512.png
   target:
     - AppImage
     - deb
