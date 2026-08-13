@@ -5,7 +5,7 @@ import { useThemeStore } from '../stores/themeStore'
 import { useLyricsStyleStore } from '../stores/lyricsStyleStore'
 import { useSkinStore, SKINS } from '../stores/skinStore'
 import Modal from '../components/Modal'
-import type { WebDAVConfig, ScanSettings } from '../../main/types'
+import type { WebDAVConfig, ScanSettings, AppInfo, UpdateStatus } from '../../main/types'
 import { DEFAULT_SCAN_SETTINGS } from '../../main/types'
 
 interface DLStyle { fontSize: number; color: string; backdrop: number; align: 'left' | 'center' | 'right' }
@@ -25,6 +25,19 @@ function formatBytes(n: number): string {
   if (n >= 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MB`
   if (n >= 1024) return `${(n / 1024).toFixed(1)} KB`
   return `${n} B`
+}
+
+function renderUpdateStatus(s: UpdateStatus): string {
+  switch (s.state) {
+    case 'checking': return '正在检查更新...'
+    case 'available': return `发现新版本 v${s.version}，正在下载...`
+    case 'downloading': return `正在下载 ${s.percent}%...`
+    case 'downloaded': return `新版本 v${s.version} 已就绪，重启后安装`
+    case 'not-available': return '已是最新版本'
+    case 'error': return `检查失败：${s.message || '未知错误'}`
+    case 'dev': return '当前为开发模式，仅安装版支持自动更新'
+    default: return ''
+  }
 }
 
 export default function ConfigPage(): JSX.Element {
@@ -80,6 +93,33 @@ export default function ConfigPage(): JSX.Element {
   const [dlStyle, setDlStyle] = useState<DLStyle>(loadDlStyle)
   const [cacheInfo, setCacheInfo] = useState<{ size: number; files: { name: string; size: number }[] } | null>(null)
   const [backupMsg, setBackupMsg] = useState('')
+  const [appInfo, setAppInfo] = useState<AppInfo | null>(null)
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ state: 'idle' })
+  const [checking, setChecking] = useState(false)
+
+  useEffect(() => {
+    window.api.app.info().then(setAppInfo).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    const unsub = window.api.updater.onStatus((status) => {
+      setUpdateStatus(status)
+      if (status.state === 'available' || status.state === 'not-available' || status.state === 'error' || status.state === 'dev') {
+        setChecking(false)
+      }
+    })
+    return unsub
+  }, [])
+
+  const handleCheckUpdate = useCallback(async () => {
+    setChecking(true)
+    setUpdateStatus({ state: 'idle' })
+    await window.api.updater.check()
+  }, [])
+
+  const handleInstallUpdate = useCallback(() => {
+    window.api.updater.install()
+  }, [])
 
   useEffect(() => {
     loadConfigs()
@@ -385,6 +425,43 @@ export default function ConfigPage(): JSX.Element {
           </div>
         </div>
         <p className="settings-hint">退避公式: 延迟 × 倍数<sup>重试次数</sup> (例: 3000×2⁰=3秒, 3000×2¹=6秒, 3000×2²=12秒...)</p>
+      </div>
+
+      {/* 关于与更新 */}
+      <div className="settings-section">
+        <h3>关于与更新</h3>
+        <div className="settings-row">
+          <span className="settings-label">应用名称</span>
+          <div className="settings-controls">
+            <span className="settings-value">{appInfo?.name || '飞鱼音乐'}</span>
+          </div>
+        </div>
+        <div className="settings-row">
+          <span className="settings-label">版本</span>
+          <div className="settings-controls">
+            <span className="settings-value">{appInfo ? `v${appInfo.version}` : '...'}</span>
+          </div>
+        </div>
+        <div className="settings-row">
+          <span className="settings-label">运行环境</span>
+          <div className="settings-controls">
+            <span className="settings-hint">
+              {appInfo ? `Electron ${appInfo.electron} · Chromium ${appInfo.chrome} · Node ${appInfo.node}` : '...'}
+            </span>
+          </div>
+        </div>
+        <div className="settings-row">
+          <span className="settings-label">自动更新</span>
+          <div className="settings-controls">
+            <button className="btn btn-sm" onClick={handleCheckUpdate} disabled={checking || updateStatus.state === 'downloading' || updateStatus.state === 'downloaded'}>
+              {checking || updateStatus.state === 'checking' ? '检查中...' : '检查更新'}
+            </button>
+            {updateStatus.state === 'downloaded' && (
+              <button className="btn btn-sm btn-primary" onClick={handleInstallUpdate}>重启并安装</button>
+            )}
+            <span className="settings-hint">{renderUpdateStatus(updateStatus)}</span>
+          </div>
+        </div>
       </div>
 
       {showForm && (

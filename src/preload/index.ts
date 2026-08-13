@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { WebDAVConfig, MusicFile, ScanProgress, Playlist, ScanSettings } from '../main/types'
+import type { WebDAVConfig, MusicFile, ScanProgress, Playlist, ScanSettings, AppInfo, UpdateStatus } from '../main/types'
 
 const api = {
   webdav: {
@@ -78,6 +78,18 @@ const api = {
   },
   backup: {
     export: (): Promise<{ ok: boolean; path?: string; error?: string }> => ipcRenderer.invoke('backup:export')
+  },
+  app: {
+    info: (): Promise<AppInfo> => ipcRenderer.invoke('app:info')
+  },
+  updater: {
+    check: (): Promise<boolean> => ipcRenderer.invoke('update:check'),
+    install: (): Promise<boolean> => ipcRenderer.invoke('update:install'),
+    onStatus: (callback: (status: UpdateStatus) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, status: UpdateStatus): void => callback(status)
+      ipcRenderer.on('update:status', handler)
+      return () => ipcRenderer.removeListener('update:status', handler)
+    }
   },
   stats: {
     report: (): Promise<{

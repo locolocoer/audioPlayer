@@ -1,102 +1,43 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<requirements project="AudioPlayer" version="0.7.0" framework="nodejs">
+<requirements project="AudioPlayer" version="0.8.0" framework="nodejs">
   <meta>
-    <created>2026-08-10T12:00:00Z</created>
+    <created>2026-08-13T10:00:00Z</created>
     <author>User</author>
-    <description>迭代4：播放控制/库管理/界面体验/数据互通增强。</description>
+    <description>迭代5：设置页版本信息 + GitHub Releases 自动更新。</description>
   </meta>
   <modules>
-    <module id="M021" name="播放控制" priority="high">
-      <description>队列面板支持拖拽排序。</description>
+    <module id="M025" name="关于与版本" priority="high">
+      <description>设置页新增"关于"区域，展示应用名称、版本号及运行环境信息。</description>
       <features>
-        <feature id="F028" status="pending">
-          <title>队列拖拽排序</title>
-          <description>播放队列面板内拖动曲目调整播放顺序；播放列表作为队列时同步持久化。</description>
-          <acceptance>可拖动调整队列顺序；当前播放曲目高亮；顺序即时生效并持久化</acceptance>
+        <feature id="F045" status="completed">
+          <title>设置页版本信息展示</title>
+          <description>设置页"关于"区域展示应用名（飞鱼音乐）、当前版本号；通过主进程 IPC 读取 app.getVersion()，并附带 Electron/Chromium/Node 版本供排查。</description>
+          <acceptance>设置页可见"关于"区域；正确显示版本号 vX.Y.Z；dev 与打包环境均能读取</acceptance>
           <dependencies></dependencies>
         </feature>
       </features>
     </module>
-    <module id="M022" name="库管理与数据" priority="high">
-      <description>元数据批量编辑、重复检测、缓存管理、备份、在线补齐。</description>
+    <module id="M026" name="自动更新" priority="high">
+      <description>基于 electron-updater + GitHub Releases 的 Windows 自动更新链路。</description>
       <features>
-        <feature id="F029" status="pending">
-          <title>批量编辑元数据</title>
-          <description>多选后批量设置标题/歌手/专辑，逐曲调用 updateMeta（含本地 MP3 写回）。</description>
-          <acceptance>多选后弹出编辑框；填写字段应用到所有选中曲目；库内即时更新</acceptance>
-          <dependencies>F024</dependencies>
-        </feature>
-        <feature id="F030" status="pending">
-          <title>重复曲目检测</title>
-          <description>按归一化标题分组（title_key）检测跨源/跨格式重复，展示分组供查看。</description>
-          <acceptance>音乐库"重复"维度显示重复分组及数量；点击可查看组内曲目</acceptance>
+        <feature id="F046" status="completed">
+          <title>自动更新链路（electron-updater）</title>
+          <description>引入 electron-updater 依赖；electron-builder.yml 配置 publish（GitHub provider，owner=locolocoer，repo=audioPlayer）；主进程注册 autoUpdater 事件（checking/available/not-available/download-progress/downloaded/error），与渲染层 IPC 双向通信。</description>
+          <acceptance>安装版启动不报错；主进程可调用 checkForUpdates 触达 GitHub API 获取 latest.yml</acceptance>
           <dependencies></dependencies>
         </feature>
-        <feature id="F031" status="pending">
-          <title>缓存管理界面</title>
-          <description>设置页展示缓存占用大小、缓存文件列表，支持逐曲清理与全清。</description>
-          <acceptance>显示缓存总大小；可逐文件删除；清除缓存后重新拉取</acceptance>
-          <dependencies></dependencies>
-        </feature>
-        <feature id="F032" status="pending">
-          <title>数据库备份导出</title>
-          <description>一键将数据库备份导出到用户指定位置，便于迁移。</description>
-          <acceptance>导出 .db 文件到所选目录；导出成功有提示</acceptance>
-          <dependencies></dependencies>
-        </feature>
-        <feature id="F037" status="pending">
-          <title>MusicBrainz 补齐元数据</title>
-          <description>详情弹窗"在线补齐"：按标题/歌手查 MusicBrainz，回填专辑/歌手并更新库与文件标签。</description>
-          <acceptance>命中时补全元数据并更新；未命中静默无副作用</acceptance>
-          <dependencies>F026</dependencies>
-        </feature>
-      </features>
-    </module>
-    <module id="M023" name="界面体验" priority="medium">
-      <description>歌词样式、主题色、迷你窗口、窗口记忆。</description>
-      <features>
-        <feature id="F033" status="pending">
-          <title>歌词样式设置</title>
-          <description>播放页歌词字号增大/减小与对齐方式设置，持久化。</description>
-          <acceptance>可调整歌词字号与对齐；重启保持</acceptance>
-          <dependencies></dependencies>
-        </feature>
-        <feature id="F034" status="pending">
-          <title>自定义主题色</title>
-          <description>设置页提供主色选择器，动态应用 CSS 变量 --accent 并持久化。</description>
-          <acceptance>选色后全局强调色即时变化；重启保持</acceptance>
-          <dependencies></dependencies>
-        </feature>
-        <feature id="F035" status="pending">
-          <title>迷你播放窗口</title>
-          <description>独立小窗常驻置顶，显示当前曲目与控制按钮；状态与主窗同步。</description>
-          <acceptance>可开关迷你窗；显示曲目/播放状态；按钮控制主窗播放</acceptance>
-          <dependencies></dependencies>
-        </feature>
-        <feature id="F036" status="pending">
-          <title>窗口尺寸记忆</title>
-          <description>记住主窗口大小与位置，重启恢复。</description>
-          <acceptance>调整窗口后重启恢复相同尺寸与位置</acceptance>
-          <dependencies></dependencies>
-        </feature>
-      </features>
-    </module>
-    <module id="M024" name="内容保存" priority="low">
-      <description>将在线拉取的歌词/封面保存到本地。</description>
-      <features>
-        <feature id="F038" status="pending">
-          <title>歌词/封面保存</title>
-          <description>在线歌词保存为同名 .lrc；封面（本地 MP3）写回 ID3 APIC。</description>
-          <acceptance>本地文件可保存歌词为 .lrc；本地 MP3 可写回封面；非本地提示不支持</acceptance>
-          <dependencies>F026</dependencies>
+        <feature id="F047" status="completed">
+          <title>更新检查与安装流程</title>
+          <description>设置页提供"检查更新"按钮：手动触发检查；有新版本时自动后台下载并显示进度；下载完成后提示"重启并安装"；无新版本提示已是最新；开发环境（未打包）跳过检查并给出提示。安装策略：手动检查 + 自动下载 + 退出时/重启安装（autoInstallOnAppQuit），接受无签名提示。</description>
+          <acceptance>点击"检查更新"可得到 最新/有更新/错误 三种结果；下载显示百分比；下载完成可重启安装；dev 模式提示不支持</acceptance>
+          <dependencies>F046</dependencies>
         </feature>
       </features>
     </module>
   </modules>
   <non_functional>
-    <requirement id="NF001">批量操作与重复检测不卡 UI</requirement>
-    <requirement id="NF002">迷你窗口与主窗状态同步延迟 &lt; 1s</requirement>
-    <requirement id="NF003">备份/导出不阻塞主线程</requirement>
-    <requirement id="NF004">在线补齐失败静默回退</requirement>
+    <requirement id="NF005">更新检查失败（网络/无网络/超时）静默降级，不影响播放</requirement>
+    <requirement id="NF006">更新检查与下载不阻塞渲染线程</requirement>
+    <requirement id="NF007">无签名环境下安装时出现"未知发布者"提示，属预期行为</requirement>
   </non_functional>
 </requirements>

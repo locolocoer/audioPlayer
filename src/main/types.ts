@@ -64,3 +64,20 @@ export const DEFAULT_SCAN_SETTINGS: ScanSettings = {
 }
 
 export const SUPPORTED_EXTENSIONS = ['.mp3', '.flac', '.ogg', '.aac', '.m4a', '.wma']
+
+export interface AppInfo {
+  name: string
+  version: string
+  electron: string
+  chrome: string
+  node: string
+}
+
+export type UpdateState = 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error' | 'dev'
+
+export interface UpdateStatus {
+  state: UpdateState
+  version?: string
+  percent?: number
+  message?: string
+}

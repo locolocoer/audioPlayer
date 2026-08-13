@@ -1,41 +1,56 @@
-# AudioPlayer — 需求文档 v0.6.0（迭代 3）
+﻿# AudioPlayer — 需求文档 v0.8.0（迭代 5）
 
 ## 项目概述
 
-基于 Electron 的桌面音乐播放器（WebDAV + 本地），本迭代聚焦播放体验与数据增强。
+基于 Electron 的桌面音乐播放器（WebDAV + 本地），本迭代聚焦应用信息展示与自动更新能力。
 
-## 技术选型（沿用）
+## 技术选型
 
-Electron + React 18 + TypeScript + electron-vite + sql.js + music-metadata + webdav；新增 `node-id3`（MP3 标签写回）。
+沿用 Electron + React 18 + TypeScript + electron-vite + electron-builder（NSIS）；新增 `electron-updater`（GitHub Releases 作为更新源）。
 
 ## 功能清单
 
-### M014 播放体验增强
+### M025 关于与版本
 
 | ID | 功能 | 优先级 | 状态 |
 |----|------|--------|------|
-| F020 | 播放队列面板：右侧可开关"接下来播放"，高亮当前、点击跳转、移除单曲 | High | ☐ |
-| F021 | 睡眠定时器：15/30/45/60/90 分钟，到点自动暂停，按钮显示剩余时间 | Medium | ☐ |
-| F022 | 音频可视化：Web Audio Analyser 频谱，播放页 canvas 动态展示 | Medium | ☐ |
+| F045 | 设置页版本信息展示：关于区域显示应用名/版本号/运行环境 | High | ✅ |
 
-### M015 音乐库数据增强
+### M026 自动更新
 
 | ID | 功能 | 优先级 | 状态 |
 |----|------|--------|------|
-| F023 | 最近播放列表：侧边栏新页面，按 lastPlayed 倒序 | Medium | ☐ |
-| F024 | 多选批量操作：列表多选 → 批量加入播放列表 / 批量收藏 | High | ☐ |
-| F026 | ID3 标签写回：本地 MP3 编辑元数据时写回文件（node-id3） | Medium | ☐ |
-| F027 | 文件夹树浏览：音乐库新增目录层级浏览维度 | Medium | ☐ |
+| F046 | 自动更新链路：electron-updater + GitHub publish 配置 + 主进程事件接线 | High | ✅ |
+| F047 | 更新检查与安装流程：手动检查 + 自动下载 + 重启安装 | High | ✅ |
 
-### M016 多播放列表管理
+## 边界（❌ 不做）
 
-| ID | 功能 | 优先级 | 状态 |
-|----|------|--------|------|
-| F025 | 多命名播放列表：创建/重命名/删除，独立持久化，播放器同步当前列表 | Medium | ☐ |
+- 不做 macOS / Linux 自动更新（仅 Windows NSIS）
+- 不做强制更新（用户可选安装）
+- 不做应用商店发布
+- 无代码签名证书，Windows 安装将出现"未知发布者"提示（预期行为）
+
+## 架构简述
+
+```
+设置页 ConfigPage
+   │  checkForUpdates / 监听 update 事件
+   ▼
+preload（contextBridge: updater.*）
+   │  IPC
+   ▼
+主进程 index.ts：autoUpdater（electron-updater）
+   │  GitHub Releases latest.yml
+   ▼
+electron-builder publish → 上传 Setup.exe + latest.yml
+```
+
+- 更新触发：手动"检查更新"（F047）
+- 下载策略：发现新版本自动后台下载，完成后提示"重启并安装"（退出时安装 autoInstallOnAppQuit）
+- 开发模式：未打包时检查更新直接提示"仅安装版支持"
 
 ## 非功能性需求
 
-- NF001: 队列面板与可视化不卡顿
-- NF002: 睡眠定时到点误差 < 1s
-- NF003: 批量操作不卡 UI
-- NF004: 标签写回失败不影响库内编辑
+- NF005: 更新检查失败静默降级，不影响播放
+- NF006: 更新检查/下载不阻塞渲染线程
+- NF007: 无签名"未知发布者"提示为预期

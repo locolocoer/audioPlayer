@@ -1,4 +1,5 @@
 import { app, BrowserWindow, shell, ipcMain, Menu, protocol, Tray, globalShortcut, screen } from 'electron'
+import { autoUpdater } from 'electron-updater'
 import { join } from 'path'
 import fs from 'fs'
 import path from 'path'
@@ -10,6 +11,7 @@ import { registerIpcHandlers } from './ipc'
 import { initDatabase, closeDatabase, getAllWebDAVConfigs } from './database'
 import { setupFolderWatchers, closeFolderWatchers } from './folderWatch'
 import { buildBaseUrl, createWebDAVClient, downloadFile } from './webdav'
+import type { UpdateStatus } from './types'
 
 app.setName('feiyu-music')
 
@@ -46,6 +48,67 @@ function sendPlayerCommand(cmd: string): void {
   if (win) {
     win.webContents.send('player:command', cmd)
   }
+}
+
+function sendUpdateStatus(payload: UpdateStatus): void {
+  const win = BrowserWindow.getAllWindows().find((w) => w !== miniWindow && !w.isDestroyed())
+  if (win && !win.isDestroyed()) {
+    win.webContents.send('update:status', payload)
+  }
+}
+
+function setupAutoUpdater(): void {
+  autoUpdater.autoDownload = true
+  autoUpdater.autoInstallOnAppQuit = true
+
+  autoUpdater.on('checking-for-update', () => {
+    sendUpdateStatus({ state: 'checking' })
+  })
+  autoUpdater.on('update-available', (info) => {
+    sendUpdateStatus({ state: 'available', version: info.version })
+  })
+  autoUpdater.on('update-not-available', () => {
+    sendUpdateStatus({ state: 'not-available' })
+  })
+  autoUpdater.on('download-progress', (p) => {
+    sendUpdateStatus({ state: 'downloading', percent: Math.round(p.percent), message: `${p.transferred}/${p.total}` })
+  })
+  autoUpdater.on('update-downloaded', (info) => {
+    sendUpdateStatus({ state: 'downloaded', version: info.version })
+  })
+  autoUpdater.on('error', (err) => {
+    sendUpdateStatus({ state: 'error', message: err && err.message ? err.message : String(err) })
+  })
+}
+
+function registerUpdateIpc(): void {
+  ipcMain.handle('app:info', () => ({
+    name: '飞鱼音乐',
+    version: app.getVersion(),
+    electron: process.versions.electron,
+    chrome: process.versions.chrome,
+    node: process.versions.node
+  }))
+
+  ipcMain.handle('update:check', async () => {
+    if (!app.isPackaged) {
+      sendUpdateStatus({ state: 'dev' })
+      return false
+    }
+    try {
+      await autoUpdater.checkForUpdates()
+      return true
+    } catch (err) {
+      sendUpdateStatus({ state: 'error', message: err instanceof Error ? err.message : String(err) })
+      return false
+    }
+  })
+
+  ipcMain.handle('update:install', () => {
+    if (!app.isPackaged) return false
+    setImmediate(() => autoUpdater.quitAndInstall())
+    return true
+  })
 }
 
 function toggleWindowVisibility(): void {
@@ -553,6 +616,8 @@ app.whenReady().then(async () => {
   registerLocalMediaProtocol()
   registerPlayerIpc()
   registerWindowIpc()
+  registerUpdateIpc()
+  setupAutoUpdater()
   createWindow()
   createTray()
   registerGlobalShortcuts()

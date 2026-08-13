@@ -19,3 +19,8 @@ nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   artifactName: 飞鱼音乐-Setup-${version}.${ext}
+publish:
+  provider: github
+  owner: locolocoer
+  repo: audioPlayer
+  releaseType: release

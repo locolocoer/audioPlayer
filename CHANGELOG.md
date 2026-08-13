@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.8.0] - 2026-08-13
+
+### Added
+- 设置页"关于与更新"区域：展示应用名/版本号/Electron/Chromium/Node 运行环境（F045）
+- 自动更新链路：electron-updater + GitHub Releases 发布源，主进程事件接线（F046）
+- 更新检查与安装：设置页手动"检查更新"，发现新版本自动后台下载并显示进度，完成后"重启并安装"；开发模式提示不支持（F047）
+
+### Changed
+- electron-builder 增加 GitHub publish 配置（owner=locolocoer repo=audioPlayer）
+
 ## [0.7.1] - 2026-08-13
 
 ### Fixed
