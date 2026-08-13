@@ -4,13 +4,13 @@
   "skillVersion": "3.0",
   "framework": "nodejs",
   "currentPhase": "P4",
-  "lastUpdated": "2026-08-13T11:45:00Z",
+  "lastUpdated": "2026-08-13T12:00:00Z",
   "currentIteration": 5,
   "phases": {
     "P1_requirements": { "status": "completed", "startedAt": "2026-08-13T10:00:00Z", "completedAt": "2026-08-13T10:05:00Z" },
     "P2_implementation": { "status": "completed", "startedAt": "2026-08-13T11:30:00Z", "completedAt": "2026-08-13T11:45:00Z", "note": "F048/F049 三平台打包与 CI 矩阵已实现，tsc 0 错误、构建通过" },
-    "P3_testing": { "status": "completed", "startedAt": "2026-08-13T11:45:00Z", "completedAt": "2026-08-13T11:50:00Z", "note": "tsc 双工程 0 错误、构建通过；CI 三平台与安装需真实运行验证" },
-    "P4_release": { "status": "pending" }
+    "P3_testing": { "status": "completed", "startedAt": "2026-08-13T11:45:00Z", "completedAt": "2026-08-13T11:50:00Z", "note": "tsc 双工程 0 错误、构建通过；CI 三平台构建通过" },
+    "P4_release": { "status": "completed", "completedAt": "2026-08-13T12:00:00Z", "note": "v0.9.0 三平台 Release 已发布，含 latest*.yml" }
   },
   "features": {
     "F045": { "status": "completed", "title": "设置页版本信息展示", "completedAt": "2026-08-13T10:30:00Z" },
@@ -82,10 +82,11 @@
       "tag": "v0.9.0",
       "type": "minor",
       "date": "2026-08-13",
+      "commitHash": "db769a3",
       "features": ["F048","F049"],
       "fixes": ["Windows 产物名改 ASCII，避免 GitHub Release 上传丢失中文前缀"],
       "breaking": false,
-      "artifacts": [],
+      "artifacts": ["releases/v0.9.0/FeiYu-Music-Setup-0.9.0.exe", "FeiYu-Music-0.9.0-arm64.dmg", "feiyu-music-0.9.0-x86_64.AppImage", "latest.yml", "latest-mac.yml", "latest-linux.yml"],
       "requirementVersion": "0.9.0"
     }
   ],
