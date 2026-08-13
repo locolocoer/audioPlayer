@@ -148,7 +148,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     localStorage.setItem('resume_playing', '1')
   },
 
-  next: () => {
+  next: async () => {
     const state = get()
     const effectiveQueue = state.playlist.length > 0
       ? state.playlist
@@ -158,11 +158,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const { currentTrack, playMode } = state
     if (effectiveQueue.length === 0 || !currentTrack) return
     const idx = effectiveQueue.findIndex((t) => t.id === currentTrack.id)
-    let nextIdx: number
+    let nextTrack: MusicFile
     if (playMode === 'heartbeat') {
-      const favs = useMusicStore.getState().favorites
+      let favs = useMusicStore.getState().favorites
+      if (favs.length === 0) {
+        await useMusicStore.getState().loadFavorites()
+        favs = useMusicStore.getState().favorites
+      }
       const pool = favs.length > 0 ? favs.filter((f) => f.id !== currentTrack.id) : []
-      if (pool.length > 0 && Math.random() < 0.7) {
+      if (pool.length > 0) {
         const weights = pool.map((f) => (f.playCount || 0) + 1)
         const total = weights.reduce((a, b) => a + b, 0)
         let r = Math.random() * total
@@ -174,19 +178,18 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
             break
           }
         }
-        get().requestPlay(pick)
-        return
+        nextTrack = pick
+      } else {
+        nextTrack = effectiveQueue[Math.floor(Math.random() * effectiveQueue.length)]
       }
-      if (favs.length === 0) useMusicStore.getState().loadFavorites()
-      nextIdx = Math.floor(Math.random() * effectiveQueue.length)
     } else if (playMode === 'shuffle') {
-      nextIdx = Math.floor(Math.random() * effectiveQueue.length)
+      nextTrack = effectiveQueue[Math.floor(Math.random() * effectiveQueue.length)]
     } else if (playMode === 'single') {
-      nextIdx = idx >= 0 ? idx : 0
+      nextTrack = effectiveQueue[idx >= 0 ? idx : 0]
     } else {
-      nextIdx = idx >= 0 ? (idx + 1) % effectiveQueue.length : 0
+      nextTrack = effectiveQueue[idx >= 0 ? (idx + 1) % effectiveQueue.length : 0]
     }
-    get().requestPlay(effectiveQueue[nextIdx])
+    get().requestPlay(nextTrack)
   },
 
   prev: () => {

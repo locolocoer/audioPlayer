@@ -226,6 +226,7 @@ export default function AudioEngine(): JSX.Element {
 
   const prefetchNext = () => {
     const state = usePlayerStore.getState()
+    if (state.playMode === 'heartbeat') return
     const queue = state.playlist.length > 0
       ? state.playlist
       : state.queue.length > 0
