@@ -1,14 +1,19 @@
 export function parseLrc(lrcText: string): { time: number; text: string }[] {
   const lines = lrcText.split('\n')
   const result: { time: number; text: string }[] = []
-  const tagRe = /^\[(\d+):(\d+(?:\.\d+)?)\](.*)/
+  const timeRe = /\[(\d+):(\d+(?:\.\d+)?)\]/g
   for (const line of lines) {
-    const match = line.match(tagRe)
-    if (match) {
-      const min = parseInt(match[1], 10)
-      const sec = parseFloat(match[2])
-      const text = match[3].trim()
-      if (text) result.push({ time: min * 60 + sec, text })
+    timeRe.lastIndex = 0
+    const times: number[] = []
+    let m: RegExpExecArray | null
+    while ((m = timeRe.exec(line)) !== null) {
+      times.push(parseInt(m[1], 10) * 60 + parseFloat(m[2]))
+    }
+    if (times.length === 0) continue
+    const text = line.replace(timeRe, '').trim()
+    if (!text) continue
+    for (const t of times) {
+      result.push({ time: t, text })
     }
   }
   return result.sort((a, b) => a.time - b.time)

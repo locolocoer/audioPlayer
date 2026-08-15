@@ -26,6 +26,7 @@ interface MusicState {
   startScan: (config: WebDAVConfig, settings?: ScanSettings) => Promise<void>
   cancelScan: () => Promise<void>
   toggleFavorite: (id: number) => Promise<boolean>
+  setRating: (id: number, rating: number) => Promise<void>
   updateMeta: (id: number, meta: { title?: string; artist?: string; album?: string }) => Promise<void>
   updateMetaBatch: (ids: number[], meta: { title?: string; artist?: string; album?: string }) => Promise<void>
   switchTrackSource: (oldTrackId: number, newTrack: MusicFile) => Promise<void>
@@ -112,6 +113,14 @@ export const useMusicStore = create<MusicState>((set, get) => ({
       }))
     }
     return result
+  },
+
+  setRating: async (id: number, rating: number) => {
+    await window.api.music.setRating(id, rating)
+    set((s) => ({
+      tracks: s.tracks.map((t) => t.id === id ? { ...t, rating } : t),
+      favorites: s.favorites.map((t) => t.id === id ? { ...t, rating } : t)
+    }))
   },
 
   updateMeta: async (id: number, meta) => {

@@ -2,7 +2,7 @@ import initSqlJs, { Database as SqlJsDatabase } from 'sql.js'
 import type { BindParams, Statement } from 'sql.js'
 import path from 'path'
 import fs from 'fs'
-import { app } from 'electron'
+import { app, safeStorage } from 'electron'
 import { t2s } from 'chinese-s2t'
 import type { WebDAVConfig, MusicFile, Playlist } from './types'
 
@@ -107,6 +107,10 @@ export async function initDatabase(): Promise<void> {
     db.run('ALTER TABLE music_files ADD COLUMN lastPlayed TEXT NOT NULL DEFAULT \'\'')
   } catch { /* column already exists */ }
 
+  try {
+    db.run('ALTER TABLE music_files ADD COLUMN rating INTEGER NOT NULL DEFAULT 0')
+  } catch { /* column already exists */ }
+
   db.run(`
     CREATE TABLE IF NOT EXISTS playlists (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -197,21 +201,46 @@ function queryAll<T>(sql: string, params?: BindParams): T[] {
 }
 
 // WebDAV Configs
+function encryptPassword(plain: string): string {
+  if (!plain) return plain
+  if (plain.startsWith('enc:v1:')) return plain
+  if (!safeStorage.isEncryptionAvailable()) return plain
+  try {
+    return 'enc:v1:' + safeStorage.encryptString(plain).toString('base64')
+  } catch {
+    return plain
+  }
+}
+
+function decryptPassword(stored: string): string {
+  if (!stored) return stored
+  if (!stored.startsWith('enc:v1:')) return stored
+  try {
+    return safeStorage.decryptString(Buffer.from(stored.slice('enc:v1:'.length), 'base64'))
+  } catch {
+    return stored
+  }
+}
+
 export function saveWebDAVConfig(config: WebDAVConfig): void {
   db.run(
     `INSERT OR REPLACE INTO webdav_configs (id, name, url, username, password, port, enabled, createdAt, sourceType)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [config.id, config.name, config.url, config.username, config.password, config.port, config.enabled ? 1 : 0, config.createdAt, config.sourceType || 'webdav']
+    [config.id, config.name, config.url, config.username, encryptPassword(config.password), config.port, config.enabled ? 1 : 0, config.createdAt, config.sourceType || 'webdav']
   )
   saveToDisk()
 }
 
+function decryptConfig(config: WebDAVConfig): WebDAVConfig {
+  return { ...config, password: decryptPassword(config.password) }
+}
+
 export function getWebDAVConfigs(): WebDAVConfig[] {
-  return queryAll<WebDAVConfig>('SELECT * FROM webdav_configs WHERE enabled = 1')
+  return queryAll<WebDAVConfig>('SELECT * FROM webdav_configs WHERE enabled = 1').map(decryptConfig)
 }
 
 export function getAllWebDAVConfigs(): WebDAVConfig[] {
-  return queryAll<WebDAVConfig>('SELECT * FROM webdav_configs')
+  return queryAll<WebDAVConfig>('SELECT * FROM webdav_configs').map(decryptConfig)
 }
 
 export function deleteWebDAVConfig(id: string): void {
@@ -453,6 +482,13 @@ export function toggleFavorite(id: number): boolean {
 
 export function getFavoriteFiles(): MusicFile[] {
   return queryAll<MusicFile>('SELECT * FROM music_files WHERE favorite = 1 ORDER BY title')
+}
+
+export function setRating(id: number, rating: number): boolean {
+  const r = Math.max(0, Math.min(5, Math.round(rating)))
+  db.run('UPDATE music_files SET rating = ? WHERE id = ?', [r, id])
+  saveToDisk()
+  return true
 }
 
 export function recordPlay(id: number): void {

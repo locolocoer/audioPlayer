@@ -28,6 +28,7 @@ const api = {
     byIds: (ids: number[]): Promise<MusicFile[]> => ipcRenderer.invoke('music:byIds', ids),
     count: (): Promise<number> => ipcRenderer.invoke('music:count'),
     toggleFavorite: (id: number): Promise<boolean> => ipcRenderer.invoke('music:favorite:toggle', id),
+    setRating: (id: number, rating: number): Promise<boolean> => ipcRenderer.invoke('music:rating', id, rating),
     favoriteList: (): Promise<MusicFile[]> => ipcRenderer.invoke('music:favorite:list'),
     updateMeta: (id: number, meta: { title?: string; artist?: string; album?: string }): Promise<{ ok: boolean; writeback: { attempted: boolean; ok: boolean; error?: string } }> =>
       ipcRenderer.invoke('music:updateMeta', id, meta),
@@ -69,6 +70,18 @@ const api = {
       const handler = (_event: Electron.IpcRendererEvent, cmd: string): void => callback(cmd)
       ipcRenderer.on('player:command', handler)
       return () => ipcRenderer.removeListener('player:command', handler)
+    },
+    sendLyrics: (trackId: number, lrcText: string): void => ipcRenderer.send('lyrics:sync', trackId, lrcText),
+    sendLyricsTime: (trackId: number, time: number): void => ipcRenderer.send('lyrics:time', trackId, time),
+    onLyricsSync: (callback: (payload: { trackId: number; lrcText: string }) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, payload: { trackId: number; lrcText: string }): void => callback(payload)
+      ipcRenderer.on('lyrics:sync-broadcast', handler)
+      return () => ipcRenderer.removeListener('lyrics:sync-broadcast', handler)
+    },
+    onLyricsTime: (callback: (payload: { trackId: number; time: number }) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, payload: { trackId: number; time: number }): void => callback(payload)
+      ipcRenderer.on('lyrics:time-broadcast', handler)
+      return () => ipcRenderer.removeListener('lyrics:time-broadcast', handler)
     }
   },
   cache: {

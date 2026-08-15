@@ -14,12 +14,15 @@ interface PlayerState {
   currentTime: number
   duration: number
   volume: number
+  playbackRate: number
   playMode: PlayMode
   queue: MusicFile[]
   playlist: MusicFile[]
   audioSrc: string | null
   autoPlayBlocked: boolean
   sleepUntil: number | null
+  loopA: number | null
+  loopB: number | null
 
   requestPlay: (track: MusicFile) => void
   setAutoPlayBlocked: (blocked: boolean) => void
@@ -33,11 +36,13 @@ interface PlayerState {
   next: () => void
   prev: () => void
   setVolume: (v: number) => void
+  setPlaybackRate: (rate: number) => void
   setCurrentTime: (t: number) => void
   setDuration: (d: number) => void
   togglePlayMode: () => void
   setPlayMode: (mode: PlayMode) => void
   seek: (time: number) => void
+  setLoop: (a: number | null, b: number | null) => void
   syncPlaylist: (list: MusicFile[]) => void
   replaceTrack: (oldId: number, newTrack: MusicFile) => void
   onAudioLoaded: () => void
@@ -61,6 +66,14 @@ function getStoredMode(): PlayMode {
   return 'sequential'
 }
 
+function getStoredRate(): number {
+  const saved = localStorage.getItem('player_rate')
+  if (saved === null || saved === '') return 1
+  const r = Number(saved)
+  if (!Number.isFinite(r)) return 1
+  return Math.max(0.5, Math.min(2, r))
+}
+
 export const usePlayerStore = create<PlayerState>((set, get) => ({
   currentTrack: null,
   pendingTrack: null,
@@ -70,12 +83,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   currentTime: 0,
   duration: 0,
   volume: getStoredVolume(),
+  playbackRate: getStoredRate(),
   playMode: getStoredMode(),
   queue: [],
   playlist: [],
   audioSrc: null,
   autoPlayBlocked: false,
   sleepUntil: null,
+  loopA: null,
+  loopB: null,
 
   requestPlay: (track: MusicFile) => {
     const state = get()
@@ -214,6 +230,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     localStorage.setItem('player_volume', String(v))
     set({ volume: v })
   },
+  setPlaybackRate: (rate: number) => {
+    const r = Number.isFinite(rate) ? Math.max(0.5, Math.min(2, rate)) : 1
+    localStorage.setItem('player_rate', String(r))
+    set({ playbackRate: r })
+  },
   setCurrentTime: (t: number) => set({ currentTime: t }),
   setDuration: (d: number) => set({ duration: d }),
 
@@ -235,6 +256,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     set({ currentTime: t })
     window.dispatchEvent(new CustomEvent('audioplayer:seek', { detail: t }))
   },
+
+  setLoop: (a: number | null, b: number | null) => set({ loopA: a, loopB: b }),
 
   syncPlaylist: (list: MusicFile[]) => {
     set({ playlist: list })

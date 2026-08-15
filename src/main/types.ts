@@ -26,6 +26,7 @@ export interface MusicFile {
   title_key?: string
   playCount?: number
   lastPlayed?: string
+  rating?: number
 }
 
 export interface Playlist {

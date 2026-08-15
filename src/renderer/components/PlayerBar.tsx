@@ -10,6 +10,8 @@ function formatTime(secs: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
+const RATES = [1, 1.25, 1.5, 2, 0.75, 0.5]
+
 const coverCache = new Map<string, string>()
 
 function BarCover({ track }: { track: { webdavId: string; path: string } }): JSX.Element {
@@ -66,11 +68,16 @@ export default function PlayerBar(): JSX.Element {
   const currentTime = usePlayerStore((s) => s.currentTime)
   const duration = usePlayerStore((s) => s.duration)
   const volume = usePlayerStore((s) => s.volume)
+  const playbackRate = usePlayerStore((s) => s.playbackRate)
+  const setPlaybackRate = usePlayerStore((s) => s.setPlaybackRate)
   const playMode = usePlayerStore((s) => s.playMode)
+  const loopA = usePlayerStore((s) => s.loopA)
+  const loopB = usePlayerStore((s) => s.loopB)
   const sleepUntil = usePlayerStore((s) => s.sleepUntil)
   const setSleepTimer = usePlayerStore((s) => s.setSleepTimer)
   const favorites = useMusicStore((s) => s.favorites)
   const loadFavorites = useMusicStore((s) => s.loadFavorites)
+  const tracks = useMusicStore((s) => s.tracks)
   const toggleQueue = useUiStore((s) => s.toggleQueue)
   const [sleepOpen, setSleepOpen] = useState(false)
   const [lyricsOn, setLyricsOn] = useState(() => localStorage.getItem('desktop_lyrics') === '1')
@@ -136,6 +143,7 @@ export default function PlayerBar(): JSX.Element {
   }, [])
 
   const isFav = currentTrack ? favorites.some((f) => f.id === currentTrack.id) : false
+  const currentRating = currentTrack ? (tracks.find((t) => t.id === currentTrack.id)?.rating || 0) : 0
 
   if (!currentTrack) return <div />
 
@@ -150,11 +158,24 @@ export default function PlayerBar(): JSX.Element {
           <span className="track-artist">
             {isLoading ? '加载中...' : loadError ? `错误: ${loadError}` : (currentTrack.artist || '未知歌手')}
           </span>
+          <span className="track-rating" style={{ display: 'inline-flex', gap: 2, fontSize: 13, cursor: 'pointer' }}>
+            {[1, 2, 3, 4, 5].map((n) => (
+              <span key={n} onClick={(e) => { e.stopPropagation(); useMusicStore.getState().setRating(currentTrack.id, n) }} style={{ color: currentRating >= n ? '#f5a623' : 'rgba(128,128,128,0.4)' }} title={`${n} 星`}>
+                ★
+              </span>
+            ))}
+          </span>
         </div>
       </div>
 
       <div className="player-bar-center">
         <div className="control-buttons">
+          <button className="btn-icon btn-rate" onClick={() => { const idx = RATES.indexOf(playbackRate); setPlaybackRate(RATES[idx >= 0 ? (idx + 1) % RATES.length : 0]) }} title="播放速度" style={{ fontSize: 12, fontWeight: 600, minWidth: 40 }}>
+            {playbackRate}x
+          </button>
+          <button className={`btn-icon btn-loop${loopA !== null ? ' active' : ''}`} onClick={() => { const st = usePlayerStore.getState(); if (st.loopA === null) { st.setLoop(st.currentTime, null) } else if (st.loopB === null) { if (st.currentTime > st.loopA + 0.5) { st.setLoop(st.loopA, st.currentTime) } else { st.setLoop(null, null) } } else { st.setLoop(null, null) } }} title="A-B 循环（点一下设 A 点，再点设 B 点，再点清除）" style={{ fontSize: 11, fontWeight: 600, minWidth: 40, color: loopA !== null ? 'var(--accent)' : undefined }}>
+            {loopB !== null ? 'A-B' : loopA !== null ? 'A·--' : 'A-B'}
+          </button>
           <button className="btn-icon" onClick={() => usePlayerStore.getState().togglePlayMode()} title={playMode === 'sequential' ? '顺序播放' : playMode === 'shuffle' ? '随机播放' : playMode === 'single' ? '单曲循环' : '心动模式'}>
             {playMode === 'sequential' ? (
               <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>

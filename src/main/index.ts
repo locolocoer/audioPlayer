@@ -324,6 +324,19 @@ function registerWindowIpc(): void {
   })
 }
 
+function registerLyricsIpc(): void {
+  ipcMain.on('lyrics:sync', (_e, trackId: number, lrcText: string) => {
+    if (lyricsWindow && !lyricsWindow.isDestroyed()) {
+      lyricsWindow.webContents.send('lyrics:sync-broadcast', { trackId, lrcText })
+    }
+  })
+  ipcMain.on('lyrics:time', (_e, trackId: number, time: number) => {
+    if (lyricsWindow && !lyricsWindow.isDestroyed()) {
+      lyricsWindow.webContents.send('lyrics:time-broadcast', { trackId, time })
+    }
+  })
+}
+
 function findFFmpeg(): string {
   const name = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'
   return findResourceFile(name) || 'ffmpeg'
@@ -365,6 +378,44 @@ function registerLocalMediaProtocol(): void {
   })
 }
 
+function registerWebDAVMediaProtocol(): void {
+  protocol.handle('webdav-media', async (request) => {
+    try {
+      const url = new URL(request.url)
+      const configId = url.hostname
+      const filePath = decodeURIComponent(url.pathname.replace(/^\//, ''))
+      const config = getAllWebDAVConfigs().find((c) => c.id === configId && c.sourceType === 'webdav')
+      if (!config) return new Response('Not found', { status: 404 })
+
+      const baseUrl = buildBaseUrl(config).replace(/\/+$/, '')
+      const fullUrl = `${baseUrl}/${filePath.replace(/^\/+/, '')}`
+      const auth = 'Basic ' + Buffer.from(`${config.username}:${config.password}`).toString('base64')
+
+      const headers: Record<string, string> = { Authorization: auth }
+      const range = request.headers.get('Range')
+      if (range) headers.Range = range
+
+      const res = await fetch(fullUrl, { headers })
+      if (!res.body) return new Response('Empty response', { status: 500 })
+      if (res.status !== 200 && res.status !== 206) {
+        return new Response('Upstream error', { status: res.status })
+      }
+
+      const respHeaders: Record<string, string> = { 'Accept-Ranges': 'bytes' }
+      const contentRange = res.headers.get('Content-Range')
+      const contentLength = res.headers.get('Content-Length')
+      const contentType = res.headers.get('Content-Type') || 'application/octet-stream'
+      if (contentRange) respHeaders['Content-Range'] = contentRange
+      if (contentLength) respHeaders['Content-Length'] = contentLength
+      respHeaders['Content-Type'] = contentType
+
+      return new Response(res.body, { status: res.status, headers: respHeaders })
+    } catch {
+      return new Response('Error', { status: 500 })
+    }
+  })
+}
+
 function getCacheKey(configId: string, filePath: string, ext?: string): string {
   const useExt = ext || path.extname(filePath)
   const hash = crypto.createHash('sha1').update(filePath).digest('hex').substring(0, 16)
@@ -389,25 +440,9 @@ function registerPlayerIpc(): void {
         return { error: 'File not found' }
       }
 
-      const ext = path.extname(filePath)
-      const cacheKey = getCacheKey(configId, filePath)
-      const cachedPath = path.join(tempDir, cacheKey)
-
-      if (fs.existsSync(cachedPath) && fs.statSync(cachedPath).size > 1024) {
-        return { localUrl: `local-media://${cacheKey}` }
-      }
-      try { fs.unlinkSync(cachedPath) } catch { /* */ }
-
-      const client = createWebDAVClient(config)
-      const buffer = await downloadFile(client, filePath)
-      if (buffer.length < 1024) {
-        return { error: `Invalid audio data (${buffer.length} bytes)` }
-      }
-
-      fs.writeFileSync(cachedPath, buffer)
-
-      console.log(`[Player] READY: ext=${ext} size=${fs.statSync(cachedPath).size}`)
-      return { localUrl: `local-media://${cacheKey}` }
+      // WebDAV 流式播放：直接代理 Range 请求，不再整文件下载缓存
+      console.log(`[Player] WEBDAV STREAM: "${filePath}"`)
+      return { localUrl: `webdav-media://${configId}/${encodeURIComponent(filePath)}` }
     } catch (err) {
       return { error: (err instanceof Error ? err.message : String(err)) }
     }
@@ -594,8 +629,10 @@ app.whenReady().then(async () => {
   await initDatabase()
   registerIpcHandlers()
   registerLocalMediaProtocol()
+  registerWebDAVMediaProtocol()
   registerPlayerIpc()
   registerWindowIpc()
+  registerLyricsIpc()
   registerUpdateIpc()
   setupAutoUpdater()
   createWindow()

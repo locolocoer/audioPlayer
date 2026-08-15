@@ -18,6 +18,7 @@ export default function AudioEngine(): JSX.Element {
 
   const pendingTrack = usePlayerStore((s) => s.pendingTrack)
   const volume = usePlayerStore((s) => s.volume)
+  const playbackRate = usePlayerStore((s) => s.playbackRate)
   const isPlaying = usePlayerStore((s) => s.isPlaying)
   const eqEnabled = useEqualizerStore((s) => s.enabled)
   const eqGains = useEqualizerStore((s) => s.gains)
@@ -34,7 +35,7 @@ export default function AudioEngine(): JSX.Element {
     if (lyricsFetchedRef.current === lyrKey) return
     lyricsFetchedRef.current = lyrKey
     window.api.player.getLrc(track.webdavId, track.path).then((r) => {
-      localStorage.setItem('lyrics_sync', JSON.stringify({ trackId: track.id, lrcText: r.text || '' }))
+      window.api.player.sendLyrics(track.id, r.text || '')
     }).catch(() => {})
   }
 
@@ -174,6 +175,13 @@ export default function AudioEngine(): JSX.Element {
 
   useEffect(() => {
     const audio = audioRef.current
+    if (audio) {
+      audio.playbackRate = playbackRate
+    }
+  }, [playbackRate])
+
+  useEffect(() => {
+    const audio = audioRef.current
     if (!audio) return
     if (isPlaying && audio.paused && audio.src) {
       audio.play().catch(() => {})
@@ -182,8 +190,35 @@ export default function AudioEngine(): JSX.Element {
     }
   }, [isPlaying])
 
+  const fadeIn = (): void => {
+    const vol = usePlayerStore.getState().volume
+    if (volumeGainRef.current && audioCtxRef.current) {
+      const ctx = audioCtxRef.current
+      const g = volumeGainRef.current.gain
+      const now = ctx.currentTime
+      g.cancelScheduledValues(now)
+      g.setValueAtTime(0.0001, now)
+      g.linearRampToValueAtTime(vol, now + 0.5)
+    } else {
+      const audio = audioRef.current
+      if (!audio) return
+      audio.volume = 0
+      const start = performance.now()
+      const step = (): void => {
+        const p = Math.min(1, (performance.now() - start) / 500)
+        audio.volume = p * vol
+        if (p < 1) requestAnimationFrame(step)
+      }
+      requestAnimationFrame(step)
+    }
+  }
+
   const handleCanPlay = () => {
     ensureEqGraph()
+    if (audioRef.current) {
+      audioRef.current.playbackRate = usePlayerStore.getState().playbackRate
+    }
+    fadeIn()
     usePlayerStore.getState().onAudioLoaded()
 
     const state = usePlayerStore.getState()
@@ -277,7 +312,11 @@ export default function AudioEngine(): JSX.Element {
   const handleTimeUpdate = () => {
     const audio = audioRef.current
     if (!audio) return
-    usePlayerStore.getState().setCurrentTime(audio.currentTime)
+    const st = usePlayerStore.getState()
+    if (st.loopA !== null && st.loopB !== null && st.loopB > st.loopA && audio.currentTime >= st.loopB) {
+      audio.currentTime = st.loopA
+    }
+    st.setCurrentTime(audio.currentTime)
     const now = Date.now()
     if (now - lastResumeSave > RESUME_THROTTLE) {
       lastResumeSave = now
@@ -287,7 +326,7 @@ export default function AudioEngine(): JSX.Element {
       lastLyricsTimeSave = now
       const track = usePlayerStore.getState().currentTrack
       if (track) {
-        localStorage.setItem('lyrics_time', JSON.stringify({ trackId: track.id, time: audio.currentTime }))
+        window.api.player.sendLyricsTime(track.id, audio.currentTime)
       }
     }
   }

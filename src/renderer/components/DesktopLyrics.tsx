@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react'
 import { parseLrc, activeLyricIndex } from '../utils/lrc'
 
-interface LrcState { trackId: number; lrcText: string }
-interface TimeState { trackId: number; time: number }
-
 interface LyricsStyle {
   fontSize: number
   color: string
@@ -48,56 +45,59 @@ export default function DesktopLyrics(): JSX.Element {
 
   useEffect(() => {
     let raf = 0
-    let cacheTrack = -1
     let lyrics: { time: number; text: string }[] = []
+    let trackId = -1
+    let latestTime = 0
+    let latestTimeAt = 0
     let lastText = ''
     let lastLit = -1
 
+    const unsubSync = window.api.player.onLyricsSync((p) => {
+      if (p.trackId !== trackId) {
+        trackId = p.trackId
+        lyrics = parseLrc(p.lrcText || '')
+      }
+    })
+    const unsubTime = window.api.player.onLyricsTime((p) => {
+      if (p.trackId === trackId) {
+        latestTime = p.time
+        latestTimeAt = Date.now()
+      }
+    })
+
     const tick = (): void => {
       raf = requestAnimationFrame(tick)
-      try {
-        const lrcRaw = localStorage.getItem('lyrics_sync')
-        const timeRaw = localStorage.getItem('lyrics_time')
-        let trackId = -1
-        let time = 0
-        if (lrcRaw) {
-          const l: LrcState = JSON.parse(lrcRaw)
-          trackId = l.trackId
-          if (l.trackId !== cacheTrack) {
-            cacheTrack = l.trackId
-            lyrics = parseLrc(l.lrcText || '')
-          }
-        }
-        if (timeRaw) {
-          const t: TimeState = JSON.parse(timeRaw)
-          if (t.trackId === trackId) time = t.time
-        }
-        const idx = activeLyricIndex(lyrics, time)
-        let text = ''
-        let lit = 0
-        if (idx >= 0) {
-          text = lyrics[idx].text
-          const start = lyrics[idx].time
-          const next = idx + 1 < lyrics.length ? lyrics[idx + 1].time : start + 5000
-          const span = Math.max(0.1, next - start)
-          lit = Math.floor(Math.max(0, Math.min(1, (time - start) / span)) * Array.from(text).length)
-        } else if (lyrics.length > 0) {
-          text = lyrics[0].text
-        } else {
-          text = trackId > 0 ? '暂无歌词' : ''
-        }
-        if (text !== lastText) {
-          lastText = text
-          setCurrent(text)
-        }
-        if (lit !== lastLit) {
-          lastLit = lit
-          setLitCount(lit)
-        }
-      } catch { /* ignore */ }
+      const time = latestTime + (Date.now() - latestTimeAt) / 1000
+      const idx = activeLyricIndex(lyrics, time)
+      let text = ''
+      let lit = 0
+      if (idx >= 0) {
+        text = lyrics[idx].text
+        const start = lyrics[idx].time
+        const next = idx + 1 < lyrics.length ? lyrics[idx + 1].time : start + 5000
+        const span = Math.max(0.1, next - start)
+        lit = Math.floor(Math.max(0, Math.min(1, (time - start) / span)) * Array.from(text).length)
+      } else if (lyrics.length > 0) {
+        text = lyrics[0].text
+      } else {
+        text = trackId > 0 ? '暂无歌词' : ''
+      }
+      if (text !== lastText) {
+        lastText = text
+        setCurrent(text)
+      }
+      if (lit !== lastLit) {
+        lastLit = lit
+        setLitCount(lit)
+      }
     }
     tick()
-    return () => cancelAnimationFrame(raf)
+
+    return () => {
+      unsubSync()
+      unsubTime()
+      cancelAnimationFrame(raf)
+    }
   }, [])
 
   const alignStyle = style.align === 'left' ? 'flex-start' : style.align === 'right' ? 'flex-end' : 'center'

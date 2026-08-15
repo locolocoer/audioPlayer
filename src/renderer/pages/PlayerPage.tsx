@@ -20,6 +20,7 @@ export default function PlayerPage(): JSX.Element {
   const [coverUrl, setCoverUrl] = useState('')
   const [lrcText, setLrcText] = useState('')
   const [eqOpen, setEqOpen] = useState(() => localStorage.getItem('eq_panel') === '1')
+  const [fullscreenLyrics, setFullscreenLyrics] = useState(false)
   const loadedRef = useRef(0)
   const activeIdxRef = useRef(-1)
 
@@ -27,8 +28,24 @@ export default function PlayerPage(): JSX.Element {
     localStorage.setItem('eq_panel', eqOpen ? '1' : '0')
   }, [eqOpen])
 
+  useEffect(() => {
+    if (!fullscreenLyrics) return
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setFullscreenLyrics(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [fullscreenLyrics])
+
   const lyrics = useMemo(() => parseLrc(lrcText), [lrcText])
   const activeIndex = useMemo(() => activeLyricIndex(lyrics, currentTime), [lyrics, currentTime])
+  const litCount = useMemo(() => {
+    if (activeIndex < 0) return 0
+    const start = lyrics[activeIndex].time
+    const next = activeIndex + 1 < lyrics.length ? lyrics[activeIndex + 1].time : start + 5000
+    const span = Math.max(0.1, next - start)
+    return Math.floor(Math.max(0, Math.min(1, (currentTime - start) / span)) * Array.from(lyrics[activeIndex].text).length)
+  }, [lyrics, activeIndex, currentTime])
 
   const lyricsRef = useRef<HTMLDivElement>(null)
 
@@ -132,6 +149,10 @@ export default function PlayerPage(): JSX.Element {
         </div>
       </div>
       <div className="eq-section">
+        <button className="eq-toggle" onClick={() => setFullscreenLyrics(true)} title="全屏歌词" disabled={lyrics.length === 0}>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+          全屏歌词
+        </button>
         <button className="eq-toggle" onClick={() => setEqOpen((o) => !o)} title="均衡器">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
             <path d="M12 3c-1.66 0-3 1.34-3 3v6.18c-1.16.41-2 1.51-2 2.82 0 1.66 1.34 3 3 3s3-1.34 3-3c0-1.31-.84-2.41-2-2.82V6c0-.55.45-1 1-1s1 .45 1 1v1h2V6c0-1.66-1.34-3-3-3z"/>
@@ -141,6 +162,21 @@ export default function PlayerPage(): JSX.Element {
         </button>
         {eqOpen && <Equalizer />}
       </div>
+
+      {fullscreenLyrics && (
+        <div className="fullscreen-lyrics" onClick={() => setFullscreenLyrics(false)}>
+          {lyrics.length > 0 ? (
+            <div className="fsl-current">
+              {Array.from(lyrics[Math.max(0, activeIndex)].text).map((ch, i) => (
+                <span key={i} className={i < litCount ? 'fsl-lit' : ''}>{ch === ' ' ? '\u00A0' : ch}</span>
+              ))}
+            </div>
+          ) : (
+            <div className="fsl-empty">暂无歌词</div>
+          )}
+          <div className="fsl-hint">点击或按 ESC 退出</div>
+        </div>
+      )}
     </div>
   )
 }

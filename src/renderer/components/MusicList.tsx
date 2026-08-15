@@ -7,7 +7,7 @@ import { usePlaylistStore } from '../stores/playlistStore'
 
 interface MusicListProps {
   tracks: MusicFile[]
-  sortField: 'title' | 'artist' | 'album' | 'duration' | 'playCount' | 'lastPlayed' | 'order'
+  sortField: 'title' | 'artist' | 'album' | 'duration' | 'playCount' | 'lastPlayed' | 'rating' | 'order'
   sortDir: 'asc' | 'desc'
   onSort: (field: 'title' | 'artist' | 'album' | 'duration' | 'playCount' | 'lastPlayed') => void
   onRowClick: (track: MusicFile) => void

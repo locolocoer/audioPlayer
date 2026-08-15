@@ -2238,3 +2238,42 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-secondary);
 }
+
+/* 全屏歌词 */
+.fullscreen-lyrics {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  background: rgba(0, 0, 0, 0.92);
+  cursor: pointer;
+}
+
+.fsl-current {
+  max-width: 90vw;
+  font-size: clamp(32px, 6vw, 72px);
+  font-weight: 700;
+  line-height: 1.3;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.35);
+  word-break: break-word;
+}
+
+.fsl-current .fsl-lit {
+  color: #ffffff;
+  transition: color 0.15s linear;
+}
+
+.fsl-empty {
+  font-size: 24px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.fsl-hint {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.35);
+}

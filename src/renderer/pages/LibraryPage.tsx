@@ -2,11 +2,12 @@ import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { useMusicStore } from '../stores/musicStore'
 import { usePlayerStore } from '../stores/playerStore'
 import { usePlaylistStore } from '../stores/playlistStore'
+import { useToastStore } from '../stores/toastStore'
 import MusicList from '../components/MusicList'
 import Modal from '../components/Modal'
 import type { MusicFile } from '../../main/types'
 
-type SortField = 'title' | 'artist' | 'album' | 'duration' | 'playCount' | 'lastPlayed'
+type SortField = 'title' | 'artist' | 'album' | 'duration' | 'playCount' | 'lastPlayed' | 'rating'
 type SortDir = 'asc' | 'desc'
 type ViewMode = 'songs' | 'albums' | 'artists' | 'folders'
 
@@ -21,7 +22,8 @@ const SORT_OPTIONS: { value: string; label: string; field: SortField; dir: SortD
   { value: 'album', label: '专辑', field: 'album', dir: 'asc' },
   { value: 'duration', label: '时长', field: 'duration', dir: 'asc' },
   { value: 'playCount', label: '播放次数', field: 'playCount', dir: 'desc' },
-  { value: 'lastPlayed', label: '最近播放', field: 'lastPlayed', dir: 'desc' }
+  { value: 'lastPlayed', label: '最近播放', field: 'lastPlayed', dir: 'desc' },
+  { value: 'rating', label: '评分', field: 'rating', dir: 'desc' }
 ]
 
 const albumCoverCache = new Map<string, string>()
@@ -62,7 +64,7 @@ export default function LibraryPage(): JSX.Element {
   const [search, setSearch] = useState('')
   const [sortField, setSortField] = useState<SortField>(() => {
     const saved = localStorage.getItem('library_sortField') as SortField | null
-    return saved && ['title', 'artist', 'album', 'duration', 'playCount', 'lastPlayed'].includes(saved) ? saved : 'title'
+    return saved && ['title', 'artist', 'album', 'duration', 'playCount', 'lastPlayed', 'rating'].includes(saved) ? saved : 'title'
   })
   const [sortDir, setSortDir] = useState<SortDir>(() => (localStorage.getItem('library_sortDir') === 'desc' ? 'desc' : 'asc'))
   const [filterConfig, setFilterConfig] = useState<string>(() => localStorage.getItem('library_filterConfig') || '')
@@ -78,6 +80,8 @@ export default function LibraryPage(): JSX.Element {
   const [editArtistInput, setEditArtistInput] = useState('')
   const [moodOpen, setMoodOpen] = useState(false)
   const moodMenuRef = useRef<HTMLDivElement>(null)
+  const [smartOpen, setSmartOpen] = useState(false)
+  const smartMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     loadConfigs()
@@ -138,6 +142,8 @@ export default function LibraryPage(): JSX.Element {
         cmp = a.duration - b.duration
       } else if (sortField === 'playCount') {
         cmp = (a.playCount || 0) - (b.playCount || 0)
+      } else if (sortField === 'rating') {
+        cmp = (a.rating || 0) - (b.rating || 0)
       } else if (sortField === 'lastPlayed') {
         cmp = String(a.lastPlayed || '').localeCompare(String(b.lastPlayed || ''))
       } else {
@@ -223,6 +229,15 @@ export default function LibraryPage(): JSX.Element {
     return () => document.removeEventListener('click', handler)
   }, [moodOpen])
 
+  useEffect(() => {
+    if (!smartOpen) return
+    const handler = (e: MouseEvent): void => {
+      if (smartMenuRef.current && !smartMenuRef.current.contains(e.target as Node)) setSmartOpen(false)
+    }
+    document.addEventListener('click', handler)
+    return () => document.removeEventListener('click', handler)
+  }, [smartOpen])
+
   const playRandomAlbum = (): void => {
     if (albums.length === 0) return
     const album = albums[Math.floor(Math.random() * albums.length)]
@@ -248,6 +263,37 @@ export default function LibraryPage(): JSX.Element {
     const shuffled = [...pool].sort(() => Math.random() - 0.5)
     usePlayerStore.getState().setPlayMode('shuffle')
     usePlayerStore.getState().playSelection(shuffled)
+  }
+
+  const SMART_LISTS: { key: string; label: string; desc: string }[] = [
+    { key: 'recent_added', label: '最近添加', desc: '最近扫描入库的 50 首' },
+    { key: 'top_played', label: '高频循环', desc: '播放次数最多的 50 首' },
+    { key: 'five_star', label: '五星好评', desc: '你打过 5 星的歌' },
+    { key: 'not_heard', label: '很久没听', desc: '最久没听过的 50 首' },
+    { key: 'hidden_gem', label: '冷门遗珠', desc: '从未播过的歌随机 50 首' }
+  ]
+
+  const playSmartList = (rule: string): void => {
+    setSmartOpen(false)
+    const all = [...tracks]
+    let list: MusicFile[]
+    if (rule === 'recent_added') {
+      list = all.sort((a, b) => String(b.scannedAt || '').localeCompare(String(a.scannedAt || ''))).slice(0, 50)
+    } else if (rule === 'top_played') {
+      list = all.sort((a, b) => (b.playCount || 0) - (a.playCount || 0)).slice(0, 50)
+    } else if (rule === 'five_star') {
+      list = all.filter((t) => (t.rating || 0) === 5)
+    } else if (rule === 'not_heard') {
+      list = all.sort((a, b) => String(a.lastPlayed || '').localeCompare(String(b.lastPlayed || ''))).slice(0, 50)
+    } else {
+      list = all.filter((t) => (t.playCount || 0) === 0 && t.favorite === 0).sort(() => Math.random() - 0.5).slice(0, 50)
+    }
+    if (list.length === 0) {
+      useToastStore.getState().addToast('没有符合条件的歌曲', 'info')
+      return
+    }
+    usePlayerStore.getState().setPlayMode('sequential')
+    usePlayerStore.getState().playSelection(list)
   }
 
   const handleRenameArtist = async (): Promise<void> => {
@@ -296,6 +342,19 @@ export default function LibraryPage(): JSX.Element {
               <div className="mood-menu">
                 {MOODS.map((m) => (
                   <div key={m.key} className="mood-item" onClick={() => playMood(m.key)}>
+                    <span className="mood-name">{m.label}</span>
+                    <span className="mood-desc">{m.desc}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="mood-wrap" ref={smartMenuRef}>
+            <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); setSmartOpen((o) => !o) }}>智能列表 ▾</button>
+            {smartOpen && (
+              <div className="mood-menu">
+                {SMART_LISTS.map((m) => (
+                  <div key={m.key} className="mood-item" onClick={() => playSmartList(m.key)}>
                     <span className="mood-name">{m.label}</span>
                     <span className="mood-desc">{m.desc}</span>
                   </div>

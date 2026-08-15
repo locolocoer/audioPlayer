@@ -22,6 +22,7 @@ import {
   findAlternativeSources,
   setSourcePref,
   recordPlay,
+  setRating,
   getMusicFileById,
   getRecentMusicFiles,
   getDBPath,
@@ -107,6 +108,10 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('music:favorite:list', async () => {
     return getFavoriteFiles()
+  })
+
+  ipcMain.handle('music:rating', async (_event, id: number, rating: number) => {
+    return setRating(id, rating)
   })
 
   ipcMain.handle('music:updateMeta', async (_event, id: number, meta: { title?: string; artist?: string; album?: string }) => {
