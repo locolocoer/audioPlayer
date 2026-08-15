@@ -260,7 +260,7 @@ export async function scanLocal(
 
     let entries: import('fs').Dirent[]
     try {
-      entries = fsLocal.readdirSync(dir, { withFileTypes: true })
+      entries = await fsLocal.promises.readdir(dir, { withFileTypes: true })
     } catch {
       return
     }
@@ -277,7 +277,7 @@ export async function scanLocal(
         totalCount++
         scannedPaths.add(fullPath)
 
-        const stat = fsLocal.statSync(fullPath)
+        const stat = await fsLocal.promises.stat(fullPath)
         const existing = existingFiles.get(fullPath)
         if (existing && existing.mtime === stat.mtime.toISOString() && existing.size === stat.size) {
           scannedCount++

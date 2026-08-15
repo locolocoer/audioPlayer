@@ -376,7 +376,7 @@ function registerLocalMediaProtocol(): void {
     try {
       const filePath = path.join(tempDir, new URL(request.url).hostname)
       if (!fs.existsSync(filePath)) return new Response('Not found', { status: 404 })
-      const buf = fs.readFileSync(filePath)
+      const buf = await fs.promises.readFile(filePath)
       return new Response(buf, {
         status: 200,
         headers: { 'Content-Type': 'audio/wav', 'Content-Length': String(buf.length) }
@@ -533,6 +533,18 @@ function registerPlayerIpc(): void {
           if (buffer.length < 1024) return { text: '' }
           fs.writeFileSync(cachedPath, buffer)
           targetPath = cachedPath
+        }
+      }
+
+      // 快路径：本地文件先检查外部 .lrc，命中直接返回，避免解析整个音频文件
+      if (config?.sourceType === 'local') {
+        const lrcPath = filePath.replace(/\.[^.]+$/, '.lrc')
+        if (fs.existsSync(lrcPath)) {
+          const text = fs.readFileSync(lrcPath, 'utf-8')
+          if (text.length > 0) {
+            console.log(`[Lrc] found external .lrc (fast path): ${text.length} chars`)
+            return { text }
+          }
         }
       }
 

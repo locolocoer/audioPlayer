@@ -37,6 +37,18 @@ function flushSaveToDisk(): void {
   if (!dirty || !db) return
   dirty = false
   const data = db.export()
+  // 异步写盘，避免同步写阻塞主进程（切歌时 recordPlay 触发）
+  fs.writeFile(dbPath, Buffer.from(data), () => {})
+}
+
+function flushSaveToDiskSync(): void {
+  if (saveTimer) {
+    clearTimeout(saveTimer)
+    saveTimer = null
+  }
+  if (!dirty || !db) return
+  dirty = false
+  const data = db.export()
   fs.writeFileSync(dbPath, Buffer.from(data))
 }
 
@@ -154,7 +166,7 @@ export async function initDatabase(): Promise<void> {
     }
   }
 
-  flushSaveToDisk()
+  flushSaveToDiskSync()
 }
 
 export function getDB(): SqlJsDatabase {
@@ -163,7 +175,7 @@ export function getDB(): SqlJsDatabase {
 
 export function closeDatabase(): void {
   if (db) {
-    flushSaveToDisk()
+    flushSaveToDiskSync()
     db.close()
   }
 }
