@@ -46,6 +46,7 @@ export default function App(): JSX.Element {
   const theme = useThemeStore((s) => s.theme)
   const accent = useThemeStore((s) => s.accent)
   const [resumePrompt, setResumePrompt] = useState<MusicFile | null>(null)
+  const [updateReady, setUpdateReady] = useState<string | null>(null)
 
   useEffect(() => {
     const root = document.documentElement
@@ -83,7 +84,7 @@ export default function App(): JSX.Element {
   useEffect(() => {
     const unsub = window.api.updater.onStatus((status) => {
       if (status.state === 'downloaded') {
-        useToastStore.getState().addToast(`新版本 v${status.version} 已就绪，重启应用即可更新`, 'success')
+        setUpdateReady(status.version || '')
       } else if (status.state === 'available') {
         useToastStore.getState().addToast(`发现新版本 v${status.version}，正在后台下载...`, 'info')
       }
@@ -128,6 +129,18 @@ export default function App(): JSX.Element {
           <div className="modal-actions">
             <button className="btn btn-secondary" onClick={() => setResumePrompt(null)}>取消</button>
             <button className="btn btn-primary" onClick={() => { usePlayerStore.getState().resume(); setResumePrompt(null) }}>继续播放</button>
+          </div>
+        </Modal>
+      )}
+      {updateReady && (
+        <Modal onClose={() => setUpdateReady(null)} width={400}>
+          <h3>新版本已就绪</h3>
+          <p style={{ margin: '12px 0', color: 'var(--text-secondary)' }}>
+            新版本 v{updateReady} 已下载完成，是否立即重启安装？
+          </p>
+          <div className="modal-actions">
+            <button className="btn btn-secondary" onClick={() => setUpdateReady(null)}>稍后</button>
+            <button className="btn btn-primary" onClick={() => window.api.updater.install()}>立即重启安装</button>
           </div>
         </Modal>
       )}
