@@ -71,6 +71,12 @@ function setupAutoUpdater(): void {
   autoUpdater.autoDownload = true
   autoUpdater.autoInstallOnAppQuit = true
 
+  // 使用阿里云 OSS 作为更新源（国内加速）
+  autoUpdater.setFeedURL({
+    provider: 'generic',
+    url: 'https://frymusic.oss-cn-beijing.aliyuncs.com/'
+  })
+
   autoUpdater.on('checking-for-update', () => {
     sendUpdateStatus({ state: 'checking' })
   })
@@ -675,6 +681,12 @@ app.whenReady().then(async () => {
   registerLyricsIpc()
   registerUpdateIpc()
   setupAutoUpdater()
+  // 启动后自动检查更新（仅安装版；延迟避免影响启动）
+  if (app.isPackaged) {
+    setTimeout(() => {
+      autoUpdater.checkForUpdates().catch(() => {})
+    }, 5000)
+  }
   createWindow()
   createTray()
   registerGlobalShortcuts()

@@ -17,6 +17,7 @@ import Modal from './components/Modal'
 import { usePlaylistStore } from './stores/playlistStore'
 import { usePlayerStore } from './stores/playerStore'
 import { useMusicStore } from './stores/musicStore'
+import { useToastStore } from './stores/toastStore'
 import { useEffect, Component, useState } from 'react'
 import type { MusicFile } from '../main/types'
 
@@ -75,6 +76,17 @@ export default function App(): JSX.Element {
     const unsub = window.api.scan.onAutoComplete(() => {
       useMusicStore.getState().loadTracks(undefined, true)
       useMusicStore.getState().loadCount()
+    })
+    return unsub
+  }, [])
+
+  useEffect(() => {
+    const unsub = window.api.updater.onStatus((status) => {
+      if (status.state === 'downloaded') {
+        useToastStore.getState().addToast(`新版本 v${status.version} 已就绪，重启应用即可更新`, 'success')
+      } else if (status.state === 'available') {
+        useToastStore.getState().addToast(`发现新版本 v${status.version}，正在后台下载...`, 'info')
+      }
     })
     return unsub
   }, [])
