@@ -4,6 +4,8 @@ import { usePlaylistStore } from '../stores/playlistStore'
 import { useThemeStore } from '../stores/themeStore'
 import { useLyricsStyleStore } from '../stores/lyricsStyleStore'
 import { useSkinStore, SKINS } from '../stores/skinStore'
+import { useShortcutsStore, SHORTCUT_LABELS, formatShortcut } from '../stores/shortcutsStore'
+import type { ShortcutAction } from '../stores/shortcutsStore'
 import Modal from '../components/Modal'
 import type { WebDAVConfig, ScanSettings, AppInfo, UpdateStatus } from '../../main/types'
 import { DEFAULT_SCAN_SETTINGS } from '../../main/types'
@@ -102,6 +104,32 @@ export default function ConfigPage(): JSX.Element {
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null)
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ state: 'idle' })
   const [checking, setChecking] = useState(false)
+  const shortcuts = useShortcutsStore((s) => s.shortcuts)
+  const setShortcut = useShortcutsStore((s) => s.setShortcut)
+  const resetShortcuts = useShortcutsStore((s) => s.resetShortcuts)
+  const [recording, setRecording] = useState<ShortcutAction | null>(null)
+
+  useEffect(() => {
+    if (!recording) return
+    const onKey = (e: KeyboardEvent): void => {
+      e.preventDefault()
+      e.stopPropagation()
+      if (e.key === 'Escape') {
+        setRecording(null)
+        return
+      }
+      if (e.code === 'Backspace' || e.code === 'Delete') {
+        setShortcut(recording, '')
+        setRecording(null)
+        return
+      }
+      if (['ControlLeft', 'ControlRight', 'ShiftLeft', 'ShiftRight', 'AltLeft', 'AltRight', 'MetaLeft', 'MetaRight'].includes(e.code)) return
+      setShortcut(recording, formatShortcut(e))
+      setRecording(null)
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [recording, setShortcut])
 
   useEffect(() => {
     window.api.app.info().then(setAppInfo).catch(() => {})
@@ -303,6 +331,25 @@ export default function ConfigPage(): JSX.Element {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* 快捷键 */}
+      <div className="settings-section">
+        <div className="settings-section-header">
+          <h3>快捷键</h3>
+          <button className="btn btn-sm" onClick={resetShortcuts}>恢复默认</button>
+        </div>
+        {(Object.keys(SHORTCUT_LABELS) as ShortcutAction[]).map((action) => (
+          <div className="settings-row" key={action}>
+            <span className="settings-label">{SHORTCUT_LABELS[action]}</span>
+            <div className="settings-controls">
+              <button className={`btn btn-sm${recording === action ? ' btn-primary' : ''}`} onClick={() => setRecording(action)}>
+                {recording === action ? '按下新按键...' : (shortcuts[action] || '未设置')}
+              </button>
+            </div>
+          </div>
+        ))}
+        <p className="settings-hint">点击按钮后按下新组合键即可修改，按 Esc 取消，按 Backspace 清除。</p>
       </div>
 
       {/* 歌词 */}

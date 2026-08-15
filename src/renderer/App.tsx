@@ -13,10 +13,12 @@ import Sidebar from './components/Sidebar'
 import QueuePanel from './components/QueuePanel'
 import DesktopLyrics from './components/DesktopLyrics'
 import Toaster from './components/Toaster'
+import Modal from './components/Modal'
 import { usePlaylistStore } from './stores/playlistStore'
 import { usePlayerStore } from './stores/playerStore'
 import { useMusicStore } from './stores/musicStore'
-import { useEffect, Component } from 'react'
+import { useEffect, Component, useState } from 'react'
+import type { MusicFile } from '../main/types'
 
 class ErrorBoundary extends Component<{ children: React.ReactNode }, { hasError: boolean; error: string }> {
   constructor(props: { children: React.ReactNode }) {
@@ -42,6 +44,7 @@ class ErrorBoundary extends Component<{ children: React.ReactNode }, { hasError:
 export default function App(): JSX.Element {
   const theme = useThemeStore((s) => s.theme)
   const accent = useThemeStore((s) => s.accent)
+  const [resumePrompt, setResumePrompt] = useState<MusicFile | null>(null)
 
   useEffect(() => {
     const root = document.documentElement
@@ -61,9 +64,10 @@ export default function App(): JSX.Element {
       const track = tracks[0]
       if (!track) return
       const st = usePlayerStore.getState()
-      const wasPlaying = localStorage.getItem('resume_playing') === '1'
+      // 先恢复歌曲但保持暂停，弹窗确认后再决定是否继续播放
       st.requestPlay(track)
-      st.setAutoPlayBlocked(!wasPlaying)
+      st.setAutoPlayBlocked(true)
+      setResumePrompt(track)
     }).catch(() => {})
   }, [])
 
@@ -103,6 +107,18 @@ export default function App(): JSX.Element {
         </div>
       </HashRouter>
       <Toaster />
+      {resumePrompt && (
+        <Modal onClose={() => setResumePrompt(null)} width={400}>
+          <h3>继续播放？</h3>
+          <p style={{ margin: '12px 0', color: 'var(--text-secondary)' }}>
+            上次播放到「{resumePrompt.title || resumePrompt.filename}」，是否继续播放？
+          </p>
+          <div className="modal-actions">
+            <button className="btn btn-secondary" onClick={() => setResumePrompt(null)}>取消</button>
+            <button className="btn btn-primary" onClick={() => { usePlayerStore.getState().resume(); setResumePrompt(null) }}>继续播放</button>
+          </div>
+        </Modal>
+      )}
     </ErrorBoundary>
   )
 }

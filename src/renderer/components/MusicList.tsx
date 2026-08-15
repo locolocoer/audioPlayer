@@ -149,6 +149,8 @@ function ContextMenu({ x, y, track, onClose, onEdit }: {
   x: number; y: number; track: MusicFile; onClose: () => void; onEdit: () => void
 }): JSX.Element {
   const toggleFavorite = useMusicStore((s) => s.toggleFavorite)
+  const configs = useMusicStore((s) => s.configs)
+  const isLocal = configs.find((c) => c.id === track.webdavId)?.sourceType === 'local'
   const isFav = track.favorite === 1
   const playlist = usePlaylistStore((s) => s.playlist)
   const addTrack = usePlaylistStore((s) => s.addTrack)
@@ -167,6 +169,12 @@ function ContextMenu({ x, y, track, onClose, onEdit }: {
         <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
         查看详情
       </div>
+      {isLocal && (
+        <div className="context-menu-item" onClick={() => { window.api.shell.showItemInFolder(track.path); onClose() }}>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
+          打开文件位置
+        </div>
+      )}
       <div className="context-menu-item" onClick={() => { toggleFavorite(track.id); onClose() }}>
         <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
           <path d={isFav ? "M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" : "M22 9.24l-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24zM12 15.4l-3.76 2.27 1-4.28-3.32-2.88 4.38-.38L12 6.1l1.71 4.04 4.38.38-3.32 2.88 1 4.28L12 15.4z"}/>

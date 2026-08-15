@@ -1941,11 +1941,73 @@ body {
   -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 10%, #000 90%, transparent 100%);
 }
 
+.lyrics-spacer {
+  height: 120px;
+}
+
 .lyrics-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
   text-align: center;
   color: var(--text-secondary);
   font-size: 14px;
-  padding: 40px 0;
+  padding: 32px 0;
+}
+
+.lyrics-empty-icon {
+  opacity: 0.4;
+}
+
+.lyrics-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.lyrics-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background 0.2s, opacity 0.2s;
+}
+
+.lyrics-btn:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.lyrics-btn.primary {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.lyrics-btn.primary:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.lyrics-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.lrc-search-msg {
+  font-size: 12px;
+}
+
+.lrc-search-msg.success {
+  color: #4caf50;
 }
 
 .lyrics-container::-webkit-scrollbar {

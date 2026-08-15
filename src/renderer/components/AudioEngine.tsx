@@ -3,6 +3,7 @@ import { usePlayerStore } from '../stores/playerStore'
 import { useMusicStore } from '../stores/musicStore'
 import { useEqualizerStore, EQ_BANDS } from '../stores/equalizerStore'
 import { useAudioGraphStore } from '../stores/audioGraphStore'
+import { useShortcutsStore, formatShortcut } from '../stores/shortcutsStore'
 
 const RESUME_THROTTLE = 5000
 let lastResumeSave = 0
@@ -382,26 +383,28 @@ export default function AudioEngine(): JSX.Element {
     const onKeyDown = (e: KeyboardEvent): void => {
       if (isEditable(e.target)) return
       const st = usePlayerStore.getState()
-      if (e.code === 'Space') {
+      const shortcuts = useShortcutsStore.getState().shortcuts
+      const combo = formatShortcut(e)
+      if (combo === shortcuts.playPause) {
         e.preventDefault()
         if (st.isPlaying) st.pause()
         else st.resume()
-      } else if (e.key === 'ArrowLeft' && e.ctrlKey) {
-        e.preventDefault()
-        st.prev()
-      } else if (e.key === 'ArrowRight' && e.ctrlKey) {
+      } else if (combo === shortcuts.next) {
         e.preventDefault()
         st.next()
-      } else if (e.key === 'ArrowLeft') {
+      } else if (combo === shortcuts.prev) {
         e.preventDefault()
-        st.seek(Math.max(0, st.currentTime - 5))
-      } else if (e.key === 'ArrowRight') {
+        st.prev()
+      } else if (combo === shortcuts.seekForward) {
         e.preventDefault()
         st.seek(st.currentTime + 5)
-      } else if (e.key === 'ArrowUp') {
+      } else if (combo === shortcuts.seekBackward) {
+        e.preventDefault()
+        st.seek(Math.max(0, st.currentTime - 5))
+      } else if (combo === shortcuts.volumeUp) {
         e.preventDefault()
         st.setVolume(Math.min(1, st.volume + 0.05))
-      } else if (e.key === 'ArrowDown') {
+      } else if (combo === shortcuts.volumeDown) {
         e.preventDefault()
         st.setVolume(Math.max(0, st.volume - 0.05))
       }

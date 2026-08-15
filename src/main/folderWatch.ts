@@ -41,7 +41,14 @@ export function setupFolderWatchers(): void {
     if (!fs.existsSync(config.url)) continue
     let watcher: fs.FSWatcher
     try {
-      watcher = fs.watch(config.url, { recursive: true }, () => {
+      watcher = fs.watch(config.url, { recursive: true }, (_event, filename) => {
+        // 忽略歌词/标签写回等非音频文件变更，避免保存 .lrc 触发全库重扫导致卡顿
+        if (typeof filename === 'string' && filename) {
+          const lower = filename.toLowerCase()
+          if (lower.endsWith('.lrc') || lower.endsWith('.feiyu-tagtmp.flac') || lower.endsWith('.dts')) {
+            return
+          }
+        }
         const existing = rescanTimers.get(config.id)
         if (existing) clearTimeout(existing)
         const timer = setTimeout(() => {

@@ -24,6 +24,7 @@ let miniWindow: BrowserWindow | null = null
 let lyricsWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 const tempDir = path.join(os.tmpdir(), 'audioplayer-cache')
+const coversDir = path.join(app.getPath('userData'), 'covers')
 
 function windowStatePath(): string {
   return path.join(app.getPath('userData'), 'window-state.json')
@@ -450,6 +451,18 @@ function registerPlayerIpc(): void {
 
   ipcMain.handle('player:getCover', async (_event, configId: string, filePath: string) => {
     try {
+      const baseKey = getCacheKey(configId, filePath)
+      const jpgPath = path.join(coversDir, baseKey + '.jpg')
+      const pngPath = path.join(coversDir, baseKey + '.png')
+
+      // 磁盘缓存命中，直接返回，避免重新解析音频文件
+      if (fs.existsSync(jpgPath) && fs.statSync(jpgPath).size > 0) {
+        return { data: Array.from(fs.readFileSync(jpgPath)), format: 'image/jpeg' }
+      }
+      if (fs.existsSync(pngPath) && fs.statSync(pngPath).size > 0) {
+        return { data: Array.from(fs.readFileSync(pngPath)), format: 'image/png' }
+      }
+
       const configs = getAllWebDAVConfigs()
       const config = configs.find((c) => c.id === configId)
 
@@ -475,7 +488,14 @@ function registerPlayerIpc(): void {
       const metadata = await musicMetadata.parseFile(targetPath)
       const picture = metadata.common.picture?.[0]
       if (picture) {
-        return { data: Array.from(picture.data as Buffer), format: picture.format || 'image/jpeg' }
+        const format = picture.format || 'image/jpeg'
+        const buf = Buffer.from(picture.data as Buffer)
+        try {
+          if (!fs.existsSync(coversDir)) fs.mkdirSync(coversDir, { recursive: true })
+          const ext = format.includes('png') ? '.png' : '.jpg'
+          fs.writeFileSync(path.join(coversDir, baseKey + ext), buf)
+        } catch { /* 缓存写失败忽略 */ }
+        return { data: Array.from(buf), format }
       }
       return { data: [], format: '' }
     } catch {

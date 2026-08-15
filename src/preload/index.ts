@@ -123,7 +123,14 @@ const api = {
     ipcRenderer.send('log', level, ...args)
   },
   chooseFolder: (): Promise<{ path: string; name: string } | null> =>
-    ipcRenderer.invoke('dialog:chooseFolder')
+    ipcRenderer.invoke('dialog:chooseFolder'),
+  shell: {
+    showItemInFolder: (path: string): Promise<boolean> => ipcRenderer.invoke('shell:showItemInFolder', path)
+  },
+  lrc: {
+    search: (track: { title: string; artist: string; album: string; duration: number }): Promise<{ ok: boolean; lrc: string; error?: string }> =>
+      ipcRenderer.invoke('lrc:search', track)
+  }
 }
 
 contextBridge.exposeInMainWorld('api', api)

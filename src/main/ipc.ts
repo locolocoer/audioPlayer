@@ -1,5 +1,6 @@
-import { ipcMain, BrowserWindow, dialog, app } from 'electron'
+import { ipcMain, BrowserWindow, dialog, app, shell } from 'electron'
 import NodeID3 from 'node-id3'
+import { t2s } from 'chinese-s2t'
 import { createWebDAVClient, testConnection } from './webdav'
 import { scanWebDAV, cancelScan, scanLocal } from './scanner'
 import { setupFolderWatchers } from './folderWatch'
@@ -345,5 +346,41 @@ export function registerIpcHandlers(): void {
     const folderPath = result.filePaths[0]
     const name = folderPath.split(/[/\\]/).pop() || folderPath
     return { path: folderPath, name }
+  })
+
+  ipcMain.handle('shell:showItemInFolder', async (_event, filePath: string) => {
+    try {
+      if (typeof filePath === 'string' && filePath) {
+        shell.showItemInFolder(filePath)
+        return true
+      }
+      return false
+    } catch {
+      return false
+    }
+  })
+
+  ipcMain.handle('lrc:search', async (_event, track: { title: string; artist: string; album: string; duration: number }) => {
+    try {
+      const params = new URLSearchParams()
+      if (track.title) params.set('track_name', track.title)
+      if (track.artist) params.set('artist_name', track.artist)
+      if (track.album) params.set('album_name', track.album)
+      const url = `https://lrclib.net/api/search?${params.toString()}`
+      const res = await fetch(url, {
+        headers: { 'User-Agent': 'FeiYuMusic/1.0.0 (https://github.com/locolocoer/audioPlayer)' },
+        signal: AbortSignal.timeout(10000)
+      })
+      if (!res.ok) return { ok: false, lrc: '', error: `HTTP ${res.status}` }
+      const data = await res.json()
+      if (Array.isArray(data) && data.length > 0) {
+        const best = data[0]
+        const lrc = t2s(best.syncedLyrics || best.plainLyrics || '')
+        if (lrc) return { ok: true, lrc }
+      }
+      return { ok: false, lrc: '', error: '未找到歌词' }
+    } catch (err) {
+      return { ok: false, lrc: '', error: err instanceof Error ? err.message : String(err) }
+    }
   })
 }

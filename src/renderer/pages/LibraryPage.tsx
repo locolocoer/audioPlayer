@@ -30,7 +30,24 @@ const albumCoverCache = new Map<string, string>()
 
 function AlbumCover({ album, tracks }: { album: string; tracks: MusicFile[] }): JSX.Element {
   const [coverUrl, setCoverUrl] = useState('')
+  const [inView, setInView] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        setInView(true)
+        observer.disconnect()
+      }
+    }, { rootMargin: '200px' })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    if (!inView) return
     const first = tracks[0]
     if (!first) return
     const cached = albumCoverCache.get(album)
@@ -46,10 +63,11 @@ function AlbumCover({ album, tracks }: { album: string; tracks: MusicFile[] }): 
         setCoverUrl(url)
       }
     }).catch(() => {})
-  }, [album, tracks])
+  }, [inView, album, tracks])
+
   if (coverUrl) return <img className="album-cover" src={coverUrl} alt="" loading="lazy" />
   return (
-    <div className="album-cover-placeholder">
+    <div className="album-cover-placeholder" ref={ref}>
       <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
         <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
       </svg>
@@ -61,7 +79,7 @@ export default function LibraryPage(): JSX.Element {
   const { tracks, loadTracks, configs, loadConfigs } = useMusicStore()
   const { requestPlay, setQueue } = usePlayerStore()
   const addTracks = usePlaylistStore((s) => s.addTracks)
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(() => localStorage.getItem('library_search') || '')
   const [sortField, setSortField] = useState<SortField>(() => {
     const saved = localStorage.getItem('library_sortField') as SortField | null
     return saved && ['title', 'artist', 'album', 'duration', 'playCount', 'lastPlayed', 'rating'].includes(saved) ? saved : 'title'
@@ -72,9 +90,9 @@ export default function LibraryPage(): JSX.Element {
     const saved = localStorage.getItem('library_viewMode') as ViewMode | null
     return saved === 'albums' || saved === 'artists' || saved === 'folders' ? saved : 'songs'
   })
-  const [browseAlbum, setBrowseAlbum] = useState<string | null>(null)
-  const [browseArtist, setBrowseArtist] = useState<string | null>(null)
-  const [browseFolder, setBrowseFolder] = useState<string | null>(null)
+  const [browseAlbum, setBrowseAlbum] = useState<string | null>(() => localStorage.getItem('library_browseAlbum'))
+  const [browseArtist, setBrowseArtist] = useState<string | null>(() => localStorage.getItem('library_browseArtist'))
+  const [browseFolder, setBrowseFolder] = useState<string | null>(() => localStorage.getItem('library_browseFolder'))
   const [artistMenu, setArtistMenu] = useState<{ x: number; y: number; name: string } | null>(null)
   const [editArtistName, setEditArtistName] = useState<string | null>(null)
   const [editArtistInput, setEditArtistInput] = useState('')
@@ -100,6 +118,22 @@ export default function LibraryPage(): JSX.Element {
   useEffect(() => {
     localStorage.setItem('library_filterConfig', filterConfig)
   }, [filterConfig])
+
+  useEffect(() => {
+    localStorage.setItem('library_search', search)
+  }, [search])
+  useEffect(() => {
+    if (browseAlbum) localStorage.setItem('library_browseAlbum', browseAlbum)
+    else localStorage.removeItem('library_browseAlbum')
+  }, [browseAlbum])
+  useEffect(() => {
+    if (browseArtist) localStorage.setItem('library_browseArtist', browseArtist)
+    else localStorage.removeItem('library_browseArtist')
+  }, [browseArtist])
+  useEffect(() => {
+    if (browseFolder) localStorage.setItem('library_browseFolder', browseFolder)
+    else localStorage.removeItem('library_browseFolder')
+  }, [browseFolder])
 
   useEffect(() => {
     if (!artistMenu) return
