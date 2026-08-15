@@ -383,23 +383,6 @@ function registerPlayerIpc(): void {
 
       if (config.sourceType === 'local') {
         if (fs.existsSync(filePath)) {
-          const ext = path.extname(filePath).toLowerCase()
-          if (ext === '.wav') {
-            const cacheKey = getCacheKey(configId, filePath)
-            const cachedPath = path.join(tempDir, cacheKey)
-            try {
-              if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true })
-              try { fs.unlinkSync(cachedPath) } catch { /* */ }
-              const rawPath = cachedPath + '.raw'
-              fs.copyFileSync(filePath, rawPath)
-              await transcodeToPCM(rawPath, cachedPath)
-              try { fs.unlinkSync(rawPath) } catch { /* */ }
-              console.log(`[Player] LOCAL WAV OK: size=${fs.statSync(cachedPath).size}`)
-              return { localUrl: `local-media://${path.basename(cachedPath)}` }
-            } catch {
-              console.log(`[Player] WAV fallback to direct play`)
-            }
-          }
           console.log(`[Player] LOCAL: "${filePath}"`)
           return { localUrl: pathToFileURL(filePath).toString() }
         }
@@ -421,21 +404,7 @@ function registerPlayerIpc(): void {
         return { error: `Invalid audio data (${buffer.length} bytes)` }
       }
 
-      if (ext.toLowerCase() === '.wav') {
-        const rawPath = cachedPath + '.raw'
-        fs.writeFileSync(rawPath, buffer)
-        try {
-          await transcodeToPCM(rawPath, cachedPath)
-          fs.unlinkSync(rawPath)
-          console.log(`[Player] WAV->PCM OK: size=${fs.statSync(cachedPath).size}`)
-        } catch (e) {
-          try { fs.unlinkSync(rawPath) } catch { /* */ }
-          console.log(`[Player] FFmpeg failed, trying raw: ${e}`)
-          fs.writeFileSync(cachedPath, buffer)
-        }
-      } else {
-        fs.writeFileSync(cachedPath, buffer)
-      }
+      fs.writeFileSync(cachedPath, buffer)
 
       console.log(`[Player] READY: ext=${ext} size=${fs.statSync(cachedPath).size}`)
       return { localUrl: `local-media://${cacheKey}` }

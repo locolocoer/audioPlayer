@@ -63,7 +63,7 @@ export const DEFAULT_SCAN_SETTINGS: ScanSettings = {
   backoffMultiplier: 2
 }
 
-export const SUPPORTED_EXTENSIONS = ['.mp3', '.flac', '.ogg', '.aac', '.m4a', '.wma']
+export const SUPPORTED_EXTENSIONS = ['.mp3', '.flac', '.wav', '.ogg', '.aac', '.m4a', '.wma']
 
 export interface AppInfo {
   name: string
