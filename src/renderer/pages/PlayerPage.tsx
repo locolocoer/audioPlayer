@@ -37,14 +37,31 @@ export default function PlayerPage(): JSX.Element {
     localStorage.setItem('eq_panel', eqOpen ? '1' : '0')
   }, [eqOpen])
 
+  const enterFullscreenLyrics = (): void => {
+    setFullscreenLyrics(true)
+    window.api.window.setFullscreen(true)
+  }
+
+  const exitFullscreenLyrics = (): void => {
+    setFullscreenLyrics(false)
+    window.api.window.setFullscreen(false)
+  }
+
   useEffect(() => {
     if (!fullscreenLyrics) return
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') setFullscreenLyrics(false)
+      if (e.key === 'Escape') exitFullscreenLyrics()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [fullscreenLyrics])
+
+  // 组件卸载时恢复窗口非全屏，避免切页后窗口仍停留在全屏
+  useEffect(() => {
+    return () => {
+      window.api.window.setFullscreen(false)
+    }
+  }, [])
 
   const lyrics = useMemo(() => parseLrc(lrcText), [lrcText])
   const activeIndex = useMemo(() => activeLyricIndex(lyrics, currentTime), [lyrics, currentTime])
@@ -244,7 +261,7 @@ export default function PlayerPage(): JSX.Element {
         </div>
       </div>
       <div className="eq-section">
-        <button className="eq-toggle" onClick={() => setFullscreenLyrics(true)} title="全屏歌词" disabled={lyrics.length === 0}>
+        <button className="eq-toggle" onClick={enterFullscreenLyrics} title="全屏歌词" disabled={lyrics.length === 0}>
           <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
           全屏歌词
         </button>
@@ -259,7 +276,7 @@ export default function PlayerPage(): JSX.Element {
       </div>
 
       {fullscreenLyrics && (
-        <div className="fullscreen-lyrics" onClick={() => setFullscreenLyrics(false)}>
+        <div className="fullscreen-lyrics" onClick={exitFullscreenLyrics}>
           {lyrics.length > 0 ? (
             <div className="fsl-current">
               {Array.from(lyrics[Math.max(0, activeIndex)].text).map((ch, i) => (

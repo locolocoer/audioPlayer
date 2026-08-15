@@ -319,6 +319,14 @@ function registerWindowIpc(): void {
     return true
   })
 
+  ipcMain.handle('window:setFullscreen', (_e, fullscreen: boolean) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setFullScreen(fullscreen)
+      return true
+    }
+    return false
+  })
+
   ipcMain.handle('player:sendCommand', (_e, cmd: string) => {
     sendPlayerCommand(cmd)
     return true

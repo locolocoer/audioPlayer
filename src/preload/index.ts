@@ -117,7 +117,8 @@ const api = {
   },
   window: {
     mini: (open: boolean): Promise<boolean> => ipcRenderer.invoke('window:mini', open),
-    lyrics: (open: boolean): Promise<boolean> => ipcRenderer.invoke('window:lyrics', open)
+    lyrics: (open: boolean): Promise<boolean> => ipcRenderer.invoke('window:lyrics', open),
+    setFullscreen: (fullscreen: boolean): Promise<boolean> => ipcRenderer.invoke('window:setFullscreen', fullscreen)
   },
   log: (level: string, ...args: unknown[]): void => {
     ipcRenderer.send('log', level, ...args)
