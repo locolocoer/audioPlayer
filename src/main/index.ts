@@ -67,15 +67,31 @@ function sendUpdateStatus(payload: UpdateStatus): void {
   }
 }
 
-function setupAutoUpdater(): void {
-  autoUpdater.autoDownload = true
-  autoUpdater.autoInstallOnAppQuit = true
+let currentFeed: 'oss' | 'github' = 'oss'
 
-  // 使用阿里云 OSS 作为更新源（国内加速）
+function useOssFeed(): void {
+  currentFeed = 'oss'
   autoUpdater.setFeedURL({
     provider: 'generic',
     url: 'https://frymusic.oss-cn-beijing.aliyuncs.com/'
   })
+}
+
+function useGitHubFeed(): void {
+  currentFeed = 'github'
+  autoUpdater.setFeedURL({
+    provider: 'github',
+    owner: 'locolocoer',
+    repo: 'audioPlayer'
+  })
+}
+
+function setupAutoUpdater(): void {
+  autoUpdater.autoDownload = true
+  autoUpdater.autoInstallOnAppQuit = true
+
+  // 优先使用阿里云 OSS 国内源，失败时回退到 GitHub
+  useOssFeed()
 
   autoUpdater.on('checking-for-update', () => {
     sendUpdateStatus({ state: 'checking' })
@@ -93,7 +109,16 @@ function setupAutoUpdater(): void {
     sendUpdateStatus({ state: 'downloaded', version: info.version })
   })
   autoUpdater.on('error', (err) => {
-    sendUpdateStatus({ state: 'error', message: err && err.message ? err.message : String(err) })
+    const msg = err && err.message ? err.message : String(err)
+    if (currentFeed === 'oss') {
+      console.log(`[Updater] OSS 源失败，回退到 GitHub：${msg}`)
+      useGitHubFeed()
+      autoUpdater.checkForUpdates().catch(() => {
+        sendUpdateStatus({ state: 'error', message: msg })
+      })
+      return
+    }
+    sendUpdateStatus({ state: 'error', message: msg })
   })
 }
 
