@@ -1,6 +1,15 @@
 import { resolve } from 'path'
+import { execSync } from 'child_process'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import react from '@vitejs/plugin-react'
+
+function getCommit(): string {
+  try {
+    return execSync('git rev-parse --short HEAD', { encoding: 'utf-8' }).trim()
+  } catch {
+    return 'unknown'
+  }
+}
 
 export default defineConfig({
   main: {
@@ -9,6 +18,9 @@ export default defineConfig({
         exclude: ['webdav', 'music-metadata', 'node-id3', 'iconv-lite', 'chinese-s2t']
       })
     ],
+    define: {
+      __COMMIT__: JSON.stringify(getCommit())
+    },
     build: {
       outDir: 'out/main',
       rollupOptions: {

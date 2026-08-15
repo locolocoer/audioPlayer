@@ -68,6 +68,7 @@ export const SUPPORTED_EXTENSIONS = ['.mp3', '.flac', '.ogg', '.aac', '.m4a', '.
 export interface AppInfo {
   name: string
   version: string
+  commit: string
   electron: string
   chrome: string
   node: string

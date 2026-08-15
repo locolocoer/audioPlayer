@@ -13,6 +13,8 @@ import { setupFolderWatchers, closeFolderWatchers } from './folderWatch'
 import { buildBaseUrl, createWebDAVClient, downloadFile } from './webdav'
 import type { UpdateStatus } from './types'
 
+declare const __COMMIT__: string
+
 app.setName('feiyu-music')
 
 const MAX_WINDOW_WIDTH = 1600
@@ -43,15 +45,22 @@ function saveWindowState(win: BrowserWindow): void {
   } catch { /* ignore */ }
 }
 
+function getMainWindow(): BrowserWindow | null {
+  if (mainWindow && !mainWindow.isDestroyed()) return mainWindow
+  return BrowserWindow.getAllWindows().find(
+    (w) => w !== miniWindow && w !== lyricsWindow && !w.isDestroyed()
+  ) || null
+}
+
 function sendPlayerCommand(cmd: string): void {
-  const win = BrowserWindow.getAllWindows().find((w) => w !== miniWindow && !w.isDestroyed())
+  const win = getMainWindow()
   if (win) {
     win.webContents.send('player:command', cmd)
   }
 }
 
 function sendUpdateStatus(payload: UpdateStatus): void {
-  const win = BrowserWindow.getAllWindows().find((w) => w !== miniWindow && !w.isDestroyed())
+  const win = getMainWindow()
   if (win && !win.isDestroyed()) {
     win.webContents.send('update:status', payload)
   }
@@ -85,6 +94,7 @@ function registerUpdateIpc(): void {
   ipcMain.handle('app:info', () => ({
     name: '飞鱼音乐',
     version: app.getVersion(),
+    commit: __COMMIT__,
     electron: process.versions.electron,
     chrome: process.versions.chrome,
     node: process.versions.node

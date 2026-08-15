@@ -40,6 +40,12 @@ function renderUpdateStatus(s: UpdateStatus): string {
   }
 }
 
+function formatServerUrl(config: WebDAVConfig): string {
+  if (config.sourceType === 'local') return config.url
+  const hasPort = /:\d+(\/|$)/.test(config.url)
+  return hasPort ? config.url : `${config.url}:${config.port}`
+}
+
 export default function ConfigPage(): JSX.Element {
   const configs = useMusicStore((s) => s.configs)
   const loadConfigs = useMusicStore((s) => s.loadConfigs)
@@ -247,7 +253,7 @@ export default function ConfigPage(): JSX.Element {
                     <span className="config-url">{config.url}</span>
                   ) : (
                     <>
-                      <span className="config-url">{config.url}:{config.port}</span>
+                      <span className="config-url">{formatServerUrl(config)}</span>
                       <span className="config-user">{config.username}</span>
                     </>
                   )}
@@ -440,6 +446,12 @@ export default function ConfigPage(): JSX.Element {
           <span className="settings-label">版本</span>
           <div className="settings-controls">
             <span className="settings-value">{appInfo ? `v${appInfo.version}` : '...'}</span>
+          </div>
+        </div>
+        <div className="settings-row">
+          <span className="settings-label">提交版本</span>
+          <div className="settings-controls">
+            <span className="settings-value" style={{ fontFamily: 'monospace' }}>{appInfo?.commit || '...'}</span>
           </div>
         </div>
         <div className="settings-row">

@@ -61,8 +61,9 @@ export default function App(): JSX.Element {
       const track = tracks[0]
       if (!track) return
       const st = usePlayerStore.getState()
+      const wasPlaying = localStorage.getItem('resume_playing') === '1'
       st.requestPlay(track)
-      st.setAutoPlayBlocked(true)
+      st.setAutoPlayBlocked(!wasPlaying)
     }).catch(() => {})
   }, [])
 

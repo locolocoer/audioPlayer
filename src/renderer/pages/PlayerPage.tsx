@@ -4,22 +4,7 @@ import { useLyricsStyleStore } from '../stores/lyricsStyleStore'
 import { useSkinStore } from '../stores/skinStore'
 import Equalizer from '../components/Equalizer'
 import Visualizer from '../components/Visualizer'
-
-function parseLrc(lrcText: string): { time: number; text: string }[] {
-  const lines = lrcText.split('\n')
-  const result: { time: number; text: string }[] = []
-  const tagRe = /^\[(\d+):(\d+(?:\.\d+)?)\](.*)/
-  for (const line of lines) {
-    const match = line.match(tagRe)
-    if (match) {
-      const min = parseInt(match[1], 10)
-      const sec = parseFloat(match[2])
-      const text = match[3].trim()
-      if (text) result.push({ time: min * 60 + sec, text })
-    }
-  }
-  return result.sort((a, b) => a.time - b.time)
-}
+import { parseLrc, activeLyricIndex } from '../utils/lrc'
 
 const coverCache = new Map<string, string>()
 const COVER_CACHE_MAX = 5
@@ -43,12 +28,7 @@ export default function PlayerPage(): JSX.Element {
   }, [eqOpen])
 
   const lyrics = useMemo(() => parseLrc(lrcText), [lrcText])
-  const activeIndex = useMemo(() => {
-    for (let i = lyrics.length - 1; i >= 0; i--) {
-      if (currentTime >= lyrics[i].time) return i
-    }
-    return -1
-  }, [lyrics, currentTime])
+  const activeIndex = useMemo(() => activeLyricIndex(lyrics, currentTime), [lyrics, currentTime])
 
   const lyricsRef = useRef<HTMLDivElement>(null)
 

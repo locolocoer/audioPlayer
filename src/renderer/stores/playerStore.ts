@@ -90,7 +90,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       currentTrack: track,
       loadError: null,
       audioSrc: null,
-      autoPlayBlocked: false
+      autoPlayBlocked: false,
+      isLoading: true
     })
     localStorage.setItem('resume_track_id', String(track.id))
   },
@@ -183,7 +184,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         nextTrack = effectiveQueue[Math.floor(Math.random() * effectiveQueue.length)]
       }
     } else if (playMode === 'shuffle') {
-      nextTrack = effectiveQueue[Math.floor(Math.random() * effectiveQueue.length)]
+      const pool = effectiveQueue.length > 1
+        ? effectiveQueue.filter((t) => t.id !== currentTrack.id)
+        : effectiveQueue
+      nextTrack = pool[Math.floor(Math.random() * pool.length)]
     } else if (playMode === 'single') {
       nextTrack = effectiveQueue[idx >= 0 ? idx : 0]
     } else {

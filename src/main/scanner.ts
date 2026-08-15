@@ -7,14 +7,13 @@ import { DEFAULT_SCAN_SETTINGS } from './types'
 
 const MAX_META_DOWNLOAD = 30 * 1024 * 1024
 
-let cancelFlag = false
-let settings: ScanSettings = DEFAULT_SCAN_SETTINGS
+let activeGeneration = 0
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-async function retryGetDirectoryContents(client: WebDAVClient, dirPath: string): ReturnType<typeof getDirectoryContents> {
+async function retryGetDirectoryContents(client: WebDAVClient, dirPath: string, settings: ScanSettings): ReturnType<typeof getDirectoryContents> {
   for (let attempt = 0; attempt < settings.maxRetries; attempt++) {
     try {
       return await getDirectoryContents(client, dirPath)
@@ -99,8 +98,8 @@ export async function scanWebDAV(
   onProgress: (progress: ScanProgress) => void,
   scanSettings?: ScanSettings
 ): Promise<number> {
-  cancelFlag = false
-  settings = scanSettings || DEFAULT_SCAN_SETTINGS
+  const gen = activeGeneration
+  const settings = scanSettings || DEFAULT_SCAN_SETTINGS
   const existingFiles = getExistingFilePaths(config.id)
   const scannedPaths = new Set<string>()
 
@@ -108,21 +107,21 @@ export async function scanWebDAV(
   let totalCount = 0
 
   async function scanDirectory(dirPath: string): Promise<void> {
-    if (cancelFlag) return
+    if (gen !== activeGeneration) return
 
     onProgress({ currentPath: dirPath, scannedCount, totalCount, status: 'scanning' })
 
     await delay(settings.delayMs)
-    if (cancelFlag) return
+    if (gen !== activeGeneration) return
 
-    const contents = await retryGetDirectoryContents(client, dirPath)
+    const contents = await retryGetDirectoryContents(client, dirPath, settings)
       .catch((err) => {
         console.log(`[Scan] skipping dir ${dirPath}: ${err}`)
         return []
       })
 
     for (const item of contents) {
-      if (cancelFlag) return
+      if (gen !== activeGeneration) return
 
       const fullPath = dirPath === '/' ? `/${item.basename}` : `${dirPath}/${item.basename}`
 
@@ -231,21 +230,21 @@ export async function scanWebDAV(
 
   deduplicateMusicFiles()
 
-  const status = cancelFlag ? 'cancelled' : 'completed'
+  const status = gen !== activeGeneration ? 'cancelled' : 'completed'
   onProgress({ currentPath: '', scannedCount, totalCount, status })
 
   return scannedCount
 }
 
 export function cancelScan(): void {
-  cancelFlag = true
+  activeGeneration++
 }
 
 export async function scanLocal(
   config: WebDAVConfig,
   onProgress: (progress: ScanProgress) => void
 ): Promise<number> {
-  cancelFlag = false
+  const gen = activeGeneration
   const folderPath = config.url
   const existingFiles = getExistingFilePaths(config.id)
   const scannedPaths = new Set<string>()
@@ -256,7 +255,7 @@ export async function scanLocal(
   const pathLocal = await import('path')
 
   async function walk(dir: string): Promise<void> {
-    if (cancelFlag) return
+    if (gen !== activeGeneration) return
     onProgress({ currentPath: dir, scannedCount, totalCount, status: 'scanning' })
 
     let entries: import('fs').Dirent[]
@@ -267,7 +266,7 @@ export async function scanLocal(
     }
 
     for (const entry of entries) {
-      if (cancelFlag) return
+      if (gen !== activeGeneration) return
       const fullPath = pathLocal.join(dir, entry.name)
 
       if (entry.isDirectory()) {
@@ -286,21 +285,19 @@ export async function scanLocal(
         }
 
         const remoteMeta = await parseLocalMetadata(fullPath)
-        const title = remoteMeta.title || cleanTitle(entry.name)
-        const artist = remoteMeta.artist || ''
+        let title = remoteMeta.title || ''
+        let artist = remoteMeta.artist || ''
         const album = remoteMeta.album || ''
         const duration = remoteMeta.duration || 0
 
-        if (!artist && !remoteMeta.title) {
-          if (title !== entry.name) {
-            // already got from cleanTitle, skip fileMeta
-          } else {
-            const fileMeta = parseFileName(entry.name)
-            if (fileMeta?.artist) {
-              // use filename artist
-            }
+        if (!title && !artist) {
+          const fileMeta = parseFileName(entry.name)
+          if (fileMeta) {
+            title = fileMeta.title
+            artist = fileMeta.artist
           }
         }
+        if (!title) title = cleanTitle(entry.name)
 
         const musicFile: Omit<MusicFile, 'id'> = {
           path: fullPath,
@@ -345,7 +342,7 @@ export async function scanLocal(
   }
 
   deduplicateMusicFiles()
-  const status = cancelFlag ? 'cancelled' : 'completed'
+  const status = gen !== activeGeneration ? 'cancelled' : 'completed'
   onProgress({ currentPath: '', scannedCount, totalCount, status })
   return scannedCount
 }

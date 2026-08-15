@@ -3,6 +3,9 @@ import type { WebDAVConfig } from './types'
 
 function buildBaseUrl(config: WebDAVConfig): string {
   const raw = config.url.trim().replace(/\/+$/, '')
+  // URL 已显式包含端口时，不再重复拼接 config.port
+  const portMatch = raw.match(/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/[^/:]+:(\d+)/)
+  if (portMatch) return raw
   const isHttps = raw.startsWith('https://')
   const defaultPort = isHttps ? 443 : 80
   if (config.port && config.port !== defaultPort && config.port > 0) {

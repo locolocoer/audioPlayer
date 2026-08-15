@@ -11,7 +11,7 @@ let recordedPlayId = -1
 
 export default function AudioEngine(): JSX.Element {
   const audioRef = useRef<HTMLAudioElement>(null)
-  const downloadingRef = useRef(false)
+  const loadSeqRef = useRef(0)
   const resumeAppliedRef = useRef(false)
   const fallbackTriedRef = useRef(false)
   const fallbackSeekRef = useRef<number | null>(null)
@@ -106,32 +106,28 @@ export default function AudioEngine(): JSX.Element {
   }, [])
 
   useEffect(() => {
-    if (!pendingTrack || downloadingRef.current) return
-    downloadingRef.current = true
+    if (!pendingTrack) return
+    const seq = ++loadSeqRef.current
     fallbackTriedRef.current = false
     fallbackSeekRef.current = null
 
     const audio = audioRef.current
-    if (!audio) {
-      downloadingRef.current = false
-      return
-    }
+    if (!audio) return
 
     const ext = pendingTrack.filename.slice(pendingTrack.filename.lastIndexOf('.'))
     window.api.log('info', `loading: "${pendingTrack.title}" (${ext}) path=${pendingTrack.path}`)
 
     window.api.player.getAudioPath(pendingTrack.webdavId, pendingTrack.path)
       .then((result) => {
+        if (seq !== loadSeqRef.current) return
         if (result.error) {
           window.api.log('error', `DOWNLOAD FAILED: "${pendingTrack.title}" (${ext}) path=${pendingTrack.path} error=${result.error}`)
           usePlayerStore.getState().onAudioError(`${ext} - ${result.error}`)
-          downloadingRef.current = false
           return
         }
         if (!result.localUrl) {
           window.api.log('error', `DOWNLOAD FAILED: "${pendingTrack.title}" (${ext}) path=${pendingTrack.path} error=unknown`)
           usePlayerStore.getState().onAudioError(`${ext} - Download failed`)
-          downloadingRef.current = false
           return
         }
 
@@ -142,18 +138,14 @@ export default function AudioEngine(): JSX.Element {
         syncLyrics()
 
         if (!usePlayerStore.getState().autoPlayBlocked) {
-          return audio.play()
+          audio.play().catch(() => {})
         }
-        return undefined
-      })
-      .then(() => {
-        downloadingRef.current = false
       })
       .catch((err) => {
+        if (seq !== loadSeqRef.current) return
         const msg = err instanceof Error ? err.message : String(err)
         window.api.log('error', `PLAY FAILED: "${pendingTrack.title}" (${ext}) path=${pendingTrack.path} error=${msg}`)
         usePlayerStore.getState().onAudioError(`${ext} - ${msg}`)
-        downloadingRef.current = false
         if (audioRef.current) audioRef.current.removeAttribute('src')
       })
   }, [pendingTrack])
@@ -249,10 +241,9 @@ export default function AudioEngine(): JSX.Element {
       const ext = track ? track.filename.slice(track.filename.lastIndexOf('.')) : '?'
       window.api.log('error', `FORMAT UNSUPPORTED: "${track?.title}" (${ext}) path=${track?.path} error=${audio.error.message}`)
 
-      if (track && ext.toLowerCase() === '.flac' && !fallbackTriedRef.current) {
+      if (track && !fallbackTriedRef.current) {
         fallbackTriedRef.current = true
         fallbackSeekRef.current = audio.currentTime || 0
-        downloadingRef.current = false
         window.api.player.getFallbackAudio(track.webdavId, track.path).then((result) => {
           const st = usePlayerStore.getState()
           if (st.pendingTrack?.id !== track.id) return
@@ -278,7 +269,6 @@ export default function AudioEngine(): JSX.Element {
 
       usePlayerStore.getState().onAudioError(`${ext} not supported - ${audio.error.message}`)
     }
-    downloadingRef.current = false
     if (audioRef.current) {
       audioRef.current.removeAttribute('src')
     }

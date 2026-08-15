@@ -19,12 +19,25 @@ function toTitleKey(title: string): string {
   return key
 }
 
+let saveTimer: ReturnType<typeof setTimeout> | null = null
+let dirty = false
+
 function saveToDisk(): void {
-  if (db) {
-    const data = db.export()
-    const buffer = Buffer.from(data)
-    fs.writeFileSync(dbPath, buffer)
+  if (!db) return
+  dirty = true
+  if (saveTimer) return
+  saveTimer = setTimeout(() => flushSaveToDisk(), 250)
+}
+
+function flushSaveToDisk(): void {
+  if (saveTimer) {
+    clearTimeout(saveTimer)
+    saveTimer = null
   }
+  if (!dirty || !db) return
+  dirty = false
+  const data = db.export()
+  fs.writeFileSync(dbPath, Buffer.from(data))
 }
 
 export async function initDatabase(): Promise<void> {
@@ -137,7 +150,7 @@ export async function initDatabase(): Promise<void> {
     }
   }
 
-  saveToDisk()
+  flushSaveToDisk()
 }
 
 export function getDB(): SqlJsDatabase {
@@ -146,7 +159,7 @@ export function getDB(): SqlJsDatabase {
 
 export function closeDatabase(): void {
   if (db) {
-    saveToDisk()
+    flushSaveToDisk()
     db.close()
   }
 }
@@ -226,11 +239,26 @@ export function deduplicateMusicFiles(): void {
 
 // Music Files
 export function insertMusicFile(file: Omit<MusicFile, 'id'>): void {
-  db.run(
-    `INSERT OR REPLACE INTO music_files (path, filename, size, mtime, title, title_key, artist, album, duration, webdavId, scannedAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [file.path, file.filename, file.size, file.mtime, file.title, toTitleKey(file.title || file.filename), file.artist, file.album, file.duration, file.webdavId, file.scannedAt]
+  const titleKey = toTitleKey(file.title || file.filename)
+  const existing = queryOne<{ id: number }>(
+    'SELECT id FROM music_files WHERE path = ? AND webdavId = ?',
+    [file.path, file.webdavId]
   )
+  if (existing) {
+    // 已存在则 UPDATE，保留 id、favorite、playCount、lastPlayed 等关联数据
+    db.run(
+      `UPDATE music_files
+       SET filename = ?, size = ?, mtime = ?, title = ?, title_key = ?, artist = ?, album = ?, duration = ?, scannedAt = ?
+       WHERE id = ?`,
+      [file.filename, file.size, file.mtime, file.title, titleKey, file.artist, file.album, file.duration, file.scannedAt, existing.id]
+    )
+  } else {
+    db.run(
+      `INSERT INTO music_files (path, filename, size, mtime, title, title_key, artist, album, duration, webdavId, scannedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [file.path, file.filename, file.size, file.mtime, file.title, titleKey, file.artist, file.album, file.duration, file.webdavId, file.scannedAt]
+    )
+  }
   saveToDisk()
 }
 
@@ -256,7 +284,7 @@ export function fillEmptyMetaIfEmpty(id: number, meta: { title?: string; artist?
   if (!row) return
   const sets: string[] = []
   const vals: BindParams = []
-  if (meta.title && (!row.title || row.title === meta.title)) { sets.push('title = ?', 'title_key = ?'); vals.push(meta.title, toTitleKey(meta.title)) }
+  if (meta.title && !row.title) { sets.push('title = ?', 'title_key = ?'); vals.push(meta.title, toTitleKey(meta.title)) }
   if (meta.artist && !row.artist) { sets.push('artist = ?'); vals.push(meta.artist) }
   if (meta.album && !row.album) { sets.push('album = ?'); vals.push(meta.album) }
   if (meta.duration && !row.duration) { sets.push('duration = ?'); vals.push(meta.duration) }
@@ -316,6 +344,7 @@ export function getExistingFilePaths(webdavId: string): Map<string, { mtime: str
 
 export function deleteMusicFileByPath(webdavId: string, filePath: string): void {
   db.run('DELETE FROM music_files WHERE webdavId = ? AND path = ?', [webdavId, filePath])
+  saveToDisk()
 }
 
 export function updateMusicFileMetadata(webdavId: string, filePath: string, meta: { title?: string; artist?: string; album?: string; duration?: number }): void {
@@ -381,7 +410,12 @@ export function getRecentMusicFiles(limit: number): MusicFile[] {
 }
 
 export function getMusicFileCount(): number {
-  const row = queryOne<{ count: number }>('SELECT COUNT(*) as count FROM (SELECT 1 FROM music_files GROUP BY title_key)')
+  const row = queryOne<{ count: number }>(
+    `SELECT COUNT(*) as count FROM (
+       SELECT 1 FROM music_files
+       GROUP BY COALESCE(NULLIF(title_key, ''), NULLIF(title, ''), filename)
+     )`
+  )
   return row ? row.count : 0
 }
 
@@ -451,10 +485,19 @@ export function getStatsReport(): {
 
 export function getPlayTrend(days: number): { date: string; plays: number }[] {
   const since = new Date(Date.now() - days * 86400000).toISOString()
-  return queryAll<{ date: string; plays: number }>(
-    'SELECT substr(playedAt, 1, 10) as date, COUNT(*) as plays FROM play_history WHERE playedAt >= ? GROUP BY date ORDER BY date',
+  const rows = queryAll<{ playedAt: string }>(
+    'SELECT playedAt FROM play_history WHERE playedAt >= ?',
     [since]
   )
+  const map = new Map<string, number>()
+  for (const r of rows) {
+    const d = new Date(r.playedAt)
+    const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    map.set(date, (map.get(date) || 0) + 1)
+  }
+  return Array.from(map.entries())
+    .map(([date, plays]) => ({ date, plays }))
+    .sort((a, b) => a.date.localeCompare(b.date))
 }
 
 export function updateMusicFileMeta(id: number, meta: { title?: string; artist?: string; album?: string }): void {
