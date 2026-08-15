@@ -1334,6 +1334,14 @@ body {
   background: var(--bg-hover);
 }
 
+.mood-item.active {
+  background: var(--bg-hover);
+}
+
+.mood-item.active .mood-name {
+  color: var(--accent);
+}
+
 .mood-name {
   font-size: 13px;
   font-weight: 600;

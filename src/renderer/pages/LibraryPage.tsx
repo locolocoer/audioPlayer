@@ -15,15 +15,14 @@ function splitPath(p: string): string[] {
   return p.split(/[\\/]+/).filter(Boolean)
 }
 
-const SORT_OPTIONS: { value: string; label: string; field: SortField; dir: SortDir }[] = [
-  { value: 'title', label: '歌名 ↑', field: 'title', dir: 'asc' },
-  { value: 'title_desc', label: '歌名 ↓', field: 'title', dir: 'desc' },
-  { value: 'artist', label: '歌手', field: 'artist', dir: 'asc' },
-  { value: 'album', label: '专辑', field: 'album', dir: 'asc' },
-  { value: 'duration', label: '时长', field: 'duration', dir: 'asc' },
-  { value: 'playCount', label: '播放次数', field: 'playCount', dir: 'desc' },
-  { value: 'lastPlayed', label: '最近播放', field: 'lastPlayed', dir: 'desc' },
-  { value: 'rating', label: '评分', field: 'rating', dir: 'desc' }
+const SORT_FIELDS: { field: SortField; label: string }[] = [
+  { field: 'title', label: '歌名' },
+  { field: 'artist', label: '歌手' },
+  { field: 'album', label: '专辑' },
+  { field: 'duration', label: '时长' },
+  { field: 'playCount', label: '播放次数' },
+  { field: 'lastPlayed', label: '最近播放' },
+  { field: 'rating', label: '评分' }
 ]
 
 const albumCoverCache = new Map<string, string>()
@@ -100,6 +99,8 @@ export default function LibraryPage(): JSX.Element {
   const moodMenuRef = useRef<HTMLDivElement>(null)
   const [smartOpen, setSmartOpen] = useState(false)
   const smartMenuRef = useRef<HTMLDivElement>(null)
+  const [sortOpen, setSortOpen] = useState(false)
+  const sortMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     loadConfigs()
@@ -150,6 +151,16 @@ export default function LibraryPage(): JSX.Element {
       setSortDir('asc')
     }
   }, [sortField, sortDir])
+
+  const handleSortFieldClick = (field: SortField): void => {
+    if (field === sortField) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDir(field === 'playCount' || field === 'lastPlayed' || field === 'rating' ? 'desc' : 'asc')
+    }
+    setSortOpen(false)
+  }
 
   const baseTracks = useMemo(() => {
     if (browseAlbum) return tracks.filter((t) => (t.album || '未知专辑') === browseAlbum)
@@ -243,8 +254,6 @@ export default function LibraryPage(): JSX.Element {
     requestPlay(track)
   }, [filtered, requestPlay, setQueue])
 
-  const sortKey = SORT_OPTIONS.find((o) => o.field === sortField && o.dir === sortDir)?.value || 'title'
-
   const backToBrowse = useCallback(() => {
     setBrowseAlbum(null)
     setBrowseArtist(null)
@@ -271,6 +280,15 @@ export default function LibraryPage(): JSX.Element {
     document.addEventListener('click', handler)
     return () => document.removeEventListener('click', handler)
   }, [smartOpen])
+
+  useEffect(() => {
+    if (!sortOpen) return
+    const handler = (e: MouseEvent): void => {
+      if (sortMenuRef.current && !sortMenuRef.current.contains(e.target as Node)) setSortOpen(false)
+    }
+    document.addEventListener('click', handler)
+    return () => document.removeEventListener('click', handler)
+  }, [sortOpen])
 
   const playRandomAlbum = (): void => {
     if (albums.length === 0) return
@@ -409,17 +427,21 @@ export default function LibraryPage(): JSX.Element {
               <option key={c.id} value={c.id}>{c.name || c.url}</option>
             ))}
           </select>
-          <select value={sortKey} onChange={(e) => {
-            const opt = SORT_OPTIONS.find((o) => o.value === e.target.value)
-            if (opt) {
-              setSortField(opt.field)
-              setSortDir(opt.dir)
-            }
-          }} className="filter-select">
-            {SORT_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
+          <div className="mood-wrap" ref={sortMenuRef}>
+            <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); setSortOpen((o) => !o) }}>
+              排序 ▾
+            </button>
+            {sortOpen && (
+              <div className="mood-menu">
+                {SORT_FIELDS.map((f) => (
+                  <div key={f.field} className={`mood-item${sortField === f.field ? ' active' : ''}`} onClick={() => handleSortFieldClick(f.field)}>
+                    <span className="mood-name">{f.label}</span>
+                    {sortField === f.field && <span className="mood-desc">{sortDir === 'asc' ? '↑ 升序' : '↓ 降序'}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
