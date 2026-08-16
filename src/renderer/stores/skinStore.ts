@@ -2,11 +2,11 @@ import { create } from 'zustand'
 
 export type Skin = 'base' | 'cassette' | 'turntable' | 'retro'
 
-export const SKINS: { key: Skin; label: string }[] = [
-  { key: 'base', label: '默认' },
-  { key: 'cassette', label: '磁带' },
-  { key: 'turntable', label: '唱片机' },
-  { key: 'retro', label: '霓虹复古' }
+export const SKINS: { key: Skin; labelKey: string }[] = [
+  { key: 'base', labelKey: 'skin.base' },
+  { key: 'cassette', labelKey: 'skin.cassette' },
+  { key: 'turntable', labelKey: 'skin.turntable' },
+  { key: 'retro', labelKey: 'skin.retro' }
 ]
 
 interface SkinState {

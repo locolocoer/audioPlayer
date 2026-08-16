@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { usePlayerStore } from '../stores/playerStore'
+import { useT } from '../i18n'
 import type { MusicFile } from '../../main/types'
+
+type TFunc = (key: string, vars?: Record<string, string | number>) => string
 
 interface Report {
   totalPlays: number
@@ -11,18 +14,18 @@ interface Report {
   topAlbums: { album: string; plays: number }[]
 }
 
-function fmtDuration(min: number): string {
+function fmtDuration(min: number, t: TFunc): string {
   if (min >= 60) {
     const h = Math.floor(min / 60)
     const m = Math.round(min % 60)
-    return `${h} 小时 ${m} 分钟`
+    return t('stats.hours', { h, m })
   }
-  return `${Math.round(min)} 分钟`
+  return t('stats.minutes', { m: Math.round(min) })
 }
 
-function TrendChart({ data }: { data: { date: string; plays: number }[] }): JSX.Element {
+function TrendChart({ data, t }: { data: { date: string; plays: number }[]; t: TFunc }): JSX.Element {
   const [hover, setHover] = useState<{ date: string; plays: number } | null>(null)
-  if (data.length === 0) return <p className="stats-empty">暂无播放数据，听几首歌后这里会出现趋势图</p>
+  if (data.length === 0) return <p className="stats-empty">{t('stats.noData')}</p>
   const max = Math.max(1, ...data.map((d) => d.plays))
   const W = 720
   const H = 180
@@ -53,7 +56,7 @@ function TrendChart({ data }: { data: { date: string; plays: number }[] }): JSX.
           )
         })}
         <text x={4} y={H - 6} fontSize={11} fill="var(--text-secondary)">
-          {hover ? `${hover.date} · ${hover.plays} 次` : `最近 ${data.length} 天`}
+          {hover ? `${hover.date} · ${t('stats.times', { n: hover.plays })}` : t('stats.lastDays', { n: data.length })}
         </text>
       </svg>
     </div>
@@ -79,6 +82,7 @@ function RankList({ title, items }: { title: string; items: { name: string; valu
 }
 
 export default function StatsPage(): JSX.Element {
+  const t = useT()
   const [report, setReport] = useState<Report | null>(null)
   const [trend, setTrend] = useState<{ date: string; plays: number }[]>([])
 
@@ -94,50 +98,50 @@ export default function StatsPage(): JSX.Element {
   return (
     <div className="page stats-page">
       <div className="page-header">
-        <h2>听歌统计</h2>
+        <h2>{t('nav.stats')}</h2>
       </div>
       {report ? (
         <>
           <div className="stats-summary">
             <div className="stats-card summary">
               <div className="summary-num">{report.totalPlays.toLocaleString()}</div>
-              <div className="summary-label">累计播放</div>
+              <div className="summary-label">{t('stats.totalPlays')}</div>
             </div>
             <div className="stats-card summary">
-              <div className="summary-num">{fmtDuration(report.totalMinutes / 60)}</div>
-              <div className="summary-label">累计收听时长</div>
+              <div className="summary-num">{fmtDuration(report.totalMinutes / 60, t)}</div>
+              <div className="summary-label">{t('stats.totalTime')}</div>
             </div>
             <div className="stats-card summary">
               <div className="summary-num">{report.playedCount.toLocaleString()}</div>
-              <div className="summary-label">听过歌曲</div>
+              <div className="summary-label">{t('stats.playedCount')}</div>
             </div>
           </div>
 
           <div className="stats-card">
-            <h3>播放趋势（近 30 天）</h3>
-            <TrendChart data={trend} />
+            <h3>{t('stats.trend')}</h3>
+            <TrendChart data={trend} t={t} />
           </div>
 
           <div className="stats-grid">
             <RankList
-              title="最常播放歌曲"
+              title={t('stats.topSongs')}
               items={report.topSongs.map((s) => ({
                 name: s.title || s.filename,
-                value: `${s.playCount} 次`
+                value: t('stats.times', { n: s.playCount ?? 0 })
               }))}
             />
             <RankList
-              title="最常播放歌手"
-              items={report.topArtists.map((a) => ({ name: a.artist, value: `${a.plays} 次` }))}
+              title={t('stats.topArtists')}
+              items={report.topArtists.map((a) => ({ name: a.artist, value: t('stats.times', { n: a.plays }) }))}
             />
             <RankList
-              title="最常播放专辑"
-              items={report.topAlbums.map((a) => ({ name: a.album, value: `${a.plays} 次` }))}
+              title={t('stats.topAlbums')}
+              items={report.topAlbums.map((a) => ({ name: a.album, value: t('stats.times', { n: a.plays }) }))}
             />
           </div>
         </>
       ) : (
-        <p className="stats-empty">加载中...</p>
+        <p className="stats-empty">{t('common.loading')}</p>
       )}
     </div>
   )

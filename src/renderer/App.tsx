@@ -20,6 +20,7 @@ import { useMusicStore } from './stores/musicStore'
 import { useToastStore } from './stores/toastStore'
 import { useEffect, Component, useState } from 'react'
 import type { MusicFile } from '../main/types'
+import { useT, t } from './i18n'
 
 class ErrorBoundary extends Component<{ children: React.ReactNode }, { hasError: boolean; error: string }> {
   constructor(props: { children: React.ReactNode }) {
@@ -33,7 +34,7 @@ class ErrorBoundary extends Component<{ children: React.ReactNode }, { hasError:
     if (this.state.hasError) {
       return (
         <div style={{ padding: 40, color: '#f44', fontFamily: 'monospace' }}>
-          <h2>界面错误</h2>
+          <h2>{t('error.title')}</h2>
           <pre>{this.state.error}</pre>
         </div>
       )
@@ -43,6 +44,7 @@ class ErrorBoundary extends Component<{ children: React.ReactNode }, { hasError:
 }
 
 export default function App(): JSX.Element {
+  const t = useT()
   const theme = useThemeStore((s) => s.theme)
   const accent = useThemeStore((s) => s.accent)
   const [resumePrompt, setResumePrompt] = useState<MusicFile | null>(null)
@@ -86,7 +88,7 @@ export default function App(): JSX.Element {
       if (status.state === 'downloaded') {
         setUpdateReady(status.version || '')
       } else if (status.state === 'available') {
-        useToastStore.getState().addToast(`发现新版本 v${status.version}，正在后台下载...`, 'info')
+        useToastStore.getState().addToast(t('update.downloading', { version: status.version || '' }), 'info')
       }
     })
     return unsub
@@ -122,25 +124,25 @@ export default function App(): JSX.Element {
       <Toaster />
       {resumePrompt && (
         <Modal onClose={() => setResumePrompt(null)} width={400}>
-          <h3>继续播放？</h3>
+          <h3>{t('resume.title')}</h3>
           <p style={{ margin: '12px 0', color: 'var(--text-secondary)' }}>
-            上次播放到「{resumePrompt.title || resumePrompt.filename}」，是否继续播放？
+            {t('resume.message', { name: resumePrompt.title || resumePrompt.filename })}
           </p>
           <div className="modal-actions">
-            <button className="btn btn-secondary" onClick={() => setResumePrompt(null)}>取消</button>
-            <button className="btn btn-primary" onClick={() => { usePlayerStore.getState().resume(); setResumePrompt(null) }}>继续播放</button>
+            <button className="btn btn-secondary" onClick={() => setResumePrompt(null)}>{t('common.cancel')}</button>
+            <button className="btn btn-primary" onClick={() => { usePlayerStore.getState().resume(); setResumePrompt(null) }}>{t('resume.continue')}</button>
           </div>
         </Modal>
       )}
       {updateReady && (
         <Modal onClose={() => setUpdateReady(null)} width={400}>
-          <h3>新版本已就绪</h3>
+          <h3>{t('update.ready')}</h3>
           <p style={{ margin: '12px 0', color: 'var(--text-secondary)' }}>
-            新版本 v{updateReady} 已下载完成，是否立即重启安装？
+            {t('update.message', { version: updateReady })}
           </p>
           <div className="modal-actions">
-            <button className="btn btn-secondary" onClick={() => setUpdateReady(null)}>稍后</button>
-            <button className="btn btn-primary" onClick={() => window.api.updater.install()}>立即重启安装</button>
+            <button className="btn btn-secondary" onClick={() => setUpdateReady(null)}>{t('update.later')}</button>
+            <button className="btn btn-primary" onClick={() => window.api.updater.install()}>{t('update.install')}</button>
           </div>
         </Modal>
       )}

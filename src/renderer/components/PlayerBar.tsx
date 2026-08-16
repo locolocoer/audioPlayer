@@ -2,6 +2,7 @@ import { useCallback, useState, useEffect, useRef } from 'react'
 import { usePlayerStore } from '../stores/playerStore'
 import { useMusicStore } from '../stores/musicStore'
 import { useUiStore } from '../stores/uiStore'
+import { useT } from '../i18n'
 
 function formatTime(secs: number): string {
   if (!secs || !isFinite(secs)) return '0:00'
@@ -61,6 +62,7 @@ function BarCover({ track }: { track: { webdavId: string; path: string } }): JSX
 }
 
 export default function PlayerBar(): JSX.Element {
+  const t = useT()
   const currentTrack = usePlayerStore((s) => s.currentTrack)
   const isPlaying = usePlayerStore((s) => s.isPlaying)
   const isLoading = usePlayerStore((s) => s.isLoading)
@@ -156,11 +158,11 @@ export default function PlayerBar(): JSX.Element {
         <div className="track-info">
           <span className="track-title">{currentTrack.title || currentTrack.filename}</span>
           <span className="track-artist">
-            {isLoading ? '加载中...' : loadError ? `错误: ${loadError}` : (currentTrack.artist || '未知歌手')}
+            {isLoading ? t('common.loading') : loadError ? t('player.error', { msg: loadError }) : (currentTrack.artist || t('player.unknownArtist'))}
           </span>
           <span className="track-rating" style={{ display: 'inline-flex', gap: 2, fontSize: 13, cursor: 'pointer' }}>
             {[1, 2, 3, 4, 5].map((n) => (
-              <span key={n} onClick={(e) => { e.stopPropagation(); useMusicStore.getState().setRating(currentTrack.id, n) }} style={{ color: currentRating >= n ? '#f5a623' : 'rgba(128,128,128,0.4)' }} title={`${n} 星`}>
+              <span key={n} onClick={(e) => { e.stopPropagation(); useMusicStore.getState().setRating(currentTrack.id, n) }} style={{ color: currentRating >= n ? '#f5a623' : 'rgba(128,128,128,0.4)' }} title={t('player.star', { n })}>
                 ★
               </span>
             ))}
@@ -170,13 +172,13 @@ export default function PlayerBar(): JSX.Element {
 
       <div className="player-bar-center">
         <div className="control-buttons">
-          <button className="btn-icon btn-rate" onClick={() => { const idx = RATES.indexOf(playbackRate); setPlaybackRate(RATES[idx >= 0 ? (idx + 1) % RATES.length : 0]) }} title="播放速度" style={{ fontSize: 12, fontWeight: 600, minWidth: 40 }}>
+          <button className="btn-icon btn-rate" onClick={() => { const idx = RATES.indexOf(playbackRate); setPlaybackRate(RATES[idx >= 0 ? (idx + 1) % RATES.length : 0]) }} title={t('player.speed')} style={{ fontSize: 12, fontWeight: 600, minWidth: 40 }}>
             {playbackRate}x
           </button>
-          <button className={`btn-icon btn-loop${loopA !== null ? ' active' : ''}`} onClick={() => { const st = usePlayerStore.getState(); if (st.loopA === null) { st.setLoop(st.currentTime, null) } else if (st.loopB === null) { if (st.currentTime > st.loopA + 0.5) { st.setLoop(st.loopA, st.currentTime) } else { st.setLoop(null, null) } } else { st.setLoop(null, null) } }} title="A-B 循环（点一下设 A 点，再点设 B 点，再点清除）" style={{ fontSize: 11, fontWeight: 600, minWidth: 40, color: loopA !== null ? 'var(--accent)' : undefined }}>
+          <button className={`btn-icon btn-loop${loopA !== null ? ' active' : ''}`} onClick={() => { const st = usePlayerStore.getState(); if (st.loopA === null) { st.setLoop(st.currentTime, null) } else if (st.loopB === null) { if (st.currentTime > st.loopA + 0.5) { st.setLoop(st.loopA, st.currentTime) } else { st.setLoop(null, null) } } else { st.setLoop(null, null) } }} title={t('player.loopTitle')} style={{ fontSize: 11, fontWeight: 600, minWidth: 40, color: loopA !== null ? 'var(--accent)' : undefined }}>
             {loopB !== null ? 'A-B' : loopA !== null ? 'A·--' : 'A-B'}
           </button>
-          <button className="btn-icon" onClick={() => usePlayerStore.getState().togglePlayMode()} title={playMode === 'sequential' ? '顺序播放' : playMode === 'shuffle' ? '随机播放' : playMode === 'single' ? '单曲循环' : '心动模式'}>
+          <button className="btn-icon" onClick={() => usePlayerStore.getState().togglePlayMode()} title={playMode === 'sequential' ? t('player.modeSequential') : playMode === 'shuffle' ? t('player.modeShuffle') : playMode === 'single' ? t('player.modeSingle') : t('player.modeHeartbeat')}>
             {playMode === 'sequential' ? (
               <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
             ) : playMode === 'shuffle' ? (
@@ -205,18 +207,18 @@ export default function PlayerBar(): JSX.Element {
           <button className="btn-icon" onClick={() => usePlayerStore.getState().next()} disabled={isLoading}>
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
           </button>
-          <button className="btn-icon" onClick={handleToggleFavorite} style={{ color: isFav ? '#e94560' : undefined }} title={isFav ? '取消收藏' : '收藏'}>
+          <button className="btn-icon" onClick={handleToggleFavorite} style={{ color: isFav ? '#e94560' : undefined }} title={isFav ? t('player.unfavorite') : t('player.favorite')}>
             {isFav ? (
               <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
             ) : (
               <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M22 9.24l-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24zM12 15.4l-3.76 2.27 1-4.28-3.32-2.88 4.38-.38L12 6.1l1.71 4.04 4.38.38-3.32 2.88 1 4.28L12 15.4z"/></svg>
             )}
           </button>
-          <button className="btn-icon" onClick={toggleQueue} title="播放队列">
+          <button className="btn-icon" onClick={toggleQueue} title={t('player.queue')}>
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
           </button>
           <div className="sleep-wrap" ref={sleepMenuRef}>
-            <button className="btn-icon" onClick={(e) => { e.stopPropagation(); setSleepOpen((o) => !o) }} title="睡眠定时">
+            <button className="btn-icon" onClick={(e) => { e.stopPropagation(); setSleepOpen((o) => !o) }} title={t('player.sleep')}>
               <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
                 {sleepUntil ? (
                   <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/>
@@ -225,21 +227,21 @@ export default function PlayerBar(): JSX.Element {
                 )}
               </svg>
             </button>
-            <button className={`btn-icon${lyricsOn ? ' active' : ''}`} onClick={toggleDesktopLyrics} title="桌面歌词" style={{ color: lyricsOn ? 'var(--accent)' : undefined }}>
+            <button className={`btn-icon${lyricsOn ? ' active' : ''}`} onClick={toggleDesktopLyrics} title={t('player.desktopLyrics')} style={{ color: lyricsOn ? 'var(--accent)' : undefined }}>
               <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
                 <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
               </svg>
             </button>
             {sleepOpen && (
               <div className="sleep-menu">
-                <div className="sleep-menu-title">{sleepUntil ? `剩余 ${Math.floor(sleepRemaining / 60)}:${String(sleepRemaining % 60).padStart(2, '0')}` : '睡眠定时'}</div>
+                <div className="sleep-menu-title">{sleepUntil ? t('player.sleepRemaining', { time: `${Math.floor(sleepRemaining / 60)}:${String(sleepRemaining % 60).padStart(2, '0')}` }) : t('player.sleep')}</div>
                 {[15, 30, 45, 60, 90].map((m) => (
                   <div key={m} className="sleep-menu-item" onClick={() => { setSleepTimer(m); setSleepOpen(false) }}>
-                    {m} 分钟
+                    {t('player.minutes', { m })}
                   </div>
                 ))}
                 <div className="sleep-menu-item danger" onClick={() => { setSleepTimer(null); setSleepOpen(false) }}>
-                  关闭
+                  {t('common.close')}
                 </div>
               </div>
             )}

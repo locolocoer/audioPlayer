@@ -9,6 +9,7 @@ import type { ShortcutAction } from '../stores/shortcutsStore'
 import Modal from '../components/Modal'
 import type { WebDAVConfig, ScanSettings, AppInfo, UpdateStatus } from '../../main/types'
 import { DEFAULT_SCAN_SETTINGS } from '../../main/types'
+import { useI18nStore, useT } from '../i18n'
 
 interface DLStyle { fontSize: number; color: string; backdrop: number; align: 'left' | 'center' | 'right' }
 const DL_DEFAULT: DLStyle = { fontSize: 26, color: '#ffffff', backdrop: 0, align: 'center' }
@@ -29,15 +30,15 @@ function formatBytes(n: number): string {
   return `${n} B`
 }
 
-function renderUpdateStatus(s: UpdateStatus): string {
+function renderUpdateStatus(s: UpdateStatus, t: (key: string, vars?: Record<string, string | number>) => string): string {
   switch (s.state) {
-    case 'checking': return '正在检查更新...'
-    case 'available': return `发现新版本 v${s.version}，正在下载...`
-    case 'downloading': return `正在下载 ${s.percent}%...`
-    case 'downloaded': return `新版本 v${s.version} 已就绪，重启后安装`
-    case 'not-available': return '已是最新版本'
-    case 'error': return `检查失败：${s.message || '未知错误'}`
-    case 'dev': return '当前为开发模式，仅安装版支持自动更新'
+    case 'checking': return t('update.checking')
+    case 'available': return t('update.available', { version: s.version || '' })
+    case 'downloading': return t('update.downloadingPercent', { percent: s.percent ?? 0 })
+    case 'downloaded': return t('update.downloaded', { version: s.version || '' })
+    case 'not-available': return t('update.notAvailable')
+    case 'error': return t('update.checkFailed', { msg: s.message || t('update.unknownError') })
+    case 'dev': return t('update.devMode')
     default: return ''
   }
 }
@@ -49,6 +50,9 @@ function formatServerUrl(config: WebDAVConfig): string {
 }
 
 export default function ConfigPage(): JSX.Element {
+  const t = useT()
+  const lang = useI18nStore((s) => s.lang)
+  const setLang = useI18nStore((s) => s.setLang)
   const configs = useMusicStore((s) => s.configs)
   const loadConfigs = useMusicStore((s) => s.loadConfigs)
   const saveConfig = useMusicStore((s) => s.saveConfig)
@@ -191,7 +195,7 @@ export default function ConfigPage(): JSX.Element {
     setTesting(true)
     setTestResult(null)
     const result = await window.api.webdav.test(form)
-    setTestResult({ ok: result.ok, message: result.ok ? '连接成功' : (result.error || '连接失败') })
+    setTestResult({ ok: result.ok, message: result.ok ? t('settings.testOk') : (result.error || t('settings.testFailed')) })
     setTesting(false)
   }, [form])
 
@@ -218,8 +222,8 @@ export default function ConfigPage(): JSX.Element {
   const handleBackup = useCallback(async () => {
     setBackupMsg('')
     const result = await window.api.backup.export()
-    if (result.ok && result.path) setBackupMsg(`已导出到 ${result.path}`)
-    else setBackupMsg(result.error || '导出失败')
+    if (result.ok && result.path) setBackupMsg(t('settings.backupDone', { path: result.path }))
+    else setBackupMsg(result.error || t('settings.backupFailed'))
   }, [])
 
   const handleAddLocal = useCallback(async () => {
@@ -251,32 +255,32 @@ export default function ConfigPage(): JSX.Element {
   return (
     <div className="page config-page">
       <div className="page-header">
-        <h2>设置</h2>
+        <h2>{t('nav.settings')}</h2>
       </div>
 
       {/* 音乐源 */}
       <div className="settings-section">
         <div className="settings-section-header">
-          <h3>音乐源</h3>
+          <h3>{t('settings.sources')}</h3>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn-primary" onClick={() => setShowForm(true)}>添加服务器</button>
-            <button className="btn btn-primary" onClick={handleAddLocal}>添加本地文件夹</button>
+            <button className="btn btn-primary" onClick={() => setShowForm(true)}>{t('settings.addServer')}</button>
+            <button className="btn btn-primary" onClick={handleAddLocal}>{t('settings.addLocalFolder')}</button>
           </div>
         </div>
         {scanProgress && scanProgress.status === 'scanning' && (
           <div className="scan-progress-bar">
             <div className="scan-info">
-              <span>正在扫描: {scanProgress.currentPath}</span>
-              <span>已发现 {scanProgress.scannedCount} 个文件</span>
+              <span>{t('settings.scanning', { path: scanProgress.currentPath })}</span>
+              <span>{t('settings.scannedFiles', { n: scanProgress.scannedCount })}</span>
             </div>
             <div className="progress-track"><div className="progress-fill animate" /></div>
-            <button className="btn btn-danger" onClick={cancelScan}>取消</button>
+            <button className="btn btn-danger" onClick={cancelScan}>{t('common.cancel')}</button>
           </div>
         )}
         {configs.length === 0 && !showForm ? (
           <div className="empty-state">
-            <p>未配置音乐源。</p>
-            <button className="btn btn-primary" onClick={() => setShowForm(true)}>添加第一个服务器</button>
+            <p>{t('settings.noSources')}</p>
+            <button className="btn btn-primary" onClick={() => setShowForm(true)}>{t('settings.addFirstServer')}</button>
           </div>
         ) : (
           <div className="config-list">
@@ -294,11 +298,11 @@ export default function ConfigPage(): JSX.Element {
                   )}
                 </div>
                 <div className="config-item-actions">
-                  <button className="btn btn-sm" onClick={() => handleScan(config)} disabled={isScanning}>扫描</button>
+                  <button className="btn btn-sm" onClick={() => handleScan(config)} disabled={isScanning}>{t('settings.scan')}</button>
                   {config.sourceType !== 'local' && (
-                    <button className="btn btn-sm" onClick={() => { setForm(config); setShowForm(true) }}>编辑</button>
+                    <button className="btn btn-sm" onClick={() => { setForm(config); setShowForm(true) }}>{t('settings.edit')}</button>
                   )}
-                  <button className="btn btn-sm btn-danger" onClick={() => { deleteConfig(config.id); usePlaylistStore.getState().loadPlaylists() }}>删除</button>
+                  <button className="btn btn-sm btn-danger" onClick={() => { deleteConfig(config.id); usePlaylistStore.getState().loadPlaylists() }}>{t('common.delete')}</button>
                 </div>
               </div>
             ))}
@@ -308,16 +312,16 @@ export default function ConfigPage(): JSX.Element {
 
       {/* 外观 */}
       <div className="settings-section">
-        <h3>外观</h3>
+        <h3>{t('settings.appearance')}</h3>
         <div className="settings-row">
-          <span className="settings-label">主题</span>
+          <span className="settings-label">{t('settings.theme')}</span>
           <div className="settings-controls">
-            <button className={`btn btn-sm${theme === 'dark' ? ' btn-primary' : ' btn-secondary'}`} onClick={() => setTheme('dark')}>深色</button>
-            <button className={`btn btn-sm${theme === 'light' ? ' btn-primary' : ' btn-secondary'}`} onClick={() => setTheme('light')}>浅色</button>
+            <button className={`btn btn-sm${theme === 'dark' ? ' btn-primary' : ' btn-secondary'}`} onClick={() => setTheme('dark')}>{t('settings.dark')}</button>
+            <button className={`btn btn-sm${theme === 'light' ? ' btn-primary' : ' btn-secondary'}`} onClick={() => setTheme('light')}>{t('settings.light')}</button>
           </div>
         </div>
         <div className="settings-row">
-          <span className="settings-label">强调色</span>
+          <span className="settings-label">{t('settings.accent')}</span>
           <div className="settings-controls">
             <input
               type="color"
@@ -325,15 +329,15 @@ export default function ConfigPage(): JSX.Element {
               onChange={(e) => setAccent(e.target.value)}
               style={{ width: 40, height: 28, padding: 0, border: '1px solid var(--border)', background: 'none', cursor: 'pointer' }}
             />
-            <span className="settings-hint">全局按钮/高亮主色调</span>
+            <span className="settings-hint">{t('settings.accentHint')}</span>
           </div>
         </div>
         <div className="settings-row">
-          <span className="settings-label">播放页皮肤</span>
+          <span className="settings-label">{t('settings.playerSkin')}</span>
           <div className="settings-controls">
             {SKINS.map((s) => (
               <button key={s.key} className={`btn btn-sm${skin === s.key ? ' btn-primary' : ' btn-secondary'}`} onClick={() => setSkin(s.key)}>
-                {s.label}
+                {t(s.labelKey)}
               </button>
             ))}
           </div>
@@ -343,52 +347,63 @@ export default function ConfigPage(): JSX.Element {
       {/* 快捷键 */}
       <div className="settings-section">
         <div className="settings-section-header">
-          <h3>快捷键</h3>
-          <button className="btn btn-sm" onClick={resetShortcuts}>恢复默认</button>
+          <h3>{t('settings.shortcuts')}</h3>
+          <button className="btn btn-sm" onClick={resetShortcuts}>{t('settings.resetShortcuts')}</button>
         </div>
         {(Object.keys(SHORTCUT_LABELS) as ShortcutAction[]).map((action) => (
           <div className="settings-row" key={action}>
-            <span className="settings-label">{SHORTCUT_LABELS[action]}</span>
+            <span className="settings-label">{t(SHORTCUT_LABELS[action])}</span>
             <div className="settings-controls">
               <button className={`btn btn-sm${recording === action ? ' btn-primary' : ''}`} onClick={() => setRecording(action)}>
-                {recording === action ? '按下新按键...' : (shortcuts[action] || '未设置')}
+                {recording === action ? t('settings.pressNewKey') : (shortcuts[action] || t('settings.notSet'))}
               </button>
             </div>
           </div>
         ))}
-        <p className="settings-hint">点击按钮后按下新组合键即可修改，按 Esc 取消，按 Backspace 清除。</p>
+        <p className="settings-hint">{t('settings.shortcutHint')}</p>
       </div>
 
       {/* 系统 */}
       <div className="settings-section">
-        <h3>系统</h3>
+        <h3>{t('settings.system')}</h3>
         <div className="settings-row">
-          <span className="settings-label">开机自启动</span>
+          <span className="settings-label">{t('settings.language')}</span>
+          <div className="settings-controls">
+            <button className={`btn btn-sm${lang === 'zh' ? ' btn-primary' : ' btn-secondary'}`} onClick={() => setLang('zh')}>
+              {t('settings.language.zh')}
+            </button>
+            <button className={`btn btn-sm${lang === 'en' ? ' btn-primary' : ' btn-secondary'}`} onClick={() => setLang('en')}>
+              {t('settings.language.en')}
+            </button>
+          </div>
+        </div>
+        <div className="settings-row">
+          <span className="settings-label">{t('settings.autoLaunch')}</span>
           <div className="settings-controls">
             <button className={`btn btn-sm${autoLaunch ? ' btn-primary' : ' btn-secondary'}`} onClick={() => { const next = !autoLaunch; setAutoLaunch(next); window.api.app.setAutoLaunch(next) }}>
-              {autoLaunch ? '已开启' : '已关闭'}
+              {autoLaunch ? t('settings.enabled') : t('settings.disabled')}
             </button>
           </div>
         </div>
         <div className="settings-row">
-          <span className="settings-label">关闭窗口时</span>
+          <span className="settings-label">{t('settings.closeBehavior')}</span>
           <div className="settings-controls">
             <button className={`btn btn-sm${closeBehavior === 'quit' ? ' btn-primary' : ' btn-secondary'}`} onClick={() => { setCloseBehavior('quit'); window.api.app.setCloseBehavior('quit') }}>
-              退出应用
+              {t('settings.quitApp')}
             </button>
             <button className={`btn btn-sm${closeBehavior === 'tray' ? ' btn-primary' : ' btn-secondary'}`} onClick={() => { setCloseBehavior('tray'); window.api.app.setCloseBehavior('tray') }}>
-              最小化到托盘
+              {t('settings.minimizeToTray')}
             </button>
           </div>
         </div>
-        <p className="settings-hint">选择「最小化到托盘」后，关闭窗口不会退出应用，可从系统托盘恢复或退出。</p>
+        <p className="settings-hint">{t('settings.closeBehaviorHint')}</p>
       </div>
 
       {/* 歌词 */}
       <div className="settings-section">
-        <h3>歌词</h3>
+        <h3>{t('settings.lyrics')}</h3>
         <div className="settings-row">
-          <span className="settings-label">播放页字号</span>
+          <span className="settings-label">{t('settings.playerLyricsFontSize')}</span>
           <div className="settings-controls">
             <button className="btn btn-sm" onClick={() => setLyricsFontSize(lyricsFontSize - 2)}>−</button>
             <span className="settings-value">{lyricsFontSize}px</span>
@@ -396,25 +411,25 @@ export default function ConfigPage(): JSX.Element {
           </div>
         </div>
         <div className="settings-row">
-          <span className="settings-label">播放页对齐</span>
+          <span className="settings-label">{t('settings.playerLyricsAlign')}</span>
           <div className="settings-controls">
             {(['left', 'center', 'right'] as const).map((a) => (
               <button key={a} className={`btn btn-sm${lyricsAlign === a ? ' btn-primary' : ' btn-secondary'}`} onClick={() => setLyricsAlign(a)}>
-                {a === 'left' ? '左' : a === 'center' ? '中' : '右'}
+                {a === 'left' ? t('desktopLyrics.left') : a === 'center' ? t('desktopLyrics.center') : t('desktopLyrics.right')}
               </button>
             ))}
           </div>
         </div>
         <div className="settings-row">
-          <span className="settings-label">桌面歌词</span>
+          <span className="settings-label">{t('player.desktopLyrics')}</span>
           <div className="settings-controls">
             <button className={`btn btn-sm${desktopLyricsOn ? ' btn-primary' : ' btn-secondary'}`} onClick={toggleDesktopLyrics}>
-              {desktopLyricsOn ? '已开启' : '已关闭'}
+              {desktopLyricsOn ? t('settings.enabled') : t('settings.disabled')}
             </button>
           </div>
         </div>
         <div className="settings-row">
-          <span className="settings-label">桌面歌词字号</span>
+          <span className="settings-label">{t('settings.desktopLyricsFontSize')}</span>
           <div className="settings-controls">
             <button className="btn btn-sm" onClick={() => setDlStyle((s) => ({ ...s, fontSize: Math.max(14, s.fontSize - 2) }))}>−</button>
             <span className="settings-value">{dlStyle.fontSize}px</span>
@@ -422,7 +437,7 @@ export default function ConfigPage(): JSX.Element {
           </div>
         </div>
         <div className="settings-row">
-          <span className="settings-label">桌面歌词颜色</span>
+          <span className="settings-label">{t('settings.desktopLyricsColor')}</span>
           <div className="settings-controls">
             {DL_SWATCHES.map((c) => (
               <button key={c} className={`dls-swatch${dlStyle.color === c ? ' active' : ''}`} style={{ background: c }} onClick={() => setDlStyle((s) => ({ ...s, color: c }))} />
@@ -430,7 +445,7 @@ export default function ConfigPage(): JSX.Element {
           </div>
         </div>
         <div className="settings-row">
-          <span className="settings-label">桌面歌词背景</span>
+          <span className="settings-label">{t('settings.desktopLyricsBackdrop')}</span>
           <div className="settings-controls">
             <input
               type="range" min={0} max={60} step={5}
@@ -442,11 +457,11 @@ export default function ConfigPage(): JSX.Element {
           </div>
         </div>
         <div className="settings-row">
-          <span className="settings-label">桌面歌词对齐</span>
+          <span className="settings-label">{t('settings.desktopLyricsAlign')}</span>
           <div className="settings-controls">
             {(['left', 'center', 'right'] as const).map((a) => (
               <button key={a} className={`btn btn-sm${dlStyle.align === a ? ' btn-primary' : ' btn-secondary'}`} onClick={() => setDlStyle((s) => ({ ...s, align: a }))}>
-                {a === 'left' ? '左' : a === 'center' ? '中' : '右'}
+                {a === 'left' ? t('desktopLyrics.left') : a === 'center' ? t('desktopLyrics.center') : t('desktopLyrics.right')}
               </button>
             ))}
           </div>
@@ -455,13 +470,13 @@ export default function ConfigPage(): JSX.Element {
 
       {/* 数据管理 */}
       <div className="settings-section">
-        <h3>数据管理</h3>
+        <h3>{t('settings.data')}</h3>
         <div className="settings-row">
-          <span className="settings-label">音频缓存</span>
+          <span className="settings-label">{t('settings.audioCache')}</span>
           <div className="settings-controls">
-            <span className="settings-value">{cacheInfo ? `${formatBytes(cacheInfo.size)}（${cacheInfo.files.length} 个文件）` : '...'}</span>
+            <span className="settings-value">{cacheInfo ? t('settings.cacheSummary', { size: formatBytes(cacheInfo.size), count: cacheInfo.files.length }) : '...'}</span>
             <button className="btn btn-sm" onClick={handleClearCache} disabled={clearing || isScanning}>
-              {clearing ? '清理中...' : '清空缓存'}
+              {clearing ? t('settings.clearing') : t('settings.clearCache')}
             </button>
           </div>
         </div>
@@ -471,16 +486,16 @@ export default function ConfigPage(): JSX.Element {
               <div key={f.name} className="cache-item">
                 <span className="cache-name">{f.name}</span>
                 <span className="cache-size">{formatBytes(f.size)}</span>
-                <button className="btn btn-sm" onClick={() => handleRemoveCacheFile(f.name)}>删除</button>
+                <button className="btn btn-sm" onClick={() => handleRemoveCacheFile(f.name)}>{t('common.delete')}</button>
               </div>
             ))}
-            {cacheInfo.files.length > 200 && <div className="settings-hint">… 共 {cacheInfo.files.length} 个缓存文件，仅显示前 200 个</div>}
+            {cacheInfo.files.length > 200 && <div className="settings-hint">{t('settings.cacheMore', { n: cacheInfo.files.length })}</div>}
           </div>
         )}
         <div className="settings-row">
-          <span className="settings-label">数据库备份</span>
+          <span className="settings-label">{t('settings.dbBackup')}</span>
           <div className="settings-controls">
-            <button className="btn btn-sm" onClick={handleBackup}>导出备份</button>
+            <button className="btn btn-sm" onClick={handleBackup}>{t('settings.exportBackup')}</button>
             {backupMsg && <span className="settings-hint">{backupMsg}</span>}
           </div>
         </div>
@@ -488,53 +503,53 @@ export default function ConfigPage(): JSX.Element {
 
       {/* 扫描设置 */}
       <div className="settings-section">
-        <h3>扫描设置</h3>
+        <h3>{t('settings.scanSettings')}</h3>
         <div className="settings-grid">
           <div className="form-group">
-            <label>请求间隔 (毫秒)</label>
+            <label>{t('settings.requestInterval')}</label>
             <input type="number" min={500} max={30000} step={500}
               value={scanSettings.delayMs}
               onChange={(e) => setScanSettings({ ...scanSettings, delayMs: parseInt(e.target.value) || 3000 })} />
           </div>
           <div className="form-group">
-            <label>最大重试次数</label>
+            <label>{t('settings.maxRetries')}</label>
             <input type="number" min={0} max={20}
               value={scanSettings.maxRetries}
               onChange={(e) => setScanSettings({ ...scanSettings, maxRetries: parseInt(e.target.value) || 5 })} />
           </div>
           <div className="form-group">
-            <label>退避倍数 (指数)</label>
+            <label>{t('settings.backoffMultiplier')}</label>
             <input type="number" min={1} max={10} step={0.5}
               value={scanSettings.backoffMultiplier}
               onChange={(e) => setScanSettings({ ...scanSettings, backoffMultiplier: parseFloat(e.target.value) || 2 })} />
           </div>
         </div>
-        <p className="settings-hint">退避公式: 延迟 × 倍数<sup>重试次数</sup> (例: 3000×2⁰=3秒, 3000×2¹=6秒, 3000×2²=12秒...)</p>
+        <p className="settings-hint">{t('settings.backoffHint')}</p>
       </div>
 
       {/* 关于与更新 */}
       <div className="settings-section">
-        <h3>关于与更新</h3>
+        <h3>{t('settings.about')}</h3>
         <div className="settings-row">
-          <span className="settings-label">应用名称</span>
+          <span className="settings-label">{t('settings.appName')}</span>
           <div className="settings-controls">
-            <span className="settings-value">{appInfo?.name || '飞鱼音乐'}</span>
+            <span className="settings-value">{appInfo?.name || t('app.name')}</span>
           </div>
         </div>
         <div className="settings-row">
-          <span className="settings-label">版本</span>
+          <span className="settings-label">{t('settings.version')}</span>
           <div className="settings-controls">
             <span className="settings-value">{appInfo ? `v${appInfo.version}` : '...'}</span>
           </div>
         </div>
         <div className="settings-row">
-          <span className="settings-label">提交版本</span>
+          <span className="settings-label">{t('settings.commit')}</span>
           <div className="settings-controls">
             <span className="settings-value" style={{ fontFamily: 'monospace' }}>{appInfo?.commit || '...'}</span>
           </div>
         </div>
         <div className="settings-row">
-          <span className="settings-label">运行环境</span>
+          <span className="settings-label">{t('settings.runtime')}</span>
           <div className="settings-controls">
             <span className="settings-hint">
               {appInfo ? `Electron ${appInfo.electron} · Chromium ${appInfo.chrome} · Node ${appInfo.node}` : '...'}
@@ -542,47 +557,47 @@ export default function ConfigPage(): JSX.Element {
           </div>
         </div>
         <div className="settings-row">
-          <span className="settings-label">自动更新</span>
+          <span className="settings-label">{t('settings.autoUpdate')}</span>
           <div className="settings-controls">
             <button className="btn btn-sm" onClick={handleCheckUpdate} disabled={checking || updateStatus.state === 'downloading' || updateStatus.state === 'downloaded'}>
-              {checking || updateStatus.state === 'checking' ? '检查中...' : '检查更新'}
+              {checking || updateStatus.state === 'checking' ? t('update.checkingBtn') : t('update.check')}
             </button>
             {updateStatus.state === 'downloaded' && (
-              <button className="btn btn-sm btn-primary" onClick={handleInstallUpdate}>重启并安装</button>
+              <button className="btn btn-sm btn-primary" onClick={handleInstallUpdate}>{t('update.installNow')}</button>
             )}
-            <span className="settings-hint">{renderUpdateStatus(updateStatus)}</span>
+            <span className="settings-hint">{renderUpdateStatus(updateStatus, t)}</span>
           </div>
         </div>
       </div>
 
       {showForm && (
         <Modal onClose={() => setShowForm(false)}>
-          <h3>编辑服务器</h3>
+          <h3>{t('settings.editServer')}</h3>
           <div className="form-group">
-            <label>名称</label>
-            <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="我的服务器" />
+            <label>{t('settings.name')}</label>
+            <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t('settings.serverNamePlaceholder')} />
           </div>
           <div className="form-group">
-            <label>地址</label>
+            <label>{t('settings.address')}</label>
             <input type="text" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="http://localhost" />
           </div>
           <div className="form-group">
-            <label>端口</label>
+            <label>{t('settings.port')}</label>
             <input type="number" value={form.port} onChange={(e) => setForm({ ...form, port: parseInt(e.target.value) || 80 })} />
           </div>
           <div className="form-group">
-            <label>用户名</label>
+            <label>{t('settings.username')}</label>
             <input type="text" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
           </div>
           <div className="form-group">
-            <label>密码</label>
+            <label>{t('settings.password')}</label>
             <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
           </div>
           {testResult && <div className={`test-result ${testResult.ok ? 'success' : 'error'}`}>{testResult.message}</div>}
           <div className="modal-actions">
-            <button className="btn" onClick={handleTest} disabled={testing}>{testing ? '测试中...' : '测试连接'}</button>
-            <button className="btn btn-secondary" onClick={() => setShowForm(false)}>取消</button>
-            <button className="btn btn-primary" onClick={handleSave}>保存</button>
+            <button className="btn" onClick={handleTest} disabled={testing}>{testing ? t('settings.testing') : t('settings.testConnection')}</button>
+            <button className="btn btn-secondary" onClick={() => setShowForm(false)}>{t('common.cancel')}</button>
+            <button className="btn btn-primary" onClick={handleSave}>{t('common.save')}</button>
           </div>
         </Modal>
       )}

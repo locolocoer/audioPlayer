@@ -4,6 +4,7 @@ import { useMusicStore } from '../stores/musicStore'
 import { useEqualizerStore, EQ_BANDS } from '../stores/equalizerStore'
 import { useAudioGraphStore } from '../stores/audioGraphStore'
 import { useShortcutsStore, formatShortcut } from '../stores/shortcutsStore'
+import { t } from '../i18n'
 
 const RESUME_THROTTLE = 5000
 let lastResumeSave = 0
@@ -285,7 +286,7 @@ export default function AudioEngine(): JSX.Element {
           if (st.pendingTrack?.id !== track.id) return
           const el = audioRef.current
           if (result.error || !result.localUrl || !el) {
-            st.onAudioError(`${ext} - 转码播放失败`)
+            st.onAudioError(t('player.transcodeFailed', { ext }))
             el?.removeAttribute('src')
             return
           }
@@ -297,7 +298,7 @@ export default function AudioEngine(): JSX.Element {
         }).catch(() => {
           const st = usePlayerStore.getState()
           if (st.pendingTrack?.id !== track.id) return
-          st.onAudioError(`${ext} - 转码播放失败`)
+          st.onAudioError(t('player.transcodeFailed', { ext }))
           audioRef.current?.removeAttribute('src')
         })
         return

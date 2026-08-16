@@ -1,12 +1,14 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { usePlayerStore } from '../stores/playerStore'
 import MusicList from '../components/MusicList'
+import { useT } from '../i18n'
 import type { MusicFile } from '../../main/types'
 
 type SortField = 'title' | 'artist' | 'album' | 'duration' | 'playCount' | 'lastPlayed'
 type SortDir = 'asc' | 'desc'
 
 export default function RecentPage(): JSX.Element {
+  const t = useT()
   const { requestPlay, setQueue } = usePlayerStore()
   const [tracks, setTracks] = useState<MusicFile[]>([])
   const [loading, setLoading] = useState(true)
@@ -37,11 +39,11 @@ export default function RecentPage(): JSX.Element {
   return (
     <div className="page" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="page-header">
-        <h2>最近播放</h2>
+        <h2>{t('nav.recent')}</h2>
         <div className="library-controls">
           <input
             type="text"
-            placeholder="搜索最近播放..."
+            placeholder={t('recent.search')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="search-input"
@@ -49,7 +51,7 @@ export default function RecentPage(): JSX.Element {
         </div>
       </div>
       {loading ? (
-        <div className="empty-state"><p>加载中...</p></div>
+        <div className="empty-state"><p>{t('common.loading')}</p></div>
       ) : (
         <MusicList
           tracks={filtered}

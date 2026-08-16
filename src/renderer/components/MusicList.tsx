@@ -4,6 +4,7 @@ import type { MusicFile } from '../../main/types'
 import { usePlayerStore } from '../stores/playerStore'
 import { useMusicStore } from '../stores/musicStore'
 import { usePlaylistStore } from '../stores/playlistStore'
+import { useT } from '../i18n'
 
 interface MusicListProps {
   tracks: MusicFile[]
@@ -30,6 +31,7 @@ function SortArrow({ field, current, dir }: { field: string; current: string; di
 }
 
 function EditModal({ track, onClose }: { track: MusicFile; onClose: () => void }): JSX.Element {
+  const t = useT()
   const [title, setTitle] = useState(track.title || track.filename)
   const [artist, setArtist] = useState(track.artist || '')
   const [album, setAlbum] = useState(track.album || '')
@@ -49,7 +51,7 @@ function EditModal({ track, onClose }: { track: MusicFile; onClose: () => void }
   const sourceName = (id: string): string => {
     const c = configs.find((x) => x.id === id)
     if (c) return c.name || c.url
-    return id === track.webdavId ? '当前源' : id
+    return id === track.webdavId ? t('track.currentSource') : id
   }
 
   const baseMeta = (): { title: string; artist: string; album: string } => ({
@@ -94,28 +96,28 @@ function EditModal({ track, onClose }: { track: MusicFile; onClose: () => void }
 
   return (
     <Modal onClose={onClose} width={480}>
-        <h3>歌曲详情</h3>
+        <h3>{t('track.detail')}</h3>
         <div className="song-detail-info">
           <div className="detail-row">
-            <span className="detail-label">文件名</span>
+            <span className="detail-label">{t('track.filename')}</span>
             <span className="detail-value" style={{ fontSize: 12 }}>{activeTrack.filename}</span>
           </div>
           <div className="detail-row">
-            <span className="detail-label">存储位置</span>
+            <span className="detail-label">{t('track.location')}</span>
             <span className="detail-value detail-path">{dirPath}</span>
           </div>
           <div className="detail-row">
-            <span className="detail-label">时长</span>
+            <span className="detail-label">{t('track.duration')}</span>
             <span className="detail-value">{formatDuration(activeTrack.duration)}</span>
           </div>
           <div className="detail-row">
-            <span className="detail-label">大小</span>
+            <span className="detail-label">{t('track.size')}</span>
             <span className="detail-value">{(activeTrack.size / 1024 / 1024).toFixed(1)} MB</span>
           </div>
         </div>
         {sources.length > 1 && (
           <div className="form-group">
-            <label>音乐源 ({sources.length} 个可用)</label>
+            <label>{t('track.sources', { n: sources.length })}</label>
             <select value={activeTrack.id} onChange={(e) => switchSource(Number(e.target.value))}>
               {sources.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -126,20 +128,20 @@ function EditModal({ track, onClose }: { track: MusicFile; onClose: () => void }
           </div>
         )}
         <div className="form-group" style={{ marginTop: 8 }}>
-          <label>歌曲名</label>
-          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="输入歌曲名" />
+          <label>{t('track.title')}</label>
+          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('track.titlePlaceholder')} />
         </div>
         <div className="form-group">
-          <label>歌手</label>
-          <input type="text" value={artist} onChange={(e) => setArtist(e.target.value)} placeholder="输入歌手名" />
+          <label>{t('track.artist')}</label>
+          <input type="text" value={artist} onChange={(e) => setArtist(e.target.value)} placeholder={t('track.artistPlaceholder')} />
         </div>
         <div className="form-group">
-          <label>专辑</label>
-          <input type="text" value={album} onChange={(e) => setAlbum(e.target.value)} placeholder="输入专辑名" />
+          <label>{t('track.album')}</label>
+          <input type="text" value={album} onChange={(e) => setAlbum(e.target.value)} placeholder={t('track.albumPlaceholder')} />
         </div>
         <div className="modal-actions">
-          <button className="btn btn-secondary" onClick={onClose}>关闭</button>
-          <button className="btn btn-primary" onClick={handleSave}>保存</button>
+          <button className="btn btn-secondary" onClick={onClose}>{t('common.close')}</button>
+          <button className="btn btn-primary" onClick={handleSave}>{t('common.save')}</button>
         </div>
     </Modal>
   )
@@ -148,6 +150,7 @@ function EditModal({ track, onClose }: { track: MusicFile; onClose: () => void }
 function ContextMenu({ x, y, track, onClose, onEdit }: {
   x: number; y: number; track: MusicFile; onClose: () => void; onEdit: () => void
 }): JSX.Element {
+  const t = useT()
   const toggleFavorite = useMusicStore((s) => s.toggleFavorite)
   const configs = useMusicStore((s) => s.configs)
   const isLocal = configs.find((c) => c.id === track.webdavId)?.sourceType === 'local'
@@ -167,19 +170,19 @@ function ContextMenu({ x, y, track, onClose, onEdit }: {
     <div className="context-menu" style={{ left: x, top: y }} onClick={(e) => e.stopPropagation()}>
       <div className="context-menu-item" onClick={onEdit}>
         <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
-        查看详情
+        {t('ctx.detail')}
       </div>
       {isLocal && (
         <div className="context-menu-item" onClick={() => { window.api.shell.showItemInFolder(track.path); onClose() }}>
           <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
-          打开文件位置
+          {t('ctx.openLocation')}
         </div>
       )}
       <div className="context-menu-item" onClick={() => { toggleFavorite(track.id); onClose() }}>
         <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
           <path d={isFav ? "M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" : "M22 9.24l-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24zM12 15.4l-3.76 2.27 1-4.28-3.32-2.88 4.38-.38L12 6.1l1.71 4.04 4.38.38-3.32 2.88 1 4.28L12 15.4z"}/>
         </svg>
-        {isFav ? '取消收藏' : '添加到收藏'}
+        {isFav ? t('player.unfavorite') : t('ctx.favorite')}
       </div>
       <div className="context-menu-item" onClick={() => { inPlaylist ? removeTrack(track.id) : addTrack(track); onClose() }}>
         <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
@@ -189,13 +192,14 @@ function ContextMenu({ x, y, track, onClose, onEdit }: {
             <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
           )}
         </svg>
-        {inPlaylist ? '从播放列表移除' : '添加到播放列表'}
+        {inPlaylist ? t('ctx.removeFromPlaylist') : t('ctx.addToPlaylist')}
       </div>
     </div>
   )
 }
 
 export default function MusicList({ tracks, sortField, sortDir, onSort, onRowClick, showFavorite, onReorder }: MusicListProps): JSX.Element {
+  const t = useT()
   const currentTrack = usePlayerStore((s) => s.currentTrack)
   const toggleFavorite = useMusicStore((s) => s.toggleFavorite)
   const addTracks = usePlaylistStore((s) => s.addTracks)
@@ -280,7 +284,7 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
   if (tracks.length === 0) {
     return (
       <div className="empty-state">
-        <p>暂无歌曲。</p>
+        <p>{t('list.empty')}</p>
       </div>
     )
   }
@@ -289,14 +293,14 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
     <>
       {selectMode ? (
         <div className="list-select-bar">
-          <span className="select-count">已选 {selected.size} 首</span>
-          <button className="btn btn-secondary" onClick={batchAddToPlaylist}>加入播放列表</button>
-          <button className="btn btn-secondary" onClick={batchFavorite}>收藏</button>
-          <button className="btn btn-secondary" onClick={exitSelectMode}>取消</button>
+          <span className="select-count">{t('list.selected', { n: selected.size })}</span>
+          <button className="btn btn-secondary" onClick={batchAddToPlaylist}>{t('list.addToPlaylist')}</button>
+          <button className="btn btn-secondary" onClick={batchFavorite}>{t('list.favorite')}</button>
+          <button className="btn btn-secondary" onClick={exitSelectMode}>{t('common.cancel')}</button>
         </div>
       ) : (
         <div className="list-toolbar">
-          <button className="btn btn-sm" onClick={() => setSelectMode(true)}>多选</button>
+          <button className="btn btn-sm" onClick={() => setSelectMode(true)}>{t('list.multiSelect')}</button>
         </div>
       )}
       <div className="music-table-container" ref={tableRef} onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}>
@@ -307,16 +311,16 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
               {selectMode && <th style={{ width: 36 }} />}
               <th className="col-index">#</th>
               <th onClick={() => onSort('title')}>
-                歌名 <SortArrow field="title" current={sortField} dir={sortDir} />
+                {t('list.title')} <SortArrow field="title" current={sortField} dir={sortDir} />
               </th>
               <th className="col-artist" onClick={() => onSort('artist')}>
-                歌手 <SortArrow field="artist" current={sortField} dir={sortDir} />
+                {t('list.artist')} <SortArrow field="artist" current={sortField} dir={sortDir} />
               </th>
               <th className="col-album" onClick={() => onSort('album')}>
-                专辑 <SortArrow field="album" current={sortField} dir={sortDir} />
+                {t('list.album')} <SortArrow field="album" current={sortField} dir={sortDir} />
               </th>
               <th onClick={() => onSort('duration')} style={{ width: '100px' }}>
-                时长 <SortArrow field="duration" current={sortField} dir={sortDir} />
+                {t('list.duration')} <SortArrow field="duration" current={sortField} dir={sortDir} />
               </th>
             </tr>
           </thead>
@@ -373,7 +377,7 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
                         className="btn-icon"
                         style={{ width: 28, height: 28, color: track.favorite ? '#e94560' : undefined }}
                         onClick={(e) => { e.stopPropagation(); toggleFavorite(track.id) }}
-                        title={track.favorite ? '取消收藏' : '收藏'}
+                        title={track.favorite ? t('player.unfavorite') : t('player.favorite')}
                       >
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                           <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
@@ -383,8 +387,8 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
                   )}
                   <td className="col-index">{idx + 1}</td>
                   <td className="col-title">{track.title || track.filename}</td>
-                  <td className="col-artist">{track.artist || '未知'}</td>
-                  <td className="col-album">{track.album || '未知'}</td>
+                  <td className="col-artist">{track.artist || t('common.unknown')}</td>
+                  <td className="col-album">{track.album || t('common.unknown')}</td>
                   <td className="col-duration">{formatDuration(track.duration)}</td>
                 </tr>
               )

@@ -3,6 +3,7 @@ import type { MusicFile, ScanProgress, WebDAVConfig, ScanSettings } from '../../
 import { usePlayerStore } from './playerStore'
 import { usePlaylistStore } from './playlistStore'
 import { useToastStore } from './toastStore'
+import { t } from '../i18n'
 
 let scanProgressUnsub: (() => void) | null = null
 
@@ -128,8 +129,8 @@ export const useMusicStore = create<MusicState>((set, get) => ({
     if (res && res.writeback) {
       const wb = res.writeback
       if (wb.attempted) {
-        if (wb.ok) useToastStore.getState().addToast('已写回音频文件标签', 'success')
-        else useToastStore.getState().addToast(`写回失败：${wb.error || '未知原因'}`, 'error')
+        if (wb.ok) useToastStore.getState().addToast(t('music.writebackOk'), 'success')
+        else useToastStore.getState().addToast(t('music.writebackFailed', { msg: wb.error || t('music.writebackUnknown') }), 'error')
       }
     }
     set((s) => ({
@@ -143,9 +144,9 @@ export const useMusicStore = create<MusicState>((set, get) => ({
     const res = await window.api.music.updateMetaBatch(ids, meta)
     if (res && res.writeback && res.writeback.attempted > 0) {
       if (res.writeback.failed === 0) {
-        useToastStore.getState().addToast(`已写回 ${res.writeback.attempted} 首音频文件标签`, 'success')
+        useToastStore.getState().addToast(t('music.writebackBatchOk', { n: res.writeback.attempted }), 'success')
       } else {
-        useToastStore.getState().addToast(`写回失败 ${res.writeback.failed}/${res.writeback.attempted} 首：${res.writeback.error || '未知原因'}`, 'error')
+        useToastStore.getState().addToast(t('music.writebackBatchFailed', { failed: res.writeback.failed, total: res.writeback.attempted, msg: res.writeback.error || t('music.writebackUnknown') }), 'error')
       }
     }
     const idSet = new Set(ids)

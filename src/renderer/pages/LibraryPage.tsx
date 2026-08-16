@@ -3,6 +3,7 @@ import { useMusicStore } from '../stores/musicStore'
 import { usePlayerStore } from '../stores/playerStore'
 import { usePlaylistStore } from '../stores/playlistStore'
 import { useToastStore } from '../stores/toastStore'
+import { useT } from '../i18n'
 import MusicList from '../components/MusicList'
 import Modal from '../components/Modal'
 import type { MusicFile } from '../../main/types'
@@ -15,14 +16,17 @@ function splitPath(p: string): string[] {
   return p.split(/[\\/]+/).filter(Boolean)
 }
 
-const SORT_FIELDS: { field: SortField; label: string }[] = [
-  { field: 'title', label: '歌名' },
-  { field: 'artist', label: '歌手' },
-  { field: 'album', label: '专辑' },
-  { field: 'duration', label: '时长' },
-  { field: 'playCount', label: '播放次数' },
-  { field: 'lastPlayed', label: '最近播放' },
-  { field: 'rating', label: '评分' }
+const UNKNOWN_ALBUM = '__unknown_album__'
+const UNKNOWN_ARTIST = '__unknown_artist__'
+
+const SORT_FIELDS: { field: SortField; labelKey: string }[] = [
+  { field: 'title', labelKey: 'library.sort.title' },
+  { field: 'artist', labelKey: 'library.sort.artist' },
+  { field: 'album', labelKey: 'library.sort.album' },
+  { field: 'duration', labelKey: 'library.sort.duration' },
+  { field: 'playCount', labelKey: 'library.sort.playCount' },
+  { field: 'lastPlayed', labelKey: 'library.sort.lastPlayed' },
+  { field: 'rating', labelKey: 'library.sort.rating' }
 ]
 
 const albumCoverCache = new Map<string, string>()
@@ -78,6 +82,13 @@ export default function LibraryPage(): JSX.Element {
   const { tracks, loadTracks, configs, loadConfigs } = useMusicStore()
   const { requestPlay, setQueue } = usePlayerStore()
   const addTracks = usePlaylistStore((s) => s.addTracks)
+  const t = useT()
+
+  const displayName = (name: string): string => {
+    if (name === UNKNOWN_ALBUM) return t('library.unknownAlbum')
+    if (name === UNKNOWN_ARTIST) return t('library.unknownArtist')
+    return name
+  }
   const [search, setSearch] = useState(() => localStorage.getItem('library_search') || '')
   const [sortField, setSortField] = useState<SortField>(() => {
     const saved = localStorage.getItem('library_sortField') as SortField | null
@@ -163,8 +174,8 @@ export default function LibraryPage(): JSX.Element {
   }
 
   const baseTracks = useMemo(() => {
-    if (browseAlbum) return tracks.filter((t) => (t.album || '未知专辑') === browseAlbum)
-    if (browseArtist) return tracks.filter((t) => (t.artist || '未知歌手') === browseArtist)
+    if (browseAlbum) return tracks.filter((t) => (t.album || UNKNOWN_ALBUM) === browseAlbum)
+    if (browseArtist) return tracks.filter((t) => (t.artist || UNKNOWN_ARTIST) === browseArtist)
     return tracks
   }, [tracks, browseAlbum, browseArtist])
 
@@ -202,7 +213,7 @@ export default function LibraryPage(): JSX.Element {
   const albums = useMemo(() => {
     const map = new Map<string, { name: string; artist: string; tracks: MusicFile[] }>()
     for (const t of tracks) {
-      const key = t.album || '未知专辑'
+      const key = t.album || UNKNOWN_ALBUM
       const entry = map.get(key) || { name: key, artist: t.artist || '', tracks: [] }
       entry.tracks.push(t)
       map.set(key, entry)
@@ -213,7 +224,7 @@ export default function LibraryPage(): JSX.Element {
   const artists = useMemo(() => {
     const map = new Map<string, { name: string; count: number }>()
     for (const t of tracks) {
-      const key = t.artist || '未知歌手'
+      const key = t.artist || UNKNOWN_ARTIST
       const entry = map.get(key) || { name: key, count: 0 }
       entry.count++
       map.set(key, entry)
@@ -298,11 +309,11 @@ export default function LibraryPage(): JSX.Element {
     usePlayerStore.getState().playSelection(albumTracks)
   }
 
-  const MOODS: { key: string; label: string; desc: string }[] = [
-    { key: 'focus', label: '专注学习', desc: '整库随机，沉浸不分心' },
-    { key: 'relax', label: '放松', desc: '从你收藏的歌曲随机' },
-    { key: 'energetic', label: '运动高能', desc: '从高频播放歌曲随机' },
-    { key: 'immersion', label: '沉浸', desc: '从听过的歌曲随机' }
+  const MOODS: { key: string; labelKey: string; descKey: string }[] = [
+    { key: 'focus', labelKey: 'library.mood.focus', descKey: 'library.mood.focus.desc' },
+    { key: 'relax', labelKey: 'library.mood.relax', descKey: 'library.mood.relax.desc' },
+    { key: 'energetic', labelKey: 'library.mood.energetic', descKey: 'library.mood.energetic.desc' },
+    { key: 'immersion', labelKey: 'library.mood.immersion', descKey: 'library.mood.immersion.desc' }
   ]
 
   const playMood = (mood: string): void => {
@@ -317,12 +328,12 @@ export default function LibraryPage(): JSX.Element {
     usePlayerStore.getState().playSelection(shuffled)
   }
 
-  const SMART_LISTS: { key: string; label: string; desc: string }[] = [
-    { key: 'recent_added', label: '最近添加', desc: '最近扫描入库的 50 首' },
-    { key: 'top_played', label: '高频循环', desc: '播放次数最多的 50 首' },
-    { key: 'five_star', label: '五星好评', desc: '你打过 5 星的歌' },
-    { key: 'not_heard', label: '很久没听', desc: '最久没听过的 50 首' },
-    { key: 'hidden_gem', label: '冷门遗珠', desc: '从未播过的歌随机 50 首' }
+  const SMART_LISTS: { key: string; labelKey: string; descKey: string }[] = [
+    { key: 'recent_added', labelKey: 'library.smart.recent_added', descKey: 'library.smart.recent_added.desc' },
+    { key: 'top_played', labelKey: 'library.smart.top_played', descKey: 'library.smart.top_played.desc' },
+    { key: 'five_star', labelKey: 'library.smart.five_star', descKey: 'library.smart.five_star.desc' },
+    { key: 'not_heard', labelKey: 'library.smart.not_heard', descKey: 'library.smart.not_heard.desc' },
+    { key: 'hidden_gem', labelKey: 'library.smart.hidden_gem', descKey: 'library.smart.hidden_gem.desc' }
   ]
 
   const playSmartList = (rule: string): void => {
@@ -341,7 +352,7 @@ export default function LibraryPage(): JSX.Element {
       list = all.filter((t) => (t.playCount || 0) === 0 && t.favorite === 0).sort(() => Math.random() - 0.5).slice(0, 50)
     }
     if (list.length === 0) {
-      useToastStore.getState().addToast('没有符合条件的歌曲', 'info')
+      useToastStore.getState().addToast(t('library.smart.empty'), 'info')
       return
     }
     usePlayerStore.getState().setPlayMode('sequential')
@@ -355,7 +366,7 @@ export default function LibraryPage(): JSX.Element {
     setArtistMenu(null)
     if (oldName === null || !newName || newName === oldName) return
     const targets = tracks
-      .filter((t) => (oldName === '未知歌手' ? !t.artist : t.artist === oldName))
+      .filter((t) => (oldName === UNKNOWN_ARTIST ? !t.artist : t.artist === oldName))
       .map((t) => t.id)
     if (targets.length > 0) {
       await useMusicStore.getState().updateMetaBatch(targets, { artist: newName })
@@ -367,9 +378,9 @@ export default function LibraryPage(): JSX.Element {
       <div className="page-header">
         <h2>
           {browsing ? (
-            <span className="browse-back" onClick={backToBrowse}>‹ {browseAlbum || browseArtist || browseFolder}</span>
+            <span className="browse-back" onClick={backToBrowse}>‹ {displayName(browseAlbum ?? browseArtist ?? browseFolder ?? '')}</span>
           ) : (
-            '音乐库'
+            t('nav.library')
           )}
         </h2>
         <div className="library-controls">
@@ -377,38 +388,38 @@ export default function LibraryPage(): JSX.Element {
             className="btn btn-secondary add-all-btn"
             style={{ visibility: (search || filterConfig) && filtered.length > 0 ? 'visible' : 'hidden' }}
             onClick={() => addTracks(filtered)}
-            title="将当前筛选结果添加到播放列表"
+            title={t('library.addAllTitle')}
           >
-            + 全部添加
+            {t('library.addAll')}
           </button>
           <div className="browse-tabs">
-            <button className={`browse-tab${viewMode === 'songs' ? ' active' : ''}`} onClick={() => { setViewMode('songs'); backToBrowse() }}>歌曲</button>
-            <button className={`browse-tab${viewMode === 'albums' ? ' active' : ''}`} onClick={() => { setViewMode('albums'); backToBrowse() }}>专辑</button>
-            <button className={`browse-tab${viewMode === 'artists' ? ' active' : ''}`} onClick={() => { setViewMode('artists'); backToBrowse() }}>歌手</button>
-            <button className={`browse-tab${viewMode === 'folders' ? ' active' : ''}`} onClick={() => { setViewMode('folders'); backToBrowse() }}>文件夹</button>
+            <button className={`browse-tab${viewMode === 'songs' ? ' active' : ''}`} onClick={() => { setViewMode('songs'); backToBrowse() }}>{t('library.songs')}</button>
+            <button className={`browse-tab${viewMode === 'albums' ? ' active' : ''}`} onClick={() => { setViewMode('albums'); backToBrowse() }}>{t('library.albums')}</button>
+            <button className={`browse-tab${viewMode === 'artists' ? ' active' : ''}`} onClick={() => { setViewMode('artists'); backToBrowse() }}>{t('library.artists')}</button>
+            <button className={`browse-tab${viewMode === 'folders' ? ' active' : ''}`} onClick={() => { setViewMode('folders'); backToBrowse() }}>{t('library.folders')}</button>
           </div>
-          <button className="btn btn-sm" onClick={playRandomAlbum} title="随机挑选一张专辑整张播放">🎲 随机专辑</button>
+          <button className="btn btn-sm" onClick={playRandomAlbum} title={t('library.randomAlbumTitle')}>{t('library.randomAlbum')}</button>
           <div className="mood-wrap" ref={moodMenuRef}>
-            <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); setMoodOpen((o) => !o) }}>心情电台 ▾</button>
+            <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); setMoodOpen((o) => !o) }}>{t('library.mood')}</button>
             {moodOpen && (
               <div className="mood-menu">
                 {MOODS.map((m) => (
                   <div key={m.key} className="mood-item" onClick={() => playMood(m.key)}>
-                    <span className="mood-name">{m.label}</span>
-                    <span className="mood-desc">{m.desc}</span>
+                    <span className="mood-name">{t(m.labelKey)}</span>
+                    <span className="mood-desc">{t(m.descKey)}</span>
                   </div>
                 ))}
               </div>
             )}
           </div>
           <div className="mood-wrap" ref={smartMenuRef}>
-            <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); setSmartOpen((o) => !o) }}>智能列表 ▾</button>
+            <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); setSmartOpen((o) => !o) }}>{t('library.smartList')}</button>
             {smartOpen && (
               <div className="mood-menu">
                 {SMART_LISTS.map((m) => (
                   <div key={m.key} className="mood-item" onClick={() => playSmartList(m.key)}>
-                    <span className="mood-name">{m.label}</span>
-                    <span className="mood-desc">{m.desc}</span>
+                    <span className="mood-name">{t(m.labelKey)}</span>
+                    <span className="mood-desc">{t(m.descKey)}</span>
                   </div>
                 ))}
               </div>
@@ -416,27 +427,27 @@ export default function LibraryPage(): JSX.Element {
           </div>
           <input
             type="text"
-            placeholder="按歌名、歌手、专辑搜索..."
+            placeholder={t('library.search')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="search-input"
           />
           <select value={filterConfig} onChange={(e) => setFilterConfig(e.target.value)} className="filter-select">
-            <option value="">全部来源</option>
+            <option value="">{t('library.allSources')}</option>
             {configs.map((c) => (
               <option key={c.id} value={c.id}>{c.name || c.url}</option>
             ))}
           </select>
           <div className="mood-wrap" ref={sortMenuRef}>
             <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); setSortOpen((o) => !o) }}>
-              排序 ▾
+              {t('library.sort')} ▾
             </button>
             {sortOpen && (
               <div className="mood-menu">
                 {SORT_FIELDS.map((f) => (
                   <div key={f.field} className={`mood-item${sortField === f.field ? ' active' : ''}`} onClick={() => handleSortFieldClick(f.field)}>
-                    <span className="mood-name">{f.label}</span>
-                    {sortField === f.field && <span className="mood-desc">{sortDir === 'asc' ? '↑ 升序' : '↓ 降序'}</span>}
+                    <span className="mood-name">{t(f.labelKey)}</span>
+                    {sortField === f.field && <span className="mood-desc">{sortDir === 'asc' ? t('library.sort.asc') : t('library.sort.desc')}</span>}
                   </div>
                 ))}
               </div>
@@ -460,7 +471,7 @@ export default function LibraryPage(): JSX.Element {
                     <path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
                   </svg>
                   <span className="folder-name">{d.label}</span>
-                  <span className="album-meta">{d.count} 首</span>
+                  <span className="album-meta">{t('library.songCount', { count: d.count })}</span>
                 </div>
               ))}
             </div>
@@ -474,7 +485,7 @@ export default function LibraryPage(): JSX.Element {
               onRowClick={handleRowClick}
             />
           ) : folderData.subdirs.length === 0 ? (
-            <div className="empty-state"><p>空文件夹</p></div>
+            <div className="empty-state"><p>{t('library.emptyFolder')}</p></div>
           ) : null}
         </div>
       ) : viewMode === 'songs' || browsing ? (
@@ -492,8 +503,8 @@ export default function LibraryPage(): JSX.Element {
               <div key={a.name} className="album-card" onClick={() => { setBrowseAlbum(a.name); setSearch('') }}>
                 <AlbumCover album={a.name} tracks={a.tracks} />
                 <div className="album-card-info">
-                  <span className="album-name">{a.name}</span>
-                  <span className="album-meta">{a.tracks.length} 首{a.artist ? ` · ${a.artist}` : ''}</span>
+                  <span className="album-name">{displayName(a.name)}</span>
+                  <span className="album-meta">{t('library.songCount', { count: a.tracks.length })}{a.artist ? ` · ${a.artist}` : ''}</span>
                 </div>
               </div>
             ))}
@@ -517,8 +528,8 @@ export default function LibraryPage(): JSX.Element {
                     <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
                   </svg>
                 </div>
-                <span className="artist-name">{ar.name}</span>
-                <span className="album-meta">{ar.count} 首</span>
+                <span className="artist-name">{displayName(ar.name)}</span>
+                <span className="album-meta">{t('library.songCount', { count: ar.count })}</span>
               </div>
             ))}
           </div>
@@ -535,31 +546,31 @@ export default function LibraryPage(): JSX.Element {
             className="context-menu-item"
             onClick={() => {
               setEditArtistName(artistMenu.name)
-              setEditArtistInput(artistMenu.name === '未知歌手' ? '' : artistMenu.name)
+              setEditArtistInput(artistMenu.name === UNKNOWN_ARTIST ? '' : artistMenu.name)
               setArtistMenu(null)
             }}
           >
-            修改歌手名
+            {t('library.renameArtist')}
           </div>
         </div>
       )}
 
       {editArtistName !== null && (
         <Modal onClose={() => setEditArtistName(null)} width={360}>
-          <h3>修改歌手名</h3>
+          <h3>{t('library.renameArtist')}</h3>
           <div className="form-group">
-            <label>将「{editArtistName}」下所有歌曲的歌手改为</label>
+            <label>{t('library.renameArtistLabel', { name: displayName(editArtistName) })}</label>
             <input
               type="text"
               value={editArtistInput}
               onChange={(e) => setEditArtistInput(e.target.value)}
-              placeholder="新歌手名"
+              placeholder={t('library.newArtistName')}
               autoFocus
             />
           </div>
           <div className="modal-actions">
-            <button className="btn btn-secondary" onClick={() => setEditArtistName(null)}>取消</button>
-            <button className="btn btn-primary" onClick={handleRenameArtist}>保存</button>
+            <button className="btn btn-secondary" onClick={() => setEditArtistName(null)}>{t('common.cancel')}</button>
+            <button className="btn btn-primary" onClick={handleRenameArtist}>{t('common.save')}</button>
           </div>
         </Modal>
       )}

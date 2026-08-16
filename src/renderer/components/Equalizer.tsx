@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useEqualizerStore, EQ_BANDS, EQ_PRESETS } from '../stores/equalizerStore'
+import { useT } from '../i18n'
 
 export default function Equalizer(): JSX.Element {
+  const t = useT()
   const enabled = useEqualizerStore((s) => s.enabled)
   const gains = useEqualizerStore((s) => s.gains)
   const presetName = useEqualizerStore((s) => s.presetName)
@@ -39,12 +41,12 @@ export default function Equalizer(): JSX.Element {
                 className="eq-preset-input"
                 value={presetInput}
                 onChange={(e) => setPresetInput(e.target.value)}
-                placeholder="预设名称"
+                placeholder={t('eq.presetName')}
                 autoFocus
                 onKeyDown={(e) => { if (e.key === 'Enter') commitSave() }}
               />
-              <button className="btn btn-sm" onClick={commitSave}>保存</button>
-              <button className="btn btn-sm btn-secondary" onClick={() => { setPresetInput(''); setSaving(false) }}>取消</button>
+              <button className="btn btn-sm" onClick={commitSave}>{t('common.save')}</button>
+              <button className="btn btn-sm btn-secondary" onClick={() => { setPresetInput(''); setSaving(false) }}>{t('common.cancel')}</button>
             </>
           ) : (
             <>
@@ -64,13 +66,13 @@ export default function Equalizer(): JSX.Element {
                 ))}
               </select>
               {isCustomPreset && (
-                <button className="btn btn-sm btn-secondary" title="删除该自定义预设" onClick={() => deletePreset(presetName)}>删除</button>
+                <button className="btn btn-sm btn-secondary" title={t('eq.deleteTitle')} onClick={() => deletePreset(presetName)}>{t('common.delete')}</button>
               )}
-              <button className="btn btn-sm" title="将当前设置保存为自定义预设" onClick={() => setSaving(true)}>保存</button>
+              <button className="btn btn-sm" title={t('eq.saveTitle')} onClick={() => setSaving(true)}>{t('common.save')}</button>
               <button className="btn btn-sm" onClick={toggleEnabled}>
                 {enabled ? 'ON' : 'OFF'}
               </button>
-              <button className="btn btn-sm btn-secondary" onClick={reset}>Reset</button>
+              <button className="btn btn-sm btn-secondary" onClick={reset}>{t('eq.reset')}</button>
             </>
           )}
         </div>

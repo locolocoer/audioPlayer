@@ -5,6 +5,7 @@ import { createWebDAVClient, testConnection } from './webdav'
 import { scanWebDAV, cancelScan, scanLocal } from './scanner'
 import { setupFolderWatchers } from './folderWatch'
 import { writeTagsToLocalMp3 } from './tags'
+import { mt } from './i18n'
 import {
   saveWebDAVConfig,
   getWebDAVConfigs,
@@ -152,7 +153,7 @@ export function registerIpcHandlers(): void {
           const r = await writeTagsToLocalMp3(row.path, meta)
           if (!r.ok) {
             failed++
-            if (!firstError) firstError = r.error || '写入失败'
+            if (!firstError) firstError = r.error || mt('tag.writeFailed')
           }
         }
       }
@@ -235,7 +236,7 @@ export function registerIpcHandlers(): void {
     const defaultPath = path.join(app.getPath('documents'), `feiyu-music-backup-${new Date().toISOString().slice(0, 10)}.db`)
     const result = await dialog.showSaveDialog(win, {
       defaultPath,
-      filters: [{ name: 'SQLite 数据库', extensions: ['db'] }]
+      filters: [{ name: mt('dialog.sqlite'), extensions: ['db'] }]
     })
     if (result.canceled || !result.filePath) return { ok: false, error: 'cancelled' }
     try {
@@ -300,7 +301,7 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('player:saveLyrics', async (_event, configId: string, filePath: string, text: string) => {
     try {
       const config = getAllWebDAVConfigs().find((c) => c.id === configId)
-      if (!config || config.sourceType !== 'local') return { ok: false, error: '仅本地文件支持保存歌词' }
+      if (!config || config.sourceType !== 'local') return { ok: false, error: mt('lrc.localOnly') }
       const lrcPath = filePath.replace(/\.[^.]+$/, '.lrc')
       fs.writeFileSync(lrcPath, text, 'utf-8')
       return { ok: true, path: lrcPath }
@@ -312,14 +313,14 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('player:saveCover', async (_event, configId: string, filePath: string, url: string) => {
     try {
       const config = getAllWebDAVConfigs().find((c) => c.id === configId)
-      if (!config || config.sourceType !== 'local') return { ok: false, error: '仅本地文件支持保存封面' }
-      if (!filePath.toLowerCase().endsWith('.mp3')) return { ok: false, error: '仅 MP3 支持写回封面' }
+      if (!config || config.sourceType !== 'local') return { ok: false, error: mt('cover.localOnly') }
+      if (!filePath.toLowerCase().endsWith('.mp3')) return { ok: false, error: mt('cover.mp3Only') }
       const res = await fetch(url, { signal: AbortSignal.timeout(10000) })
-      if (!res.ok) return { ok: false, error: '封面下载失败' }
+      if (!res.ok) return { ok: false, error: mt('cover.downloadFailed') }
       const imageBuffer = Buffer.from(await res.arrayBuffer())
       const mime = res.headers.get('content-type') || 'image/jpeg'
       const result = await NodeID3.update({ image: { mime, imageBuffer, description: 'cover', type: { id: 3 } } }, filePath)
-      return result ? { ok: true } : { ok: false, error: '写入失败' }
+      return result ? { ok: true } : { ok: false, error: mt('tag.writeFailed') }
     } catch (err) {
       return { ok: false, error: (err instanceof Error ? err.message : String(err)) }
     }
@@ -340,7 +341,7 @@ export function registerIpcHandlers(): void {
     if (!win) return null
     const result = await dialog.showOpenDialog(win, {
       properties: ['openDirectory'],
-      title: '选择本地音乐文件夹'
+      title: mt('dialog.chooseFolder')
     })
     if (result.canceled || result.filePaths.length === 0) return null
     const folderPath = result.filePaths[0]
@@ -378,7 +379,7 @@ export function registerIpcHandlers(): void {
         const lrc = t2s(best.syncedLyrics || best.plainLyrics || '')
         if (lrc) return { ok: true, lrc }
       }
-      return { ok: false, lrc: '', error: '未找到歌词' }
+      return { ok: false, lrc: '', error: mt('lrc.notFound') }
     } catch (err) {
       return { ok: false, lrc: '', error: err instanceof Error ? err.message : String(err) }
     }

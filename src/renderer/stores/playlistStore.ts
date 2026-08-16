@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { MusicFile, Playlist } from '../../main/types'
 import { usePlayerStore } from './playerStore'
+import { t } from '../i18n'
 
 interface PlaylistState {
   playlists: Playlist[]
@@ -49,7 +50,7 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
       if (list.length === 0) {
         const def: Playlist = {
           id: Date.now(),
-          name: '我的播放列表',
+          name: t('playlist.defaultName'),
           trackIds: '[]',
           createdAt: new Date().toISOString()
         }
@@ -68,7 +69,7 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
   createPlaylist: async (name) => {
     const playlist: Playlist = {
       id: Date.now(),
-      name: name || '新建播放列表',
+      name: name || t('playlist.newDefaultName'),
       trackIds: '[]',
       createdAt: new Date().toISOString()
     }
@@ -109,7 +110,7 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
     const meta = get().playlists.find((p) => p.id === activeId)
     window.api.playlist.save({
       id: activeId,
-      name: meta ? meta.name : '我的播放列表',
+      name: meta ? meta.name : t('playlist.defaultName'),
       trackIds: JSON.stringify(tracks.map((t) => t.id)),
       createdAt: meta ? meta.createdAt : new Date().toISOString()
     }).catch(() => {})

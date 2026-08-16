@@ -3,11 +3,13 @@ import { useMusicStore } from '../stores/musicStore'
 import { usePlayerStore } from '../stores/playerStore'
 import { usePlaylistStore } from '../stores/playlistStore'
 import MusicList from '../components/MusicList'
+import { useT } from '../i18n'
 
 type SortField = 'title' | 'artist' | 'album' | 'duration' | 'playCount' | 'lastPlayed'
 type SortDir = 'asc' | 'desc'
 
 export default function FavoritesPage(): JSX.Element {
+  const t = useT()
   const favorites = useMusicStore((s) => s.favorites)
   const loadFavorites = useMusicStore((s) => s.loadFavorites)
   const { requestPlay, setQueue } = usePlayerStore()
@@ -63,18 +65,18 @@ export default function FavoritesPage(): JSX.Element {
   return (
     <div className="page" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="page-header">
-        <h2>我的收藏</h2>
+        <h2>{t('nav.favorites')}</h2>
         <div className="library-controls">
           <input
             type="text"
-            placeholder="搜索收藏..."
+            placeholder={t('favorites.search')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="search-input"
           />
           {favorites.length > 0 && (
-            <button className="btn btn-secondary" onClick={() => addTracks(favorites)} title="将所有收藏歌曲添加到播放列表">
-              + 全部添加到播放列表
+            <button className="btn btn-secondary" onClick={() => addTracks(favorites)} title={t('favorites.addAllTitle')}>
+              {t('favorites.addAll')}
             </button>
           )}
         </div>

@@ -2,11 +2,13 @@ import { useState, useMemo, useCallback } from 'react'
 import { usePlaylistStore } from '../stores/playlistStore'
 import { usePlayerStore } from '../stores/playerStore'
 import MusicList from '../components/MusicList'
+import { useT } from '../i18n'
 
 type SortField = 'order' | 'title' | 'artist' | 'album' | 'duration' | 'playCount' | 'lastPlayed'
 type SortDir = 'asc' | 'desc'
 
 export default function PlaylistPage(): JSX.Element {
+  const t = useT()
   const playlists = usePlaylistStore((s) => s.playlists)
   const activeId = usePlaylistStore((s) => s.activeId)
   const playlist = usePlaylistStore((s) => s.playlist)
@@ -74,10 +76,10 @@ export default function PlaylistPage(): JSX.Element {
     return (
       <div className="page" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         <div className="page-header">
-          <h2>播放列表</h2>
+          <h2>{t('nav.playlist')}</h2>
         </div>
         <div className="empty-state">
-          <p>播放列表为空</p>
+          <p>{t('playlist.empty')}</p>
         </div>
       </div>
     )
@@ -86,7 +88,7 @@ export default function PlaylistPage(): JSX.Element {
   return (
     <div className="page" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="page-header">
-        <h2>{activeName || '播放列表'}</h2>
+        <h2>{activeName || t('nav.playlist')}</h2>
         <div className="library-controls">
           <div className="playlist-switcher">
             {playlists.map((p) => (
@@ -104,7 +106,7 @@ export default function PlaylistPage(): JSX.Element {
                 value={editName}
                 autoFocus
                 onChange={(e) => setEditName(e.target.value)}
-                placeholder="列表名称"
+                placeholder={t('playlist.namePlaceholder')}
               />
               <button
                 className="btn btn-secondary"
@@ -114,8 +116,8 @@ export default function PlaylistPage(): JSX.Element {
                   }
                   setEditing(false)
                 }}
-              >保存</button>
-              <button className="btn btn-secondary" onClick={() => setEditing(false)}>取消</button>
+              >{t('common.save')}</button>
+              <button className="btn btn-secondary" onClick={() => setEditing(false)}>{t('common.cancel')}</button>
             </>
           ) : (
             <>
@@ -125,7 +127,7 @@ export default function PlaylistPage(): JSX.Element {
                 style={{ width: 140 }}
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                placeholder="新建列表名"
+                placeholder={t('playlist.newNamePlaceholder')}
               />
               <button
                 className="btn btn-secondary"
@@ -135,12 +137,12 @@ export default function PlaylistPage(): JSX.Element {
                     setNewName('')
                   }
                 }}
-              >新建</button>
-              <button className="btn btn-secondary" onClick={() => { setEditName(activeName); setEditing(true) }}>重命名</button>
+              >{t('playlist.create')}</button>
+              <button className="btn btn-secondary" onClick={() => { setEditName(activeName); setEditing(true) }}>{t('playlist.rename')}</button>
             </>
           )}
-          <button className="btn btn-secondary" onClick={() => { if (activeId !== null) deletePlaylist(activeId) }}>删除列表</button>
-          <button className="btn btn-secondary" onClick={clearPlaylist} title="清空当前列表">清空</button>
+          <button className="btn btn-secondary" onClick={() => { if (activeId !== null) deletePlaylist(activeId) }}>{t('playlist.delete')}</button>
+          <button className="btn btn-secondary" onClick={clearPlaylist} title={t('playlist.clearTitle')}>{t('playlist.clear')}</button>
         </div>
       </div>
       <MusicList
@@ -152,7 +154,7 @@ export default function PlaylistPage(): JSX.Element {
         onReorder={sortField === 'order' ? reorder : undefined}
       />
       <div className="playlist-status">
-        共 {playlist.length} 首歌曲
+        {t('playlist.songCount', { count: playlist.length })}
       </div>
     </div>
   )

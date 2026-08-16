@@ -3,13 +3,13 @@ import { create } from 'zustand'
 export type ShortcutAction = 'playPause' | 'next' | 'prev' | 'seekForward' | 'seekBackward' | 'volumeUp' | 'volumeDown'
 
 export const SHORTCUT_LABELS: Record<ShortcutAction, string> = {
-  playPause: '播放 / 暂停',
-  next: '下一首',
-  prev: '上一首',
-  seekForward: '快进 5 秒',
-  seekBackward: '快退 5 秒',
-  volumeUp: '音量增大',
-  volumeDown: '音量减小'
+  playPause: 'shortcut.playPause',
+  next: 'shortcut.next',
+  prev: 'shortcut.prev',
+  seekForward: 'shortcut.seekForward',
+  seekBackward: 'shortcut.seekBackward',
+  volumeUp: 'shortcut.volumeUp',
+  volumeDown: 'shortcut.volumeDown'
 }
 
 const DEFAULT_SHORTCUTS: Record<ShortcutAction, string> = {

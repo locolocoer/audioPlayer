@@ -97,7 +97,9 @@ const api = {
     getAutoLaunch: (): Promise<boolean> => ipcRenderer.invoke('app:getAutoLaunch'),
     setAutoLaunch: (enabled: boolean): Promise<boolean> => ipcRenderer.invoke('app:setAutoLaunch', enabled),
     getCloseBehavior: (): Promise<string> => ipcRenderer.invoke('app:getCloseBehavior'),
-    setCloseBehavior: (v: string): Promise<string> => ipcRenderer.invoke('app:setCloseBehavior', v)
+    setCloseBehavior: (v: string): Promise<string> => ipcRenderer.invoke('app:setCloseBehavior', v),
+    getLang: (): Promise<string> => ipcRenderer.invoke('app:getLang'),
+    setLang: (v: string): Promise<string> => ipcRenderer.invoke('app:setLang', v)
   },
   updater: {
     check: (): Promise<boolean> => ipcRenderer.invoke('update:check'),

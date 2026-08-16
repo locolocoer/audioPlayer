@@ -11,6 +11,7 @@ import { registerIpcHandlers } from './ipc'
 import { initDatabase, closeDatabase, getAllWebDAVConfigs } from './database'
 import { setupFolderWatchers, closeFolderWatchers } from './folderWatch'
 import { buildBaseUrl, createWebDAVClient, downloadFile } from './webdav'
+import { setMainLang, getMainLang, mt } from './i18n'
 import type { UpdateStatus } from './types'
 
 declare const __COMMIT__: string
@@ -38,12 +39,13 @@ function loadAppSettings(): void {
     const raw = fs.readFileSync(appSettingsPath(), 'utf-8')
     const s = JSON.parse(raw)
     if (s.closeBehavior === 'quit' || s.closeBehavior === 'tray') closeBehavior = s.closeBehavior
+    if (s.lang === 'zh' || s.lang === 'en') setMainLang(s.lang)
   } catch { /* ignore */ }
 }
 
 function saveAppSettings(): void {
   try {
-    fs.writeFileSync(appSettingsPath(), JSON.stringify({ closeBehavior }))
+    fs.writeFileSync(appSettingsPath(), JSON.stringify({ closeBehavior, lang: getMainLang() }))
   } catch { /* ignore */ }
 }
 
@@ -185,21 +187,29 @@ function toggleWindowVisibility(): void {
   }
 }
 
+function trayMenu(): Menu {
+  return Menu.buildFromTemplate([
+    { label: mt('tray.showHide'), click: () => toggleWindowVisibility() },
+    { type: 'separator' },
+    { label: mt('tray.playPause'), click: () => sendPlayerCommand('toggle') },
+    { label: mt('tray.prev'), click: () => sendPlayerCommand('prev') },
+    { label: mt('tray.next'), click: () => sendPlayerCommand('next') },
+    { type: 'separator' },
+    { label: mt('tray.quit'), click: () => app.quit() }
+  ])
+}
+
 function createTray(): void {
   const icon = findResourceFile('icon.ico')
   if (!icon) return
   tray = new Tray(icon)
   tray.setToolTip('飞鱼音乐')
-  tray.setContextMenu(Menu.buildFromTemplate([
-    { label: '显示 / 隐藏', click: () => toggleWindowVisibility() },
-    { type: 'separator' },
-    { label: '播放 / 暂停', click: () => sendPlayerCommand('toggle') },
-    { label: '上一首', click: () => sendPlayerCommand('prev') },
-    { label: '下一首', click: () => sendPlayerCommand('next') },
-    { type: 'separator' },
-    { label: '退出', click: () => app.quit() }
-  ]))
+  tray.setContextMenu(trayMenu())
   tray.on('click', () => toggleWindowVisibility())
+}
+
+function refreshTray(): void {
+  if (tray) tray.setContextMenu(trayMenu())
 }
 
 function registerGlobalShortcuts(): void {
@@ -420,6 +430,16 @@ function registerSystemIpc(): void {
       saveAppSettings()
     }
     return closeBehavior
+  })
+
+  ipcMain.handle('app:getLang', () => getMainLang())
+  ipcMain.handle('app:setLang', (_e, v: string) => {
+    if (v === 'zh' || v === 'en') {
+      setMainLang(v)
+      saveAppSettings()
+      refreshTray()
+    }
+    return getMainLang()
   })
 }
 
