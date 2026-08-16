@@ -93,7 +93,11 @@ const api = {
     export: (): Promise<{ ok: boolean; path?: string; error?: string }> => ipcRenderer.invoke('backup:export')
   },
   app: {
-    info: (): Promise<AppInfo> => ipcRenderer.invoke('app:info')
+    info: (): Promise<AppInfo> => ipcRenderer.invoke('app:info'),
+    getAutoLaunch: (): Promise<boolean> => ipcRenderer.invoke('app:getAutoLaunch'),
+    setAutoLaunch: (enabled: boolean): Promise<boolean> => ipcRenderer.invoke('app:setAutoLaunch', enabled),
+    getCloseBehavior: (): Promise<string> => ipcRenderer.invoke('app:getCloseBehavior'),
+    setCloseBehavior: (v: string): Promise<string> => ipcRenderer.invoke('app:setCloseBehavior', v)
   },
   updater: {
     check: (): Promise<boolean> => ipcRenderer.invoke('update:check'),

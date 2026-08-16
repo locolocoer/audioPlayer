@@ -26,6 +26,27 @@ let tray: Tray | null = null
 const tempDir = path.join(os.tmpdir(), 'audioplayer-cache')
 const coversDir = path.join(app.getPath('userData'), 'covers')
 
+let closeBehavior: 'quit' | 'tray' = 'quit'
+let isQuitting = false
+
+function appSettingsPath(): string {
+  return path.join(app.getPath('userData'), 'app-settings.json')
+}
+
+function loadAppSettings(): void {
+  try {
+    const raw = fs.readFileSync(appSettingsPath(), 'utf-8')
+    const s = JSON.parse(raw)
+    if (s.closeBehavior === 'quit' || s.closeBehavior === 'tray') closeBehavior = s.closeBehavior
+  } catch { /* ignore */ }
+}
+
+function saveAppSettings(): void {
+  try {
+    fs.writeFileSync(appSettingsPath(), JSON.stringify({ closeBehavior }))
+  } catch { /* ignore */ }
+}
+
 function windowStatePath(): string {
   return path.join(app.getPath('userData'), 'window-state.json')
 }
@@ -237,7 +258,13 @@ function createWindow(): void {
   }
   mainWindow.on('resize', onBoundsChange)
   mainWindow.on('move', onBoundsChange)
-  mainWindow.on('close', () => { if (mainWindow) saveWindowState(mainWindow) })
+  mainWindow.on('close', (e) => {
+    if (mainWindow) saveWindowState(mainWindow)
+    if (closeBehavior === 'tray' && !isQuitting) {
+      e.preventDefault()
+      mainWindow?.hide()
+    }
+  })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
@@ -374,6 +401,25 @@ function registerLyricsIpc(): void {
     if (lyricsWindow && !lyricsWindow.isDestroyed()) {
       lyricsWindow.webContents.send('lyrics:time-broadcast', { trackId, time })
     }
+  })
+}
+
+function registerSystemIpc(): void {
+  ipcMain.handle('app:getAutoLaunch', () => {
+    return app.getLoginItemSettings().openAtLogin
+  })
+  ipcMain.handle('app:setAutoLaunch', (_e, enabled: boolean) => {
+    app.setLoginItemSettings({ openAtLogin: !!enabled })
+    return true
+  })
+
+  ipcMain.handle('app:getCloseBehavior', () => closeBehavior)
+  ipcMain.handle('app:setCloseBehavior', (_e, v: string) => {
+    if (v === 'quit' || v === 'tray') {
+      closeBehavior = v
+      saveAppSettings()
+    }
+    return closeBehavior
   })
 }
 
@@ -698,6 +744,7 @@ app.whenReady().then(async () => {
   app.setAppUserModelId('com.feiYuMusic.app')
   Menu.setApplicationMenu(null)
   await initDatabase()
+  loadAppSettings()
   registerIpcHandlers()
   registerLocalMediaProtocol()
   registerWebDAVMediaProtocol()
@@ -705,6 +752,7 @@ app.whenReady().then(async () => {
   registerWindowIpc()
   registerLyricsIpc()
   registerUpdateIpc()
+  registerSystemIpc()
   setupAutoUpdater()
   // 启动后自动检查更新（仅安装版；延迟避免影响启动）
   if (app.isPackaged) {
@@ -719,6 +767,10 @@ app.whenReady().then(async () => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
+})
+
+app.on('before-quit', () => {
+  isQuitting = true
 })
 
 app.on('will-quit', () => {

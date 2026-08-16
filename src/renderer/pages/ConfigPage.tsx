@@ -108,6 +108,8 @@ export default function ConfigPage(): JSX.Element {
   const setShortcut = useShortcutsStore((s) => s.setShortcut)
   const resetShortcuts = useShortcutsStore((s) => s.resetShortcuts)
   const [recording, setRecording] = useState<ShortcutAction | null>(null)
+  const [autoLaunch, setAutoLaunch] = useState(false)
+  const [closeBehavior, setCloseBehavior] = useState<'quit' | 'tray'>('quit')
 
   useEffect(() => {
     if (!recording) return
@@ -130,6 +132,11 @@ export default function ConfigPage(): JSX.Element {
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
   }, [recording, setShortcut])
+
+  useEffect(() => {
+    window.api.app.getAutoLaunch().then(setAutoLaunch).catch(() => {})
+    window.api.app.getCloseBehavior().then((v) => setCloseBehavior(v === 'tray' ? 'tray' : 'quit')).catch(() => {})
+  }, [])
 
   useEffect(() => {
     window.api.app.info().then(setAppInfo).catch(() => {})
@@ -350,6 +357,31 @@ export default function ConfigPage(): JSX.Element {
           </div>
         ))}
         <p className="settings-hint">点击按钮后按下新组合键即可修改，按 Esc 取消，按 Backspace 清除。</p>
+      </div>
+
+      {/* 系统 */}
+      <div className="settings-section">
+        <h3>系统</h3>
+        <div className="settings-row">
+          <span className="settings-label">开机自启动</span>
+          <div className="settings-controls">
+            <button className={`btn btn-sm${autoLaunch ? ' btn-primary' : ' btn-secondary'}`} onClick={() => { const next = !autoLaunch; setAutoLaunch(next); window.api.app.setAutoLaunch(next) }}>
+              {autoLaunch ? '已开启' : '已关闭'}
+            </button>
+          </div>
+        </div>
+        <div className="settings-row">
+          <span className="settings-label">关闭窗口时</span>
+          <div className="settings-controls">
+            <button className={`btn btn-sm${closeBehavior === 'quit' ? ' btn-primary' : ' btn-secondary'}`} onClick={() => { setCloseBehavior('quit'); window.api.app.setCloseBehavior('quit') }}>
+              退出应用
+            </button>
+            <button className={`btn btn-sm${closeBehavior === 'tray' ? ' btn-primary' : ' btn-secondary'}`} onClick={() => { setCloseBehavior('tray'); window.api.app.setCloseBehavior('tray') }}>
+              最小化到托盘
+            </button>
+          </div>
+        </div>
+        <p className="settings-hint">选择「最小化到托盘」后，关闭窗口不会退出应用，可从系统托盘恢复或退出。</p>
       </div>
 
       {/* 歌词 */}
