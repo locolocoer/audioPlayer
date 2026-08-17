@@ -31,8 +31,8 @@ jobs:
             ffmpeg_out: resources/ffmpeg
           - name: linux
             os: ubuntu-latest
-            ffmpeg_url: https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz
-            ffmpeg_url_backup: https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz
+            ffmpeg_url: https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz
+            ffmpeg_url_backup: https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz
             ffmpeg_archive: tarxz
             ffmpeg_out: resources/ffmpeg
 
