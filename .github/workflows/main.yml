@@ -32,6 +32,7 @@ jobs:
           - name: linux
             os: ubuntu-latest
             ffmpeg_url: https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz
+            ffmpeg_url_backup: https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz
             ffmpeg_archive: tarxz
             ffmpeg_out: resources/ffmpeg
 
@@ -60,7 +61,17 @@ jobs:
             echo "ffmpeg already bundled"
           else
             mkdir -p "$RUNNER_TEMP/ffmpeg"
-            curl -sL -o "$RUNNER_TEMP/ffmpeg.pkg" "${{ matrix.ffmpeg_url }}"
+            download() {
+              curl -sSLf --retry 3 --retry-delay 5 --retry-all-errors -o "$RUNNER_TEMP/ffmpeg.pkg" "$1"
+            }
+            if ! download "${{ matrix.ffmpeg_url }}"; then
+              if [ -n "${{ matrix.ffmpeg_url_backup }}" ]; then
+                echo "primary ffmpeg source failed, trying backup"
+                download "${{ matrix.ffmpeg_url_backup }}"
+              else
+                exit 1
+              fi
+            fi
             if [ "${{ matrix.ffmpeg_archive }}" = "zip" ]; then
               unzip -q -o "$RUNNER_TEMP/ffmpeg.pkg" -d "$RUNNER_TEMP/ffmpeg"
             else
