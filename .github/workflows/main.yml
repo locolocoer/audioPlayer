@@ -122,4 +122,19 @@ jobs:
           curl -sL https://gosspublic.alicdn.com/ossutil/1.7.18/ossutil64 -o ossutil
           chmod +x ossutil
           ./ossutil config -e oss-cn-beijing.aliyuncs.com -i "$OSS_ACCESS_KEY_ID" -k "$OSS_ACCESS_KEY_SECRET"
+          # 按版本建立二级目录，latest*.yml 保留在根目录作为稳定的更新指针
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p "artifacts/v${VERSION}"
+          for f in artifacts/*; do
+            [ -d "$f" ] && continue
+            case "$(basename "$f")" in
+              latest*.yml) ;;
+              *) mv "$f" "artifacts/v${VERSION}/" ;;
+            esac
+          done
+          # 将 feed 文件里的安装包路径改写为 v${VERSION}/ 前缀
+          for yml in artifacts/latest*.yml; do
+            [ -f "$yml" ] || continue
+            sed -i -E "s#(url|path): #\1: v${VERSION}/#" "$yml"
+          done
           ./ossutil cp -rf artifacts/ oss://frymusic/
