@@ -1,5 +1,6 @@
 import { HashRouter, Routes, Route } from 'react-router-dom'
 import { useThemeStore, lightenHex } from './stores/themeStore'
+import { useSkinStore } from './stores/skinStore'
 import ConfigPage from './pages/ConfigPage'
 import LibraryPage from './pages/LibraryPage'
 import PlayerPage from './pages/PlayerPage'
@@ -10,6 +11,7 @@ import StatsPage from './pages/StatsPage'
 import PlayerBar from './components/PlayerBar'
 import AudioEngine from './components/AudioEngine'
 import Sidebar from './components/Sidebar'
+import TitleBar from './components/TitleBar'
 import QueuePanel from './components/QueuePanel'
 import DesktopLyrics from './components/DesktopLyrics'
 import Toaster from './components/Toaster'
@@ -47,15 +49,22 @@ export default function App(): JSX.Element {
   const t = useT()
   const theme = useThemeStore((s) => s.theme)
   const accent = useThemeStore((s) => s.accent)
+  const skin = useSkinStore((s) => s.skin)
   const [resumePrompt, setResumePrompt] = useState<MusicFile | null>(null)
   const [updateReady, setUpdateReady] = useState<string | null>(null)
 
   useEffect(() => {
     const root = document.documentElement
     root.setAttribute('data-theme', theme)
-    root.style.setProperty('--accent', accent)
-    root.style.setProperty('--accent-hover', lightenHex(accent, 0.2))
-  }, [theme, accent])
+    root.setAttribute('data-skin', skin)
+    if (skin === 'base') {
+      root.style.setProperty('--accent', accent)
+      root.style.setProperty('--accent-hover', lightenHex(accent, 0.2))
+    } else {
+      root.style.removeProperty('--accent')
+      root.style.removeProperty('--accent-hover')
+    }
+  }, [theme, accent, skin])
 
   useEffect(() => {
     usePlaylistStore.getState().loadPlaylists()
@@ -105,6 +114,7 @@ export default function App(): JSX.Element {
           <AudioEngine />
           <Sidebar />
           <div className="app-body">
+            <TitleBar />
             <main className="main-content">
               <Routes>
               <Route path="/" element={<LibraryPage />} />

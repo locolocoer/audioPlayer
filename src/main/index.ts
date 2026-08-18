@@ -252,6 +252,7 @@ function createWindow(): void {
     maxWidth: MAX_WINDOW_WIDTH,
     title: '飞鱼音乐',
     icon: iconPath ?? undefined,
+    frame: false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
@@ -268,6 +269,8 @@ function createWindow(): void {
   }
   mainWindow.on('resize', onBoundsChange)
   mainWindow.on('move', onBoundsChange)
+  mainWindow.on('maximize', () => mainWindow?.webContents.send('window:maximized', true))
+  mainWindow.on('unmaximize', () => mainWindow?.webContents.send('window:maximized', false))
   mainWindow.on('close', (e) => {
     if (mainWindow) saveWindowState(mainWindow)
     if (closeBehavior === 'tray' && !isQuitting) {
@@ -389,11 +392,38 @@ function registerWindowIpc(): void {
 
   ipcMain.handle('window:setFullscreen', (_e, fullscreen: boolean) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.setFullScreen(fullscreen)
+      if (fullscreen) {
+        // 全屏时移除最大宽度限制，避免全屏歌词宽度被 1600px 上限卡住
+        mainWindow.setMaximumSize(100000, 100000)
+        mainWindow.setFullScreen(true)
+      } else {
+        mainWindow.setFullScreen(false)
+        mainWindow.setMaximumSize(MAX_WINDOW_WIDTH, 100000)
+      }
       return true
     }
     return false
   })
+
+  ipcMain.handle('window:minimize', () => {
+    mainWindow?.minimize()
+    return true
+  })
+
+  ipcMain.handle('window:toggleMaximize', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isMaximized()) mainWindow.unmaximize()
+      else mainWindow.maximize()
+    }
+    return true
+  })
+
+  ipcMain.handle('window:close', () => {
+    mainWindow?.close()
+    return true
+  })
+
+  ipcMain.handle('window:isMaximized', () => mainWindow?.isMaximized() ?? false)
 
   ipcMain.handle('player:sendCommand', (_e, cmd: string) => {
     sendPlayerCommand(cmd)

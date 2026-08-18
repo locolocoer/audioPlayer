@@ -1,4 +1,5 @@
 import { useCallback, useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { usePlayerStore } from '../stores/playerStore'
 import { useMusicStore } from '../stores/musicStore'
 import { useUiStore } from '../stores/uiStore'
@@ -63,6 +64,7 @@ function BarCover({ track }: { track: { webdavId: string; path: string } }): JSX
 
 export default function PlayerBar(): JSX.Element {
   const t = useT()
+  const navigate = useNavigate()
   const currentTrack = usePlayerStore((s) => s.currentTrack)
   const isPlaying = usePlayerStore((s) => s.isPlaying)
   const isLoading = usePlayerStore((s) => s.isLoading)
@@ -152,7 +154,7 @@ export default function PlayerBar(): JSX.Element {
   return (
     <div className="player-bar">
       <div className="player-bar-track">
-        <div className="track-artwork">
+        <div className="track-artwork" onClick={() => navigate('/player')} title={t('nav.playing')} role="button">
           <BarCover track={currentTrack} />
         </div>
         <div className="track-info">

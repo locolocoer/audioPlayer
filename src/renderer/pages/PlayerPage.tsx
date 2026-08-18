@@ -285,16 +285,28 @@ export default function PlayerPage(): JSX.Element {
 
       {fullscreenLyrics && (
         <div className="fullscreen-lyrics" onClick={exitFullscreenLyrics}>
-          {lyrics.length > 0 ? (
-            <div className="fsl-current">
-              {Array.from(lyrics[Math.max(0, activeIndex)].text).map((ch, i) => (
-                <span key={i} className={i < litCount ? 'fsl-lit' : ''}>{ch === ' ' ? '\u00A0' : ch}</span>
-              ))}
+          {coverUrl && <img className="fsl-bg" src={coverUrl} alt="" />}
+          <div className="fsl-overlay" />
+          <div className="fsl-content">
+            <div className="fsl-track">
+              <span className="fsl-title">{currentTrack.title || currentTrack.filename}</span>
+              {currentTrack.artist && <span className="fsl-artist">{currentTrack.artist}</span>}
             </div>
-          ) : (
-            <div className="fsl-empty">{t('lyrics.none')}</div>
-          )}
-          <div className="fsl-hint">{t('playerPage.fullscreenHint')}</div>
+            {lyrics.length > 0 ? (
+              <div className="fsl-body">
+                <div className="fsl-prev">{activeIndex > 0 ? lyrics[activeIndex - 1].text : ''}</div>
+                <div className="fsl-current">
+                  {Array.from(lyrics[Math.max(0, activeIndex)].text).map((ch, i) => (
+                    <span key={i} className={i < litCount ? 'fsl-lit' : ''}>{ch === ' ' ? '\u00A0' : ch}</span>
+                  ))}
+                </div>
+                <div className="fsl-next">{activeIndex + 1 < lyrics.length ? lyrics[activeIndex + 1].text : ''}</div>
+              </div>
+            ) : (
+              <div className="fsl-empty">{t('lyrics.none')}</div>
+            )}
+            <div className="fsl-hint">{t('playerPage.fullscreenHint')}</div>
+          </div>
         </div>
       )}
 

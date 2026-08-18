@@ -124,7 +124,16 @@ const api = {
   window: {
     mini: (open: boolean): Promise<boolean> => ipcRenderer.invoke('window:mini', open),
     lyrics: (open: boolean): Promise<boolean> => ipcRenderer.invoke('window:lyrics', open),
-    setFullscreen: (fullscreen: boolean): Promise<boolean> => ipcRenderer.invoke('window:setFullscreen', fullscreen)
+    setFullscreen: (fullscreen: boolean): Promise<boolean> => ipcRenderer.invoke('window:setFullscreen', fullscreen),
+    minimize: (): Promise<boolean> => ipcRenderer.invoke('window:minimize'),
+    toggleMaximize: (): Promise<boolean> => ipcRenderer.invoke('window:toggleMaximize'),
+    close: (): Promise<boolean> => ipcRenderer.invoke('window:close'),
+    isMaximized: (): Promise<boolean> => ipcRenderer.invoke('window:isMaximized'),
+    onMaximizedChange: (callback: (maximized: boolean) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, maximized: boolean): void => callback(maximized)
+      ipcRenderer.on('window:maximized', handler)
+      return () => ipcRenderer.removeListener('window:maximized', handler)
+    }
   },
   log: (level: string, ...args: unknown[]): void => {
     ipcRenderer.send('log', level, ...args)
