@@ -311,12 +311,14 @@ body {
 }
 
 .sidebar-footer {
-  padding: 16px;
+  height: var(--player-bar-height);
+  padding: 0 16px;
   border-top: 1px solid var(--border);
   display: flex;
   align-items: center;
   gap: 10px;
   -webkit-app-region: no-drag;
+  flex-shrink: 0;
 }
 
 .sidebar-theme-btn {
@@ -1868,7 +1870,9 @@ body {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  height: 100%;
+  height: calc(100% + 48px);
+  max-width: none;
+  margin: -24px;
   position: relative;
   overflow: hidden;
 }
@@ -1908,11 +1912,11 @@ body {
 }
 
 /* Player skins */
-.skin-turntable {
+.app-body.skin-turntable {
   background: radial-gradient(circle at 50% 30%, #2a1b3d, #12081f 75%);
 }
 
-[data-theme="light"] .skin-turntable {
+[data-theme="light"] .app-body.skin-turntable {
   background: radial-gradient(circle at 50% 30%, #f5eeff, #e3d4f5 75%);
 }
 
@@ -1953,11 +1957,11 @@ body {
   to { transform: rotate(360deg); }
 }
 
-.skin-cassette {
+.app-body.skin-cassette {
   background: linear-gradient(160deg, #3a3a4a, #1c1c28);
 }
 
-[data-theme="light"] .skin-cassette {
+[data-theme="light"] .app-body.skin-cassette {
   background: linear-gradient(160deg, #f2f2f6, #dcdce4);
 }
 
@@ -1986,11 +1990,11 @@ body {
 .skin-cassette.playing .player-artwork-large::before { animation: vinyl-spin 3s linear infinite; }
 .skin-cassette.playing .player-artwork-large::after { animation: vinyl-spin 3s linear infinite reverse; }
 
-.skin-retro {
+.app-body.skin-retro {
   background: linear-gradient(180deg, #0b0b1a 0%, #16082a 100%);
 }
 
-[data-theme="light"] .skin-retro {
+[data-theme="light"] .app-body.skin-retro {
   background: linear-gradient(180deg, #f0eaff 0%, #faf4ff 100%);
 }
 
@@ -2037,11 +2041,11 @@ body {
 }
 
 /* Glass skin */
-.skin-glass {
+.app-body.skin-glass {
   background: linear-gradient(135deg, #2a2a3c, #171725);
 }
 
-[data-theme="light"] .skin-glass {
+[data-theme="light"] .app-body.skin-glass {
   background: linear-gradient(135deg, #eef1f8, #dbe1ec);
 }
 
@@ -2067,11 +2071,11 @@ body {
 }
 
 /* Sunset skin */
-.skin-sunset {
+.app-body.skin-sunset {
   background: linear-gradient(150deg, #2b1055 0%, #6d2a5c 45%, #e2725b 100%);
 }
 
-[data-theme="light"] .skin-sunset {
+[data-theme="light"] .app-body.skin-sunset {
   background: linear-gradient(150deg, #ffd7ba 0%, #ffb3c1 45%, #d7a1f0 100%);
 }
 
@@ -2084,11 +2088,11 @@ body {
 }
 
 /* Ocean skin */
-.skin-ocean {
+.app-body.skin-ocean {
   background: linear-gradient(180deg, #06121f 0%, #0b2f4a 55%, #0e5f6b 100%);
 }
 
-[data-theme="light"] .skin-ocean {
+[data-theme="light"] .app-body.skin-ocean {
   background: linear-gradient(180deg, #d5f1f7 0%, #aee0ec 55%, #8ed0d8 100%);
 }
 
@@ -2101,11 +2105,11 @@ body {
 }
 
 /* Mono skin */
-.skin-mono {
+.app-body.skin-mono {
   background: #101010;
 }
 
-[data-theme="light"] .skin-mono {
+[data-theme="light"] .app-body.skin-mono {
   background: #ececec;
 }
 
@@ -2123,11 +2127,11 @@ body {
 }
 
 /* Cyber skin */
-.skin-cyber {
+.app-body.skin-cyber {
   background: linear-gradient(180deg, #020a05 0%, #062014 100%);
 }
 
-[data-theme="light"] .skin-cyber {
+[data-theme="light"] .app-body.skin-cyber {
   background: linear-gradient(180deg, #e6fff0 0%, #cff5de 100%);
 }
 
@@ -2160,11 +2164,11 @@ body {
 }
 
 /* Forest skin */
-.skin-forest {
+.app-body.skin-forest {
   background: linear-gradient(160deg, #0b1f14 0%, #123726 55%, #1d5c3a 100%);
 }
 
-[data-theme="light"] .skin-forest {
+[data-theme="light"] .app-body.skin-forest {
   background: linear-gradient(160deg, #dff5e6 0%, #b8e6c8 55%, #9adbb3 100%);
 }
 
@@ -2181,11 +2185,11 @@ body {
 }
 
 /* Ember skin */
-.skin-ember {
+.app-body.skin-ember {
   background: radial-gradient(circle at 50% 120%, #3d0f0a 0%, #1a0605 55%, #0a0303 100%);
 }
 
-[data-theme="light"] .skin-ember {
+[data-theme="light"] .app-body.skin-ember {
   background: radial-gradient(circle at 50% 120%, #ffe0cc 0%, #ffc4a8 55%, #f0b08a 100%);
 }
 
@@ -2198,11 +2202,11 @@ body {
 }
 
 /* Rose skin */
-.skin-rose {
+.app-body.skin-rose {
   background: linear-gradient(150deg, #2a0f1e 0%, #5c1e38 50%, #a33a5c 100%);
 }
 
-[data-theme="light"] .skin-rose {
+[data-theme="light"] .app-body.skin-rose {
   background: linear-gradient(150deg, #ffe4ee 0%, #ffc4d8 50%, #f5a0c0 100%);
 }
 

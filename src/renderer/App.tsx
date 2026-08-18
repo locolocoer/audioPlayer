@@ -113,7 +113,7 @@ export default function App(): JSX.Element {
         <div className="app-container">
           <AudioEngine />
           <Sidebar />
-          <div className="app-body">
+          <div className={`app-body${skin !== 'base' ? ` skin-${skin}` : ''}`}>
             <TitleBar />
             <main className="main-content">
               <Routes>
