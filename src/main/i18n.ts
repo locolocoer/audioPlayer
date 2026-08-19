@@ -65,7 +65,7 @@ export function mt(key: string, vars?: Record<string, string | number>): string 
   let text = dict[key] ?? key
   if (vars) {
     for (const [k, v] of Object.entries(vars)) {
-      text = text.replace(`{${k}}`, String(v))
+      text = text.split(`{${k}}`).join(String(v))
     }
   }
   return text

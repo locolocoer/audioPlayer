@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useAudioGraphStore } from '../stores/audioGraphStore'
+import { useThemeStore, lightenHex, darkenHex } from '../stores/themeStore'
+import { useSkinStore } from '../stores/skinStore'
 
 // 与 vudio.js 默认参数对齐
 const ACCURACY = 128
@@ -9,6 +11,22 @@ const SPACING = 1
 export default function Visualizer(): JSX.Element | null {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const analyser = useAudioGraphStore((s) => s.analyser)
+  const skin = useSkinStore((s) => s.skin)
+  const theme = useThemeStore((s) => s.theme)
+  const accent = useThemeStore((s) => s.accent)
+  const colorsRef = useRef({ bright: '#ff8aa0', dark: '#8f2038' })
+
+  // 跟随当前皮肤/主题的强调色，动态更新渐变
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      const base = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#e94560'
+      colorsRef.current = {
+        bright: lightenHex(base, 0.35),
+        dark: darkenHex(base, 0.55)
+      }
+    })
+    return () => cancelAnimationFrame(id)
+  }, [skin, theme, accent])
 
   useEffect(() => {
     if (!analyser) return
@@ -16,9 +34,6 @@ export default function Visualizer(): JSX.Element | null {
     if (!canvas) return
     const ctx = canvas.getContext('2d')
     if (!ctx) return
-
-    // vudio.js __init：fftSize = accuracy * 2
-    analyser.fftSize = ACCURACY * 2
 
     let raf = 0
     const freqData = new Uint8Array(analyser.frequencyBinCount)
@@ -56,10 +71,10 @@ export default function Visualizer(): JSX.Element | null {
         const left = i * (barW + SPACING)
         const top = (H - h) / 2 // vudio.js verticalAlign = 'middle'
 
-        // 颜色渐变（vudio.js 支持 color 数组生成渐变）
+        // 颜色渐变（跟随强调色）
         const grad = ctx.createLinearGradient(left, top, left, top + h)
-        grad.addColorStop(0, '#ff8aa0')
-        grad.addColorStop(1, '#8f2038')
+        grad.addColorStop(0, colorsRef.current.bright)
+        grad.addColorStop(1, colorsRef.current.dark)
         ctx.fillStyle = grad
 
         // vudio.js fadeSide：两侧渐隐

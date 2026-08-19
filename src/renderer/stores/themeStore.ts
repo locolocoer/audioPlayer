@@ -25,6 +25,16 @@ export function lightenHex(hex: string, amount: number): string {
   return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`
 }
 
+export function darkenHex(hex: string, amount: number): string {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex.trim())
+  if (!m) return hex
+  const mix = (c: number): number => Math.round(c * (1 - amount))
+  const r = mix(parseInt(m[1], 16))
+  const g = mix(parseInt(m[2], 16))
+  const b = mix(parseInt(m[3], 16))
+  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`
+}
+
 interface ThemeState {
   theme: Theme
   accent: string

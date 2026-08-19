@@ -30,6 +30,19 @@ const SORT_FIELDS: { field: SortField; labelKey: string }[] = [
 ]
 
 const albumCoverCache = new Map<string, string>()
+const COVER_CACHE_MAX = 50
+
+function cacheCover(album: string, url: string): void {
+  albumCoverCache.set(album, url)
+  if (albumCoverCache.size > COVER_CACHE_MAX) {
+    const oldest = albumCoverCache.keys().next().value
+    if (oldest !== undefined) {
+      const oldUrl = albumCoverCache.get(oldest)
+      if (oldUrl) URL.revokeObjectURL(oldUrl)
+      albumCoverCache.delete(oldest)
+    }
+  }
+}
 
 function AlbumCover({ album, tracks }: { album: string; tracks: MusicFile[] }): JSX.Element {
   const [coverUrl, setCoverUrl] = useState('')
@@ -62,7 +75,7 @@ function AlbumCover({ album, tracks }: { album: string; tracks: MusicFile[] }): 
       if (r.data && r.data.length > 0) {
         const blob = new Blob([new Uint8Array(r.data)], { type: r.format || 'image/jpeg' })
         const url = URL.createObjectURL(blob)
-        albumCoverCache.set(album, url)
+        cacheCover(album, url)
         setCoverUrl(url)
       }
     }).catch(() => {})
