@@ -4,6 +4,7 @@ import { usePlaylistStore } from '../stores/playlistStore'
 import { useThemeStore } from '../stores/themeStore'
 import { useLyricsStyleStore } from '../stores/lyricsStyleStore'
 import { useSkinStore, SKINS } from '../stores/skinStore'
+import { useVisualizerStore } from '../stores/visualizerStore'
 import { useShortcutsStore, SHORTCUT_LABELS, formatShortcut } from '../stores/shortcutsStore'
 import type { ShortcutAction } from '../stores/shortcutsStore'
 import Modal from '../components/Modal'
@@ -71,6 +72,8 @@ export default function ConfigPage(): JSX.Element {
   const setLyricsAlign = useLyricsStyleStore((s) => s.setAlign)
   const skin = useSkinStore((s) => s.skin)
   const setSkin = useSkinStore((s) => s.setSkin)
+  const visualizerEnabled = useVisualizerStore((s) => s.enabled)
+  const setVisualizerEnabled = useVisualizerStore((s) => s.setEnabled)
 
   const [showForm, setShowForm] = useState(false)
   const [testing, setTesting] = useState(false)
@@ -340,6 +343,14 @@ export default function ConfigPage(): JSX.Element {
                 {t(s.labelKey)}
               </button>
             ))}
+          </div>
+        </div>
+        <div className="settings-row">
+          <span className="settings-label">{t('settings.visualizer')}</span>
+          <div className="settings-controls">
+            <button className={`btn btn-sm${visualizerEnabled ? ' btn-primary' : ' btn-secondary'}`} onClick={() => setVisualizerEnabled(!visualizerEnabled)}>
+              {visualizerEnabled ? t('settings.enabled') : t('settings.disabled')}
+            </button>
           </div>
         </div>
       </div>

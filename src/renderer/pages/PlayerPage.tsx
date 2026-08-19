@@ -3,6 +3,7 @@ import { usePlayerStore } from '../stores/playerStore'
 import { useMusicStore } from '../stores/musicStore'
 import { useLyricsStyleStore } from '../stores/lyricsStyleStore'
 import { useSkinStore } from '../stores/skinStore'
+import { useVisualizerStore } from '../stores/visualizerStore'
 import Equalizer from '../components/Equalizer'
 import Visualizer from '../components/Visualizer'
 import Modal from '../components/Modal'
@@ -20,6 +21,7 @@ export default function PlayerPage(): JSX.Element {
   const lyricsFontSize = useLyricsStyleStore((s) => s.fontSize)
   const lyricsAlign = useLyricsStyleStore((s) => s.align)
   const skin = useSkinStore((s) => s.skin)
+  const visualizerEnabled = useVisualizerStore((s) => s.enabled)
   const isPlaying = usePlayerStore((s) => s.isPlaying)
   const [coverUrl, setCoverUrl] = useState('')
   const [lrcText, setLrcText] = useState('')
@@ -229,7 +231,7 @@ export default function PlayerPage(): JSX.Element {
           </div>
         </div>
         <div className="player-right">
-          <Visualizer />
+          {visualizerEnabled && <Visualizer />}
           {lyrics.length > 0 ? (
             <>
               <div className="lyrics-container" ref={lyricsRef} style={{ fontSize: lyricsFontSize, textAlign: lyricsAlign }}>

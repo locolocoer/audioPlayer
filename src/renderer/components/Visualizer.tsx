@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react'
 import { useAudioGraphStore } from '../stores/audioGraphStore'
 
-const BAR_COUNT = 48
-const PEAK_FALL = 0.015
+// 与 vudio.js 默认参数对齐
+const ACCURACY = 128
+const MIN_HEIGHT = 1
+const SPACING = 1
 
 export default function Visualizer(): JSX.Element | null {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -15,47 +17,56 @@ export default function Visualizer(): JSX.Element | null {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
+    // vudio.js __init：fftSize = accuracy * 2
+    analyser.fftSize = ACCURACY * 2
+
     let raf = 0
-    const data = new Uint8Array(analyser.frequencyBinCount)
+    const freqData = new Uint8Array(analyser.frequencyBinCount)
     const W = canvas.width
     const H = canvas.height
-    const barW = W / BAR_COUNT
-    const n = data.length
-    const nyquist = analyser.context.sampleRate / 2
-    const minFreq = 30
-    const maxFreq = Math.min(nyquist, 16000)
-
-    // 预计算每根柱子的对数频率段下标
-    const binIdx: number[] = []
-    for (let i = 0; i < BAR_COUNT; i++) {
-      const t = i / (BAR_COUNT - 1)
-      const freq = minFreq * Math.pow(maxFreq / minFreq, t)
-      binIdx.push(Math.min(n - 1, Math.floor((freq / nyquist) * n)))
-    }
-
-    // 峰值保持高度（0~1）
-    const peaks = new Float32Array(BAR_COUNT)
+    const maxHeight = H - 6
+    const half = ACCURACY / 2
+    const barW = (W - ACCURACY * SPACING) / ACCURACY
 
     const draw = (): void => {
       raf = requestAnimationFrame(draw)
-      analyser.getByteFrequencyData(data)
+      analyser.getByteFrequencyData(freqData)
       ctx.clearRect(0, 0, W, H)
 
-      for (let i = 0; i < BAR_COUNT; i++) {
-        const raw = data[binIdx[i]] / 255
-        if (raw > peaks[i]) peaks[i] = raw
-        else peaks[i] = Math.max(0, peaks[i] - PEAK_FALL)
+      // vudio.js __rebuildData（horizontalAlign = 'center'）
+      const ordered = [
+        ...Array.from(freqData).reverse().splice(half, half),
+        ...Array.from(freqData).splice(0, half)
+      ]
 
-        const h = Math.max(2, raw * (H - 4))
-        // 颜色随高度渐变：低=暗粉，高=亮粉
-        const lightness = 30 + 38 * raw
-        ctx.fillStyle = `hsl(351, 78%, ${lightness}%)`
-        ctx.fillRect(i * barW + 1, H - h, barW - 2, h)
+      for (let i = 0; i < ACCURACY; i++) {
+        const value = ordered[i]
 
-        // 峰值回落点
-        const peakY = H - peaks[i] * (H - 4) - 2
-        ctx.fillStyle = `rgba(255, 255, 255, ${0.35 + 0.65 * peaks[i]})`
-        ctx.fillRect(i * barW + 1, peakY, barW - 2, 2)
+        // vudio.js prettify：两侧渐矮的包络
+        let maxH: number
+        if (i <= half) {
+          maxH = (1 - (half - 1 - i) / half) * maxHeight
+        } else {
+          maxH = (1 - (i - half) / half) * maxHeight
+        }
+
+        let h = (value / 256) * maxH
+        h = h < MIN_HEIGHT ? MIN_HEIGHT : h
+
+        const left = i * (barW + SPACING)
+        const top = (H - h) / 2 // vudio.js verticalAlign = 'middle'
+
+        // 颜色渐变（vudio.js 支持 color 数组生成渐变）
+        const grad = ctx.createLinearGradient(left, top, left, top + h)
+        grad.addColorStop(0, '#ff8aa0')
+        grad.addColorStop(1, '#8f2038')
+        ctx.fillStyle = grad
+
+        // vudio.js fadeSide：两侧渐隐
+        ctx.globalAlpha = i <= half ? 1 - (half - 1 - i) / half : 1 - (i - half) / half
+
+        ctx.fillRect(left, top, barW, h)
+        ctx.globalAlpha = 1
       }
     }
     draw()
