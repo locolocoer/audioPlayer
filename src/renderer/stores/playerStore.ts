@@ -21,12 +21,13 @@ interface PlayerState {
   audioSrc: string | null
   autoPlayBlocked: boolean
   sleepUntil: number | null
+  sleepAction: 'pause' | 'quit'
   loopA: number | null
   loopB: number | null
 
   requestPlay: (track: MusicFile) => void
   setAutoPlayBlocked: (blocked: boolean) => void
-  setSleepTimer: (minutes: number | null) => void
+  setSleepTimer: (minutes: number | null, action?: 'pause' | 'quit') => void
   removeQueueItem: (id: number) => void
   reorderQueue: (from: number, to: number) => void
   setQueue: (tracks: MusicFile[]) => void
@@ -90,6 +91,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   audioSrc: null,
   autoPlayBlocked: false,
   sleepUntil: null,
+  sleepAction: 'pause',
   loopA: null,
   loopB: null,
 
@@ -116,9 +118,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     set({ autoPlayBlocked: blocked })
   },
 
-  setSleepTimer: (minutes: number | null) => {
+  setSleepTimer: (minutes: number | null, action?: 'pause' | 'quit') => {
     if (minutes === null) set({ sleepUntil: null })
-    else set({ sleepUntil: Date.now() + minutes * 60000 })
+    else set({ sleepUntil: Date.now() + minutes * 60000, sleepAction: action || 'pause' })
   },
 
   removeQueueItem: (id: number) => {

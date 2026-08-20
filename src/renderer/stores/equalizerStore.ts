@@ -13,7 +13,13 @@ export const EQ_PRESETS: EqPreset[] = [
   { name: 'Rock', gains: [4, 3, 1, 0, -1, 2, 4, 3, 2, 1] },
   { name: 'Jazz', gains: [0, 2, 1, 2, 0, -1, 0, 1, 0, 0] },
   { name: 'Classical', gains: [0, 1, 1, 0, -2, -1, 0, 1, 1, 0] },
-  { name: 'Bass Boost', gains: [5, 4, 3, 1, 0, 0, 0, 0, 0, 0] }
+  { name: 'Bass Boost', gains: [5, 4, 3, 1, 0, 0, 0, 0, 0, 0] },
+  { name: 'Vocal', gains: [-4, -3, -1, 2, 3, 3, 2, 1, 0, -1] },
+  { name: 'Electronic', gains: [4, 3, 1, 0, -1, 1, 3, 4, 5, 4] },
+  { name: 'Hip-Hop', gains: [5, 4, 3, 1, 0, 0, 1, 2, 3, 4] },
+  { name: 'Metal', gains: [4, 3, 1, -1, -3, -2, 1, 4, 5, 6] },
+  { name: 'Treble Boost', gains: [0, 0, 0, 0, 0, 0, 1, 3, 5, 7] },
+  { name: 'Dance', gains: [6, 5, 3, 1, 0, -1, 0, 2, 4, 5] }
 ]
 
 interface EqualizerState {

@@ -1120,6 +1120,68 @@ body {
   background: var(--bg-hover);
 }
 
+/* 播放历史 */
+.history-scroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 4px 2px;
+}
+
+.history-group {
+  margin-bottom: 8px;
+}
+
+.history-day {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border);
+}
+
+.history-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.history-row:hover {
+  background: var(--bg-hover);
+}
+
+.history-time {
+  width: 48px;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.history-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.history-title {
+  font-size: 13px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .artist-avatar {
   width: 40px;
   height: 40px;
@@ -1524,7 +1586,7 @@ body {
   position: absolute;
   bottom: 44px;
   right: 0;
-  width: 140px;
+  width: 170px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -1550,8 +1612,26 @@ body {
   background: var(--bg-hover);
 }
 
+.sleep-menu-item.active {
+  color: var(--accent);
+}
+
 .sleep-menu-item.danger {
   color: var(--accent);
+}
+
+.sleep-menu-custom {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sleep-menu-custom .eq-preset-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.sleep-menu-sub {
+  border-bottom: 1px solid var(--border);
 }
 
 /* Mood radio menu */

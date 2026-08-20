@@ -14,6 +14,7 @@ interface MusicListProps {
   onRowClick: (track: MusicFile) => void
   showFavorite?: boolean
   onReorder?: (from: number, to: number) => void
+  onReorderMany?: (ids: number[], toIndex: number) => void
 }
 
 const OVERSCAN = 10
@@ -198,7 +199,7 @@ function ContextMenu({ x, y, track, onClose, onEdit }: {
   )
 }
 
-export default function MusicList({ tracks, sortField, sortDir, onSort, onRowClick, showFavorite, onReorder }: MusicListProps): JSX.Element {
+export default function MusicList({ tracks, sortField, sortDir, onSort, onRowClick, showFavorite, onReorder, onReorderMany }: MusicListProps): JSX.Element {
   const t = useT()
   const currentTrack = usePlayerStore((s) => s.currentTrack)
   const toggleFavorite = useMusicStore((s) => s.toggleFavorite)
@@ -210,6 +211,7 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
   const tableRef = useRef<HTMLDivElement>(null)
   const rowRef = useRef<HTMLTableRowElement | null>(null)
   const dragIndexRef = useRef<number>(-1)
+  const dragIdsRef = useRef<number[] | null>(null)
   const [scrollTop, setScrollTop] = useState(0)
   const [viewportH, setViewportH] = useState(0)
   const [rowHeight, setRowHeight] = useState(36)
@@ -335,23 +337,36 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
                   key={track.id}
                   ref={i === 0 ? rowRef : undefined}
                   className={currentTrack?.id === track.id ? 'playing' : ''}
-                  draggable={!!onReorder}
+                  draggable={!!onReorder || !!onReorderMany}
                   onDragStart={(e) => {
-                    if (!onReorder) return
-                    dragIndexRef.current = idx
+                    if (!onReorder && !onReorderMany) return
+                    if (selectMode && selected.has(track.id)) {
+                      const ids = tracks.filter((x) => selected.has(x.id)).map((x) => x.id)
+                      dragIdsRef.current = ids.length > 0 ? ids : null
+                      dragIndexRef.current = -1
+                    } else {
+                      dragIdsRef.current = null
+                      dragIndexRef.current = idx
+                    }
                     e.dataTransfer.effectAllowed = 'move'
                     e.dataTransfer.setData('text/plain', String(track.id))
                   }}
                   onDragOver={(e) => {
-                    if (!onReorder) return
+                    if (!onReorder && !onReorderMany) return
                     e.preventDefault()
                     e.dataTransfer.dropEffect = 'move'
                   }}
                   onDrop={(e) => {
                     e.preventDefault()
+                    const ids = dragIdsRef.current
+                    dragIdsRef.current = null
                     const from = dragIndexRef.current
                     dragIndexRef.current = -1
-                    if (from >= 0 && from !== idx && onReorder) onReorder(from, idx)
+                    if (ids && ids.length > 0 && onReorderMany) {
+                      onReorderMany(ids, idx)
+                    } else if (from >= 0 && from !== idx && onReorder) {
+                      onReorder(from, idx)
+                    }
                   }}
                   onClick={() => handleRowClick(track)}
                   onDoubleClick={() => { if (!selectMode) onRowClick(track) }}

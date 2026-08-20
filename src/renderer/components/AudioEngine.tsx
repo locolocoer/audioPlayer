@@ -158,7 +158,11 @@ export default function AudioEngine(): JSX.Element {
       const st = usePlayerStore.getState()
       if (st.sleepUntil && Date.now() >= st.sleepUntil) {
         st.setSleepTimer(null)
-        st.pause()
+        if (st.sleepAction === 'quit') {
+          window.api.app.quit()
+        } else {
+          st.pause()
+        }
       }
     }, 1000)
     return () => clearInterval(id)

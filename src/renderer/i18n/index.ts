@@ -13,6 +13,7 @@ const zh: Dict = {
   'nav.playlist': '播放列表',
   'nav.favorites': '我的收藏',
   'nav.recent': '最近播放',
+  'nav.history': '播放历史',
   'nav.stats': '听歌统计',
   'nav.settings': '设置',
   'nav.songCount': '{count} 首歌曲',
@@ -39,6 +40,13 @@ const zh: Dict = {
   'favorites.addAll': '+ 全部添加到播放列表',
   'favorites.addAllTitle': '将所有收藏歌曲添加到播放列表',
   'recent.search': '搜索最近播放...',
+
+  // 播放历史
+  'history.today': '今天',
+  'history.yesterday': '昨天',
+  'history.total': '共 {count} 次播放',
+  'history.retention': '仅保留最近 {n} 条播放记录',
+  'history.empty': '暂无播放历史，播放几首歌后这里会记录每次播放',
 
   // 统计
   'stats.totalPlays': '累计播放',
@@ -76,6 +84,9 @@ const zh: Dict = {
   'player.desktopLyrics': '桌面歌词',
   'player.sleepRemaining': '剩余 {time}',
   'player.minutes': '{m} 分钟',
+  'player.sleepCustom': '自定义分钟数',
+  'player.sleepPause': '到时暂停',
+  'player.sleepQuit': '到时退出应用',
 
   // 播放列表
   'playlist.empty': '播放列表为空',
@@ -353,6 +364,7 @@ const en: Dict = {
   'nav.playlist': 'Playlists',
   'nav.favorites': 'Favorites',
   'nav.recent': 'Recently Played',
+  'nav.history': 'Play History',
   'nav.stats': 'Statistics',
   'nav.settings': 'Settings',
   'nav.songCount': '{count} songs',
@@ -375,6 +387,13 @@ const en: Dict = {
   'favorites.addAll': '+ Add all to playlist',
   'favorites.addAllTitle': 'Add all favorites to playlist',
   'recent.search': 'Search recently played...',
+
+  // 播放历史
+  'history.today': 'Today',
+  'history.yesterday': 'Yesterday',
+  'history.total': '{count} plays',
+  'history.retention': 'Keeps the most recent {n} plays',
+  'history.empty': 'No play history yet. Play some songs and each play will be recorded here.',
 
   'stats.totalPlays': 'Total Plays',
   'stats.totalTime': 'Total Listening Time',
@@ -409,6 +428,9 @@ const en: Dict = {
   'player.desktopLyrics': 'Desktop lyrics',
   'player.sleepRemaining': '{time} remaining',
   'player.minutes': '{m} min',
+  'player.sleepCustom': 'Custom minutes',
+  'player.sleepPause': 'Pause when done',
+  'player.sleepQuit': 'Quit app when done',
 
   'playlist.empty': 'No playlists',
   'playlist.namePlaceholder': 'Playlist name',

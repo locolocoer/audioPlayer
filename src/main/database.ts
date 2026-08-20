@@ -9,6 +9,9 @@ import type { WebDAVConfig, MusicFile, Playlist } from './types'
 let db: SqlJsDatabase
 let dbPath: string
 
+// 播放历史保留上限：超出后自动裁剪最旧的记录，避免数据库无限膨胀
+export const PLAY_HISTORY_MAX = 2000
+
 const titleKeyCache = new Map<string, string>()
 function toTitleKey(title: string): string {
   const cacheKey = title
@@ -507,7 +510,27 @@ export function recordPlay(id: number): void {
   const now = new Date().toISOString()
   db.run('UPDATE music_files SET playCount = playCount + 1, lastPlayed = ? WHERE id = ?', [now, id])
   db.run('INSERT INTO play_history (trackId, playedAt) VALUES (?, ?)', [id, now])
+  // 裁剪超出上限的最旧记录（表最大 PLAY_HISTORY_MAX 行，开销可忽略）
+  db.run(
+    'DELETE FROM play_history WHERE id NOT IN (SELECT id FROM play_history ORDER BY playedAt DESC LIMIT ?)',
+    [PLAY_HISTORY_MAX]
+  )
   saveToDisk()
+}
+
+export function getPlayHistory(limit: number): { playedAt: string; track: MusicFile }[] {
+  const rows = queryAll<{ playedAt: string; trackId: number }>(
+    'SELECT playedAt, trackId FROM play_history ORDER BY playedAt DESC LIMIT ?',
+    [Math.max(1, Math.min(1000, limit))]
+  )
+  const ids = [...new Set(rows.map((r) => r.trackId))]
+  if (ids.length === 0) return []
+  const placeholders = ids.map(() => '?').join(',')
+  const tracks = queryAll<MusicFile>(`SELECT * FROM music_files WHERE id IN (${placeholders})`, ids)
+  const map = new Map(tracks.map((t) => [t.id, t]))
+  return rows
+    .map((r) => ({ playedAt: r.playedAt, track: map.get(r.trackId) }))
+    .filter((x): x is { playedAt: string; track: MusicFile } => !!x.track)
 }
 
 export function getStatsReport(): {

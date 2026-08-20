@@ -7,6 +7,7 @@ import PlayerPage from './pages/PlayerPage'
 import FavoritesPage from './pages/FavoritesPage'
 import PlaylistPage from './pages/PlaylistPage'
 import RecentPage from './pages/RecentPage'
+import HistoryPage from './pages/HistoryPage'
 import StatsPage from './pages/StatsPage'
 import PlayerBar from './components/PlayerBar'
 import AudioEngine from './components/AudioEngine'
@@ -134,6 +135,7 @@ export default function App(): JSX.Element {
               <Route path="/favorites" element={<FavoritesPage />} />
               <Route path="/playlist" element={<PlaylistPage />} />
               <Route path="/recent" element={<RecentPage />} />
+              <Route path="/history" element={<HistoryPage />} />
               <Route path="/stats" element={<StatsPage />} />
               <Route path="/config" element={<ConfigPage />} />
               </Routes>

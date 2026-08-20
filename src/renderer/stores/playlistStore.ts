@@ -17,6 +17,7 @@ interface PlaylistState {
   removeTrack: (id: number) => void
   replaceTrack: (oldId: number, newTrack: MusicFile) => void
   reorder: (from: number, to: number) => void
+  reorderMany: (ids: number[], toIndex: number) => void
   clearPlaylist: () => void
   isInPlaylist: (id: number) => boolean
   persistTracks: (tracks: MusicFile[]) => void
@@ -157,6 +158,27 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
     const updated = [...list]
     const [moved] = updated.splice(from, 1)
     updated.splice(to, 0, moved)
+    set({ playlist: updated })
+    usePlayerStore.getState().syncPlaylist(updated)
+    get().persistTracks(updated)
+  },
+
+  reorderMany: (ids: number[], toIndex: number) => {
+    const list = get().playlist
+    if (ids.length === 0 || toIndex < 0 || toIndex >= list.length) return
+    const idSet = new Set(ids)
+    // 目标行本身在选中组内：不移动
+    const target = list[toIndex]
+    if (target && idSet.has(target.id)) return
+    const moving = list.filter((t) => idSet.has(t.id))
+    if (moving.length === 0) return
+    const rest = list.filter((t) => !idSet.has(t.id))
+    // rest 中原始索引 < toIndex 的项数即插入位置
+    let insertAt = 0
+    for (let i = 0; i < toIndex; i++) {
+      if (!idSet.has(list[i].id)) insertAt++
+    }
+    const updated = [...rest.slice(0, insertAt), ...moving, ...rest.slice(insertAt)]
     set({ playlist: updated })
     usePlayerStore.getState().syncPlaylist(updated)
     get().persistTracks(updated)

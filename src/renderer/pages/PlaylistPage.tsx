@@ -18,6 +18,7 @@ export default function PlaylistPage(): JSX.Element {
   const selectPlaylist = usePlaylistStore((s) => s.selectPlaylist)
   const clearPlaylist = usePlaylistStore((s) => s.clearPlaylist)
   const reorder = usePlaylistStore((s) => s.reorder)
+  const reorderMany = usePlaylistStore((s) => s.reorderMany)
   const { requestPlay, setQueue } = usePlayerStore()
   const [search, setSearch] = useState('')
   const [sortField, setSortField] = useState<SortField>('order')
@@ -71,6 +72,25 @@ export default function PlaylistPage(): JSX.Element {
     setQueue(filtered)
     requestPlay(track)
   }, [filtered, requestPlay, setQueue])
+
+  // 拖拽回调：把 filtered 中的行索引/选中 id 映射回 playlist 的索引，避免搜索筛选时错位
+  const wrapReorder = useCallback((from: number, to: number) => {
+    if (sortField !== 'order') return
+    const fromId = filtered[from]?.id
+    const toId = filtered[to]?.id
+    if (fromId === undefined || toId === undefined) return
+    const pFrom = playlist.findIndex((t) => t.id === fromId)
+    const pTo = playlist.findIndex((t) => t.id === toId)
+    if (pFrom >= 0 && pTo >= 0) reorder(pFrom, pTo)
+  }, [filtered, playlist, sortField, reorder])
+
+  const wrapReorderMany = useCallback((ids: number[], to: number) => {
+    if (sortField !== 'order') return
+    const toId = filtered[to]?.id
+    if (toId === undefined) return
+    const pTo = playlist.findIndex((t) => t.id === toId)
+    if (pTo >= 0) reorderMany(ids, pTo)
+  }, [filtered, playlist, sortField, reorderMany])
 
   if (playlists.length === 0) {
     return (
@@ -151,7 +171,8 @@ export default function PlaylistPage(): JSX.Element {
         sortDir={sortDir}
         onSort={handleSort}
         onRowClick={handleRowClick}
-        onReorder={sortField === 'order' ? reorder : undefined}
+        onReorder={sortField === 'order' ? wrapReorder : undefined}
+        onReorderMany={sortField === 'order' ? wrapReorderMany : undefined}
       />
       <div className="playlist-status">
         {t('playlist.songCount', { count: playlist.length })}

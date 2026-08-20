@@ -42,6 +42,8 @@ const api = {
       ipcRenderer.invoke('music:recordPlay', id),
     recent: (limit?: number): Promise<MusicFile[]> =>
       ipcRenderer.invoke('music:recent', limit),
+    playHistory: (limit?: number): Promise<{ playedAt: string; track: MusicFile }[]> =>
+      ipcRenderer.invoke('music:playHistory', limit),
     alternatives: (title: string, webdavId: string): Promise<MusicFile[]> =>
       ipcRenderer.invoke('music:alternatives', title, webdavId),
     setSourcePref: (title: string, trackId: number): Promise<boolean> =>
@@ -100,6 +102,7 @@ const api = {
     setCloseBehavior: (v: string): Promise<string> => ipcRenderer.invoke('app:setCloseBehavior', v),
     getLang: (): Promise<string> => ipcRenderer.invoke('app:getLang'),
     setLang: (v: string): Promise<string> => ipcRenderer.invoke('app:setLang', v),
+    quit: (): Promise<boolean> => ipcRenderer.invoke('app:quit'),
     onLangChange: (callback: (lang: string) => void): (() => void) => {
       const handler = (_event: Electron.IpcRendererEvent, lang: string): void => callback(lang)
       ipcRenderer.on('i18n:lang', handler)

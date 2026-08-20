@@ -30,7 +30,8 @@ import {
   getDBPath,
   getDuplicateGroups,
   getStatsReport,
-  getPlayTrend
+  getPlayTrend,
+  getPlayHistory
 } from './database'
 import type { WebDAVConfig, MusicFile, ScanProgress, Playlist, ScanSettings } from './types'
 import fs from 'fs'
@@ -132,6 +133,10 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('music:recent', async (_event, limit?: number) => {
     return getRecentMusicFiles(limit || 200)
+  })
+
+  ipcMain.handle('music:playHistory', async (_event, limit?: number) => {
+    return getPlayHistory(limit || 500)
   })
 
   ipcMain.handle('music:recordPlay', async (_event, id: number) => {

@@ -463,6 +463,10 @@ function registerSystemIpc(): void {
   })
 
   ipcMain.handle('app:getLang', () => getMainLang())
+  ipcMain.handle('app:quit', () => {
+    app.quit()
+    return true
+  })
   ipcMain.handle('app:setLang', (_e, v: string) => {
     if (v === 'zh' || v === 'en') {
       setMainLang(v)
