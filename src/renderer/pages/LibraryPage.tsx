@@ -1,9 +1,10 @@
-import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
+import { useEffect, useState, useMemo, useCallback, useRef, useLayoutEffect } from 'react'
 import { useMusicStore } from '../stores/musicStore'
 import { usePlayerStore } from '../stores/playerStore'
 import { usePlaylistStore } from '../stores/playlistStore'
 import { useToastStore } from '../stores/toastStore'
 import { useT } from '../i18n'
+import { useVirtualWindow } from '../hooks/useVirtualWindow'
 import MusicList from '../components/MusicList'
 import Modal from '../components/Modal'
 import type { MusicFile } from '../../main/types'
@@ -28,6 +29,9 @@ const SORT_FIELDS: { field: SortField; labelKey: string }[] = [
   { field: 'lastPlayed', labelKey: 'library.sort.lastPlayed' },
   { field: 'rating', labelKey: 'library.sort.rating' }
 ]
+
+const ALBUM_GRID_GAP = 16
+const ALBUM_GRID_PAD = 8
 
 const albumCoverCache = new Map<string, string>()
 const COVER_CACHE_MAX = 50
@@ -244,6 +248,45 @@ export default function LibraryPage(): JSX.Element {
     }
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, 'zh'))
   }, [tracks])
+
+  // 歌手列表虚拟化
+  const artistWin = useVirtualWindow(artists.length, 60)
+
+  // 专辑网格虚拟化（列感知：JS 计算的列数/卡片宽度通过内联样式驱动 CSS grid，
+  // 与布局完全一致，行高精确 = 封面 + 信息区 50 + 行间距，避免行高错位导致滚动卡住）
+  const [albumGridNode, setAlbumGridNode] = useState<HTMLDivElement | null>(null)
+  const albumGridRef = useCallback((el: HTMLDivElement | null): void => {
+    setAlbumGridNode(el)
+  }, [])
+  const [albumScrollTop, setAlbumScrollTop] = useState(0)
+  const [albumViewportH, setAlbumViewportH] = useState(0)
+  const [albumGridW, setAlbumGridW] = useState(1100)
+  useLayoutEffect(() => {
+    if (!albumGridNode) return
+    const scrollParent = albumGridNode.parentElement
+    setAlbumScrollTop(0)
+    const update = (): void => {
+      setAlbumViewportH(scrollParent ? scrollParent.clientHeight : 0)
+      setAlbumGridW(albumGridNode.clientWidth)
+    }
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(albumGridNode)
+    if (scrollParent) ro.observe(scrollParent)
+    return () => ro.disconnect()
+  }, [albumGridNode])
+
+  const albumContentW = Math.max(0, albumGridW - ALBUM_GRID_PAD * 2)
+  const albumCols = Math.max(1, Math.floor((albumContentW + ALBUM_GRID_GAP) / (150 + ALBUM_GRID_GAP)))
+  const albumCardW = Math.min(200, Math.max(150, (albumContentW - (albumCols - 1) * ALBUM_GRID_GAP) / albumCols))
+  const albumRowH = albumCardW + 50 + ALBUM_GRID_GAP
+  const albumRowCount = Math.max(1, Math.ceil(albums.length / albumCols))
+  const albumStartRow = Math.max(0, Math.floor(albumScrollTop / albumRowH) - 10)
+  const albumEndRow = Math.min(albumRowCount, Math.ceil((albumScrollTop + albumViewportH) / albumRowH) + 10)
+  const albumStart = albumStartRow * albumCols
+  const albumEnd = Math.min(albums.length, albumEndRow * albumCols)
+  const albumTopPad = albumStartRow * albumRowH
+  const albumBottomPad = Math.max(0, (albumRowCount - albumEndRow) * albumRowH)
 
   const folderData = useMemo(() => {
     const subdirs = new Map<string, { label: string; key: string; count: number }>()
@@ -510,9 +553,19 @@ export default function LibraryPage(): JSX.Element {
           onRowClick={handleRowClick}
         />
       ) : viewMode === 'albums' ? (
-        <div className="browse-scroll">
-          <div className="album-grid">
-            {albums.map((a) => (
+        <div className="browse-scroll" onScroll={(e) => setAlbumScrollTop(e.currentTarget.scrollTop)}>
+          <div
+            className="album-grid"
+            ref={albumGridRef}
+            style={{
+              gridTemplateColumns: `repeat(${albumCols}, ${albumCardW}px)`,
+              gap: ALBUM_GRID_GAP,
+              padding: ALBUM_GRID_PAD,
+              justifyContent: 'center'
+            }}
+          >
+            {albumTopPad > 0 && <div style={{ height: albumTopPad, gridColumn: '1 / -1' }} />}
+            {albums.slice(albumStart, albumEnd).map((a) => (
               <div key={a.name} className="album-card" onClick={() => { setBrowseAlbum(a.name); setSearch('') }}>
                 <AlbumCover album={a.name} tracks={a.tracks} />
                 <div className="album-card-info">
@@ -521,12 +574,14 @@ export default function LibraryPage(): JSX.Element {
                 </div>
               </div>
             ))}
+            {albumBottomPad > 0 && <div style={{ height: albumBottomPad, gridColumn: '1 / -1' }} />}
           </div>
         </div>
       ) : (
-        <div className="browse-scroll">
+        <div className="browse-scroll" ref={artistWin.containerRef} onScroll={artistWin.onScroll}>
           <div className="artist-list">
-            {artists.map((ar) => (
+            {artistWin.topPad > 0 && <div style={{ height: artistWin.topPad }} />}
+            {artists.slice(artistWin.start, artistWin.end).map((ar) => (
               <div
                 key={ar.name}
                 className="artist-row"
@@ -545,6 +600,7 @@ export default function LibraryPage(): JSX.Element {
                 <span className="album-meta">{t('library.songCount', { count: ar.count })}</span>
               </div>
             ))}
+            {artistWin.bottomPad > 0 && <div style={{ height: artistWin.bottomPad }} />}
           </div>
         </div>
       )}
