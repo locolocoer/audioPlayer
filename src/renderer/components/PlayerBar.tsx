@@ -4,6 +4,7 @@ import { usePlayerStore } from '../stores/playerStore'
 import { useMusicStore } from '../stores/musicStore'
 import { useUiStore } from '../stores/uiStore'
 import { useT } from '../i18n'
+import { getCoverCached, setCoverCached, coverCacheKey } from '../utils/coverCache'
 
 function formatTime(secs: number): string {
   if (!secs || !isFinite(secs)) return '0:00'
@@ -13,8 +14,6 @@ function formatTime(secs: number): string {
 }
 
 const RATES = [1, 1.25, 1.5, 2, 0.75, 0.5]
-
-const coverCache = new Map<string, string>()
 
 function BarCover({ track }: { track: { webdavId: string; path: string } }): JSX.Element {
   const [coverUrl, setCoverUrl] = useState('')
@@ -28,8 +27,8 @@ function BarCover({ track }: { track: { webdavId: string; path: string } }): JSX
   useEffect(() => {
     if (loadingRef.current) return
     loadingRef.current = true
-    const key = `${track.webdavId}:${track.path}`
-    const cached = coverCache.get(key)
+    const key = coverCacheKey(track)
+    const cached = getCoverCached(key)
     if (cached) {
       setCoverUrl(cached)
       return
@@ -38,15 +37,7 @@ function BarCover({ track }: { track: { webdavId: string; path: string } }): JSX
       if (r.data && r.data.length > 0) {
         const blob = new Blob([new Uint8Array(r.data)], { type: r.format || 'image/jpeg' })
         const url = URL.createObjectURL(blob)
-        if (coverCache.size >= 5) {
-          const first = coverCache.keys().next().value
-          if (first !== undefined) {
-            const old = coverCache.get(first)
-            if (old) URL.revokeObjectURL(old)
-            coverCache.delete(first)
-          }
-        }
-        coverCache.set(key, url)
+        setCoverCached(key, url)
         setCoverUrl(url)
       }
     }).catch(() => {})

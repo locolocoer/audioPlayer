@@ -229,6 +229,12 @@ const zh: Dict = {
   'update.check': '检查更新',
   'update.checkingBtn': '检查中...',
   'update.installNow': '重启并安装',
+  'update.notes.title': '更新内容',
+  'update.notes.added': '新增',
+  'update.notes.fixed': '修复',
+  'update.notes.changed': '优化',
+  'update.notes.empty': 'v{version} 已更新，欢迎体验新版本！',
+  'update.notes.ok': '知道了',
 
   // 设置
   'settings.sources': '音乐源',
@@ -546,6 +552,12 @@ const en: Dict = {
   'update.check': 'Check for updates',
   'update.checkingBtn': 'Checking...',
   'update.installNow': 'Restart & install',
+  'update.notes.title': "What's New",
+  'update.notes.added': 'Added',
+  'update.notes.fixed': 'Fixed',
+  'update.notes.changed': 'Improved',
+  'update.notes.empty': 'Version v{version} is here — enjoy!',
+  'update.notes.ok': 'Got it',
 
   'settings.sources': 'Music Sources',
   'settings.appearance': 'Appearance',
@@ -681,6 +693,13 @@ export const useI18nStore = create<I18nState>((set) => ({
     syncLangToMain(lang)
   }
 }))
+
+// 桌面歌词等独立窗口：接收主进程广播的语言变更，只更新本窗口，不回调主进程避免循环
+export function applyLangFromMain(lang: string): void {
+  if (lang !== 'zh' && lang !== 'en') return
+  try { localStorage.setItem('lang', lang) } catch { /* ignore */ }
+  useI18nStore.setState({ lang })
+}
 
 syncLangToMain(getInitialLang())
 

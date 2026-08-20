@@ -468,6 +468,10 @@ function registerSystemIpc(): void {
       setMainLang(v)
       saveAppSettings()
       refreshTray()
+      // 桌面歌词是独立窗口，语言切换后同步其界面文案
+      if (lyricsWindow && !lyricsWindow.isDestroyed()) {
+        lyricsWindow.webContents.send('i18n:lang', v)
+      }
     }
     return getMainLang()
   })

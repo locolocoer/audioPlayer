@@ -7,6 +7,7 @@ import { useT } from '../i18n'
 import { useVirtualWindow } from '../hooks/useVirtualWindow'
 import MusicList from '../components/MusicList'
 import Modal from '../components/Modal'
+import { getCoverCached, setCoverCached, coverCacheKey } from '../utils/coverCache'
 import type { MusicFile } from '../../main/types'
 
 type SortField = 'title' | 'artist' | 'album' | 'duration' | 'playCount' | 'lastPlayed' | 'rating'
@@ -33,21 +34,6 @@ const SORT_FIELDS: { field: SortField; labelKey: string }[] = [
 const ALBUM_GRID_GAP = 16
 const ALBUM_GRID_PAD = 8
 
-const albumCoverCache = new Map<string, string>()
-const COVER_CACHE_MAX = 50
-
-function cacheCover(album: string, url: string): void {
-  albumCoverCache.set(album, url)
-  if (albumCoverCache.size > COVER_CACHE_MAX) {
-    const oldest = albumCoverCache.keys().next().value
-    if (oldest !== undefined) {
-      const oldUrl = albumCoverCache.get(oldest)
-      if (oldUrl) URL.revokeObjectURL(oldUrl)
-      albumCoverCache.delete(oldest)
-    }
-  }
-}
-
 function AlbumCover({ album, tracks }: { album: string; tracks: MusicFile[] }): JSX.Element {
   const [coverUrl, setCoverUrl] = useState('')
   const [inView, setInView] = useState(false)
@@ -70,7 +56,8 @@ function AlbumCover({ album, tracks }: { album: string; tracks: MusicFile[] }): 
     if (!inView) return
     const first = tracks[0]
     if (!first) return
-    const cached = albumCoverCache.get(album)
+    const key = coverCacheKey(first)
+    const cached = getCoverCached(key)
     if (cached) {
       setCoverUrl(cached)
       return
@@ -79,7 +66,7 @@ function AlbumCover({ album, tracks }: { album: string; tracks: MusicFile[] }): 
       if (r.data && r.data.length > 0) {
         const blob = new Blob([new Uint8Array(r.data)], { type: r.format || 'image/jpeg' })
         const url = URL.createObjectURL(blob)
-        cacheCover(album, url)
+        setCoverCached(key, url)
         setCoverUrl(url)
       }
     }).catch(() => {})
@@ -316,6 +303,9 @@ export default function LibraryPage(): JSX.Element {
     }
   }, [tracks, browseFolder])
 
+  // 文件夹子目录虚拟化（固定行高 52px）
+  const folderWin = useVirtualWindow(folderData.subdirs.length, 52)
+
   const handleRowClick = useCallback((track: typeof tracks[0]) => {
     setQueue(filtered)
     requestPlay(track)
@@ -520,8 +510,9 @@ export default function LibraryPage(): JSX.Element {
             </div>
           )}
           {folderData.subdirs.length > 0 && (
-            <div className="folder-subdirs">
-              {folderData.subdirs.map((d) => (
+            <div className="folder-subdirs" ref={folderWin.containerRef} onScroll={folderWin.onScroll}>
+              {folderWin.topPad > 0 && <div style={{ height: folderWin.topPad }} />}
+              {folderData.subdirs.slice(folderWin.start, folderWin.end).map((d) => (
                 <div key={d.key} className="folder-row" onClick={() => { setBrowseFolder(d.key); setSearch('') }}>
                   <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
                     <path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
@@ -530,6 +521,7 @@ export default function LibraryPage(): JSX.Element {
                   <span className="album-meta">{t('library.songCount', { count: d.count })}</span>
                 </div>
               ))}
+              {folderWin.bottomPad > 0 && <div style={{ height: folderWin.bottomPad }} />}
             </div>
           )}
           {folderData.files.length > 0 ? (

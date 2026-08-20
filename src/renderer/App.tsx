@@ -16,6 +16,7 @@ import QueuePanel from './components/QueuePanel'
 import DesktopLyrics from './components/DesktopLyrics'
 import Toaster from './components/Toaster'
 import Modal from './components/Modal'
+import UpdateNotesModal from './components/UpdateNotesModal'
 import { usePlaylistStore } from './stores/playlistStore'
 import { usePlayerStore } from './stores/playerStore'
 import { useMusicStore } from './stores/musicStore'
@@ -52,6 +53,17 @@ export default function App(): JSX.Element {
   const skin = useSkinStore((s) => s.skin)
   const [resumePrompt, setResumePrompt] = useState<MusicFile | null>(null)
   const [updateReady, setUpdateReady] = useState<string | null>(null)
+  const [updateNotesVersion, setUpdateNotesVersion] = useState<string | null>(null)
+
+  // 更新内容提示：新版本安装后首次启动弹出一次
+  useEffect(() => {
+    window.api.app.info().then((info) => {
+      const v = info.version
+      let seen = ''
+      try { seen = localStorage.getItem('update_notes_seen_version') || '' } catch { /* ignore */ }
+      if (seen !== v) setUpdateNotesVersion(v)
+    }).catch(() => {})
+  }, [])
 
   useEffect(() => {
     const root = document.documentElement
@@ -155,6 +167,15 @@ export default function App(): JSX.Element {
             <button className="btn btn-primary" onClick={() => window.api.updater.install()}>{t('update.install')}</button>
           </div>
         </Modal>
+      )}
+      {updateNotesVersion && (
+        <UpdateNotesModal
+          version={updateNotesVersion}
+          onClose={() => {
+            try { localStorage.setItem('update_notes_seen_version', updateNotesVersion) } catch { /* ignore */ }
+            setUpdateNotesVersion(null)
+          }}
+        />
       )}
     </ErrorBoundary>
   )

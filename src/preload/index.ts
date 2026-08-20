@@ -99,7 +99,12 @@ const api = {
     getCloseBehavior: (): Promise<string> => ipcRenderer.invoke('app:getCloseBehavior'),
     setCloseBehavior: (v: string): Promise<string> => ipcRenderer.invoke('app:setCloseBehavior', v),
     getLang: (): Promise<string> => ipcRenderer.invoke('app:getLang'),
-    setLang: (v: string): Promise<string> => ipcRenderer.invoke('app:setLang', v)
+    setLang: (v: string): Promise<string> => ipcRenderer.invoke('app:setLang', v),
+    onLangChange: (callback: (lang: string) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, lang: string): void => callback(lang)
+      ipcRenderer.on('i18n:lang', handler)
+      return () => ipcRenderer.removeListener('i18n:lang', handler)
+    }
   },
   updater: {
     check: (): Promise<boolean> => ipcRenderer.invoke('update:check'),

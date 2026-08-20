@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { parseLrc, activeLyricIndex } from '../utils/lrc'
-import { t } from '../i18n'
+import { useI18nStore, applyLangFromMain, t } from '../i18n'
 
 interface LyricsStyle {
   fontSize: number
@@ -32,6 +32,13 @@ export default function DesktopLyrics(): JSX.Element {
   const [noLyrics, setNoLyrics] = useState(false)
   const [style, setStyle] = useState<LyricsStyle>(loadStyle)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  // 订阅语言变更以触发重渲染，并让 rAF 循环重新求值固定文案
+  useI18nStore((s) => s.lang)
+
+  useEffect(() => {
+    const unsub = window.api.app.onLangChange((lang) => applyLangFromMain(lang))
+    return unsub
+  }, [])
 
   useEffect(() => {
     document.documentElement.style.background = 'transparent'

@@ -8,10 +8,8 @@ import Equalizer from '../components/Equalizer'
 import Visualizer from '../components/Visualizer'
 import Modal from '../components/Modal'
 import { parseLrc, activeLyricIndex } from '../utils/lrc'
+import { getCoverCached, setCoverCached, coverCacheKey } from '../utils/coverCache'
 import { useT } from '../i18n'
-
-const coverCache = new Map<string, string>()
-const COVER_CACHE_MAX = 5
 
 export default function PlayerPage(): JSX.Element {
   const t = useT()
@@ -168,8 +166,8 @@ export default function PlayerPage(): JSX.Element {
     loadedRef.current = 1
 
     const track = currentTrack
-    const key = `${track.webdavId}:${track.path}`
-    const cached = coverCache.get(key)
+    const key = coverCacheKey(track)
+    const cached = getCoverCached(key)
     if (cached) {
       setCoverUrl(cached)
     } else {
@@ -177,15 +175,7 @@ export default function PlayerPage(): JSX.Element {
         if (r.data && r.data.length > 0) {
           const blob = new Blob([new Uint8Array(r.data)], { type: r.format || 'image/jpeg' })
           const url = URL.createObjectURL(blob)
-          if (coverCache.size >= COVER_CACHE_MAX) {
-            const firstKey = coverCache.keys().next().value
-            if (firstKey !== undefined) {
-              const oldUrl = coverCache.get(firstKey)
-              if (oldUrl) URL.revokeObjectURL(oldUrl)
-              coverCache.delete(firstKey)
-            }
-          }
-          coverCache.set(key, url)
+          setCoverCached(key, url)
           setCoverUrl(url)
         }
       }).catch(() => {})
