@@ -168,6 +168,19 @@ export default function AudioEngine(): JSX.Element {
     return () => clearInterval(id)
   }, [])
 
+  // 桌面歌词窗口打开时重发当前歌曲歌词与进度（否则窗口首次打开看不到当前歌曲）
+  useEffect(() => {
+    const unsub = window.api.player.onLyricsResync(() => {
+      const st = usePlayerStore.getState()
+      const track = st.pendingTrack
+      if (!track) return
+      lyricsFetchedRef.current = ''
+      syncLyrics()
+      window.api.player.sendLyricsTime(track.id, st.currentTime)
+    })
+    return unsub
+  }, [])
+
   useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
@@ -446,6 +459,8 @@ export default function AudioEngine(): JSX.Element {
       onTimeUpdate={handleTimeUpdate}
       onLoadedMetadata={handleLoadedMetadata}
       onEnded={handleEnded}
+      onPause={() => window.api.player.sendLyricsPaused(true)}
+      onPlay={() => window.api.player.sendLyricsPaused(false)}
     />
   )
 }

@@ -71,6 +71,7 @@ export default function PlayerBar(): JSX.Element {
   const sleepUntil = usePlayerStore((s) => s.sleepUntil)
   const sleepAction = usePlayerStore((s) => s.sleepAction)
   const setSleepTimer = usePlayerStore((s) => s.setSleepTimer)
+  const setSleepAction = usePlayerStore((s) => s.setSleepAction)
   const favorites = useMusicStore((s) => s.favorites)
   const loadFavorites = useMusicStore((s) => s.loadFavorites)
   const tracks = useMusicStore((s) => s.tracks)
@@ -98,6 +99,14 @@ export default function PlayerBar(): JSX.Element {
   }, [sleepUntil])
 
   const sleepRemaining = sleepUntil ? Math.max(0, Math.round((sleepUntil - sleepNow) / 1000)) : 0
+
+  const commitSleepCustom = (): void => {
+    if (!sleepCustom) return
+    const m = Math.max(1, Math.min(720, Math.round(Number(sleepCustom) || 0)))
+    setSleepTimer(m, sleepAction)
+    setSleepCustom('')
+    setSleepOpen(false)
+  }
 
   useEffect(() => {
     if (lyricsOn) window.api.window.lyrics(true)
@@ -250,24 +259,20 @@ export default function PlayerBar(): JSX.Element {
                     onChange={(e) => setSleepCustom(e.target.value)}
                     placeholder={t('player.sleepCustom')}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' && sleepCustom) {
-                        const m = Math.max(1, Math.min(720, Math.round(Number(sleepCustom) || 0)))
-                        setSleepTimer(m, sleepAction)
-                        setSleepCustom('')
-                        setSleepOpen(false)
-                      }
+                      if (e.key === 'Enter' && sleepCustom) commitSleepCustom()
                     }}
                   />
+                  <button className="btn btn-sm" onClick={commitSleepCustom}>{t('common.ok')}</button>
                 </div>
                 <div className="sleep-menu-item" onClick={() => { setSleepActionPicker((o) => !o); setSleepOpen(true) }}>
                   {sleepAction === 'quit' ? t('player.sleepQuit') : t('player.sleepPause')} ▾
                 </div>
                 {sleepActionPicker && (
                   <div className="sleep-menu-sub">
-                    <div className={`sleep-menu-item${sleepAction === 'pause' ? ' active' : ''}`} onClick={() => setSleepTimer(sleepUntil ? Math.max(1, Math.round((sleepUntil - Date.now()) / 60000)) : 30, 'pause')}>
+                    <div className={`sleep-menu-item${sleepAction === 'pause' ? ' active' : ''}`} onClick={() => setSleepAction('pause')}>
                       {t('player.sleepPause')}
                     </div>
-                    <div className={`sleep-menu-item${sleepAction === 'quit' ? ' active' : ''}`} onClick={() => setSleepTimer(sleepUntil ? Math.max(1, Math.round((sleepUntil - Date.now()) / 60000)) : 30, 'quit')}>
+                    <div className={`sleep-menu-item${sleepAction === 'quit' ? ' active' : ''}`} onClick={() => setSleepAction('quit')}>
                       {t('player.sleepQuit')}
                     </div>
                   </div>

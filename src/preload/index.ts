@@ -80,10 +80,21 @@ const api = {
       ipcRenderer.on('lyrics:sync-broadcast', handler)
       return () => ipcRenderer.removeListener('lyrics:sync-broadcast', handler)
     },
+    onLyricsResync: (callback: () => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent): void => callback()
+      ipcRenderer.on('lyrics:resync', handler)
+      return () => ipcRenderer.removeListener('lyrics:resync', handler)
+    },
     onLyricsTime: (callback: (payload: { trackId: number; time: number }) => void): (() => void) => {
       const handler = (_event: Electron.IpcRendererEvent, payload: { trackId: number; time: number }): void => callback(payload)
       ipcRenderer.on('lyrics:time-broadcast', handler)
       return () => ipcRenderer.removeListener('lyrics:time-broadcast', handler)
+    },
+    sendLyricsPaused: (paused: boolean): void => ipcRenderer.send('lyrics:paused', paused),
+    onLyricsPaused: (callback: (paused: boolean) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, paused: boolean): void => callback(paused)
+      ipcRenderer.on('lyrics:paused-broadcast', handler)
+      return () => ipcRenderer.removeListener('lyrics:paused-broadcast', handler)
     }
   },
   cache: {

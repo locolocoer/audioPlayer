@@ -26,6 +26,7 @@ const zh: Dict = {
 
   // 通用
   'common.close': '关闭',
+  'common.ok': '确定',
   'common.unknown': '未知',
   'common.loading': '加载中...',
 
@@ -377,6 +378,7 @@ const en: Dict = {
   'settings.language.en': 'English',
 
   'common.close': 'Close',
+  'common.ok': 'OK',
   'common.unknown': 'Unknown',
   'common.loading': 'Loading...',
 

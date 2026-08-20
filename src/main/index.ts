@@ -385,8 +385,22 @@ function registerWindowIpc(): void {
   })
 
   ipcMain.handle('window:lyrics', (_e, open: boolean) => {
-    if (open) createLyricsWindow()
-    else if (lyricsWindow && !lyricsWindow.isDestroyed()) lyricsWindow.close()
+    if (open) {
+      const wasOpen = lyricsWindow && !lyricsWindow.isDestroyed()
+      createLyricsWindow()
+      const resync = (): void => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('lyrics:resync')
+        }
+      }
+      if (wasOpen) {
+        // 窗口已存在：立即让主窗口重发当前歌词
+        resync()
+      } else if (lyricsWindow && !lyricsWindow.isDestroyed()) {
+        // 新窗口：等渲染完成、订阅就绪后再重发
+        lyricsWindow.webContents.once('did-finish-load', resync)
+      }
+    } else if (lyricsWindow && !lyricsWindow.isDestroyed()) lyricsWindow.close()
     return true
   })
 
@@ -440,6 +454,11 @@ function registerLyricsIpc(): void {
   ipcMain.on('lyrics:time', (_e, trackId: number, time: number) => {
     if (lyricsWindow && !lyricsWindow.isDestroyed()) {
       lyricsWindow.webContents.send('lyrics:time-broadcast', { trackId, time })
+    }
+  })
+  ipcMain.on('lyrics:paused', (_e, paused: boolean) => {
+    if (lyricsWindow && !lyricsWindow.isDestroyed()) {
+      lyricsWindow.webContents.send('lyrics:paused-broadcast', paused)
     }
   })
 }

@@ -58,6 +58,7 @@ export default function DesktopLyrics(): JSX.Element {
     let trackId = -1
     let latestTime = 0
     let latestTimeAt = 0
+    let paused = false
     let lastText = ''
     let lastLit = -1
     let lastNoLyrics = false
@@ -74,10 +75,17 @@ export default function DesktopLyrics(): JSX.Element {
         latestTimeAt = Date.now()
       }
     })
+    const unsubPaused = window.api.player.onLyricsPaused((p) => {
+      paused = p
+      if (!p) {
+        // 恢复播放：重置时间基准，避免把暂停期间的时长补进来
+        latestTimeAt = Date.now()
+      }
+    })
 
     const tick = (): void => {
       raf = requestAnimationFrame(tick)
-      const time = latestTime + (Date.now() - latestTimeAt) / 1000
+      const time = paused ? latestTime : latestTime + (Date.now() - latestTimeAt) / 1000
       const idx = activeLyricIndex(lyrics, time)
       let text = ''
       let lit = 0
@@ -112,6 +120,7 @@ export default function DesktopLyrics(): JSX.Element {
     return () => {
       unsubSync()
       unsubTime()
+      unsubPaused()
       cancelAnimationFrame(raf)
     }
   }, [])

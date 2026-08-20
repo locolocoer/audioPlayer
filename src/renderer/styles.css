@@ -1621,13 +1621,22 @@ body {
 }
 
 .sleep-menu-custom {
+  display: flex;
+  gap: 6px;
   padding: 6px 12px;
   border-bottom: 1px solid var(--border);
 }
 
 .sleep-menu-custom .eq-preset-input {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   box-sizing: border-box;
+}
+
+.sleep-menu-custom .btn {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  font-size: 12px;
 }
 
 .sleep-menu-sub {
