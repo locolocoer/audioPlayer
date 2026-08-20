@@ -6,6 +6,12 @@ export interface UpdateNote {
 }
 
 export const UPDATE_NOTES: Record<string, UpdateNote> = {
+  '1.3.9': {
+    fixed: [
+      '网络驱动器（映射盘）连接重置时主进程报错弹窗的问题：文件夹监视断开后自动重连',
+      '主进程全局异常兜底：未捕获异常仅记录日志，不再弹错误框'
+    ]
+  },
   '1.3.8': {
     fixed: [
       '桌面歌词窗口打开时不显示当前歌曲歌词的问题',

@@ -16,6 +16,14 @@ import type { UpdateStatus } from './types'
 
 declare const __COMMIT__: string
 
+// 全局兜底：任何未捕获异常/拒绝只记录日志，不弹「主进程错误」框导致中断
+process.on('uncaughtException', (err) => {
+  console.error('[Main] 未捕获异常:', err)
+})
+process.on('unhandledRejection', (reason) => {
+  console.error('[Main] 未处理的 Promise 拒绝:', reason)
+})
+
 app.setName('feiyu-music')
 
 const MAX_WINDOW_WIDTH = 1600
