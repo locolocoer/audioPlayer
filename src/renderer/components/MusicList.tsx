@@ -208,6 +208,7 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
   const [editTrack, setEditTrack] = useState<MusicFile | null>(null)
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected] = useState<Set<number>>(new Set())
+  const selectAllRef = useRef<HTMLInputElement>(null)
   const tableRef = useRef<HTMLDivElement>(null)
   const rowRef = useRef<HTMLTableRowElement | null>(null)
   const dragIndexRef = useRef<number>(-1)
@@ -248,6 +249,21 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
       return next
     })
   }
+
+  // 全选/取消全选（作用于当前列表全部歌曲）
+  const handleSelectAll = (): void => {
+    setSelected((prev) => {
+      if (prev.size === tracks.length) return new Set()
+      return new Set(tracks.map((t) => t.id))
+    })
+  }
+
+  // 半选态：部分选中时复选框显示 indeterminate
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = selected.size > 0 && selected.size < tracks.length
+    }
+  }, [selected, tracks.length])
 
   const exitSelectMode = (): void => {
     setSelectMode(false)
@@ -296,6 +312,9 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
       {selectMode ? (
         <div className="list-select-bar">
           <span className="select-count">{t('list.selected', { n: selected.size })}</span>
+          <button className="btn btn-secondary" onClick={handleSelectAll}>
+            {selected.size === tracks.length ? t('list.selectNone') : t('list.selectAll')}
+          </button>
           <button className="btn btn-secondary" onClick={batchAddToPlaylist}>{t('list.addToPlaylist')}</button>
           <button className="btn btn-secondary" onClick={batchFavorite}>{t('list.favorite')}</button>
           <button className="btn btn-secondary" onClick={exitSelectMode}>{t('common.cancel')}</button>
@@ -310,7 +329,18 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
           <thead>
             <tr>
               {showFavorite && <th style={{ width: 36 }} />}
-              {selectMode && <th style={{ width: 36 }} />}
+              {selectMode && (
+                <th style={{ width: 36, textAlign: 'center' }}>
+                  <input
+                    type="checkbox"
+                    className="row-check"
+                    ref={selectAllRef}
+                    checked={tracks.length > 0 && selected.size === tracks.length}
+                    onChange={handleSelectAll}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </th>
+              )}
               <th className="col-index">#</th>
               <th onClick={() => onSort('title')}>
                 {t('list.title')} <SortArrow field="title" current={sortField} dir={sortDir} />

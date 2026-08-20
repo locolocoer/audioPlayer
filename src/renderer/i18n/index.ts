@@ -130,6 +130,8 @@ const zh: Dict = {
   // 列表
   'list.empty': '暂无歌曲。',
   'list.selected': '已选 {n} 首',
+  'list.selectAll': '全选',
+  'list.selectNone': '取消全选',
   'list.addToPlaylist': '加入播放列表',
   'list.favorite': '收藏',
   'list.multiSelect': '多选',
@@ -469,6 +471,8 @@ const en: Dict = {
 
   'list.empty': 'No songs.',
   'list.selected': '{n} selected',
+  'list.selectAll': 'Select all',
+  'list.selectNone': 'Deselect all',
   'list.addToPlaylist': 'Add to playlist',
   'list.favorite': 'Favorite',
   'list.multiSelect': 'Multi-select',

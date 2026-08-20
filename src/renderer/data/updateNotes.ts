@@ -6,6 +6,11 @@ export interface UpdateNote {
 }
 
 export const UPDATE_NOTES: Record<string, UpdateNote> = {
+  '1.3.7': {
+    added: [
+      '多选模式支持全选：列表表头复选框（含半选态）+ 工具栏全选/取消全选按钮'
+    ]
+  },
   '1.3.6': {
     added: [
       '播放历史页面：按天分组展示完整播放记录（含重复播放），点击即播，仅保留最近 2000 条',
