@@ -1,4 +1,4 @@
-import { HashRouter, Routes, Route } from 'react-router-dom'
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useThemeStore, lightenHex } from './stores/themeStore'
 import { useSkinStore } from './stores/skinStore'
 import ConfigPage from './pages/ConfigPage'
@@ -6,7 +6,6 @@ import LibraryPage from './pages/LibraryPage'
 import PlayerPage from './pages/PlayerPage'
 import FavoritesPage from './pages/FavoritesPage'
 import PlaylistPage from './pages/PlaylistPage'
-import RecentPage from './pages/RecentPage'
 import HistoryPage from './pages/HistoryPage'
 import StatsPage from './pages/StatsPage'
 import PlayerBar from './components/PlayerBar'
@@ -134,8 +133,8 @@ export default function App(): JSX.Element {
               <Route path="/player" element={<PlayerPage />} />
               <Route path="/favorites" element={<FavoritesPage />} />
               <Route path="/playlist" element={<PlaylistPage />} />
-              <Route path="/recent" element={<RecentPage />} />
               <Route path="/history" element={<HistoryPage />} />
+              <Route path="/recent" element={<Navigate to="/history" replace />} />
               <Route path="/stats" element={<StatsPage />} />
               <Route path="/config" element={<ConfigPage />} />
               </Routes>

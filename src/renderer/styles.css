@@ -2821,6 +2821,164 @@ body {
   border-top: 1px solid var(--border);
 }
 
+/* 歌单广场 */
+.square-scroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 4px 2px;
+}
+
+.square-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+  padding: 8px;
+}
+
+.square-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.square-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+.square-card-cover {
+  height: 96px;
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--bg-hover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.square-card-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.square-card-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.square-card-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.playlist-toolbar {
+  margin-bottom: 8px;
+}
+
+/* 加入歌单选择器 */
+.playlist-picker-list {
+  max-height: 260px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.playlist-picker-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.playlist-picker-item:hover {
+  background: var(--bg-hover);
+}
+
+.playlist-picker-name {
+  font-size: 13px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.playlist-picker-new {
+  display: flex;
+  gap: 8px;
+}
+
+/* 歌单添加歌曲弹窗 */
+.add-songs-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.add-songs-bar .search-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.add-songs-scroll {
+  max-height: 46vh;
+  overflow-y: auto;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.add-songs-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  height: 52px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+}
+
+.add-songs-row:last-child {
+  border-bottom: none;
+}
+
+.add-songs-row:hover {
+  background: var(--bg-hover);
+}
+
+.add-songs-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.add-songs-title {
+  font-size: 13px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;

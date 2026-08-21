@@ -1,12 +1,12 @@
 import { useEffect, useState, useMemo, useCallback, useRef, useLayoutEffect } from 'react'
 import { useMusicStore } from '../stores/musicStore'
 import { usePlayerStore } from '../stores/playerStore'
-import { usePlaylistStore } from '../stores/playlistStore'
 import { useToastStore } from '../stores/toastStore'
 import { useT } from '../i18n'
 import { useVirtualWindow } from '../hooks/useVirtualWindow'
 import MusicList from '../components/MusicList'
 import Modal from '../components/Modal'
+import PlaylistPickerModal from '../components/PlaylistPickerModal'
 import { getCoverCached, setCoverCached, coverCacheKey } from '../utils/coverCache'
 import type { MusicFile } from '../../main/types'
 
@@ -85,8 +85,8 @@ function AlbumCover({ album, tracks }: { album: string; tracks: MusicFile[] }): 
 export default function LibraryPage(): JSX.Element {
   const { tracks, loadTracks, configs, loadConfigs } = useMusicStore()
   const { requestPlay, setQueue } = usePlayerStore()
-  const addTracks = usePlaylistStore((s) => s.addTracks)
   const t = useT()
+  const [pickerTracks, setPickerTracks] = useState<MusicFile[] | null>(null)
 
   const displayName = (name: string): string => {
     if (name === UNKNOWN_ALBUM) return t('library.unknownAlbum')
@@ -433,7 +433,7 @@ export default function LibraryPage(): JSX.Element {
           <button
             className="btn btn-secondary add-all-btn"
             style={{ visibility: (search || filterConfig) && filtered.length > 0 ? 'visible' : 'hidden' }}
-            onClick={() => addTracks(filtered)}
+            onClick={() => setPickerTracks(filtered)}
             title={t('library.addAllTitle')}
           >
             {t('library.addAll')}
@@ -634,6 +634,10 @@ export default function LibraryPage(): JSX.Element {
             <button className="btn btn-primary" onClick={handleRenameArtist}>{t('common.save')}</button>
           </div>
         </Modal>
+      )}
+
+      {pickerTracks && (
+        <PlaylistPickerModal tracks={pickerTracks} onClose={() => setPickerTracks(null)} />
       )}
     </div>
   )

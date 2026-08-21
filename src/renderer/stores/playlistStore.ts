@@ -21,6 +21,7 @@ interface PlaylistState {
   clearPlaylist: () => void
   isInPlaylist: (id: number) => boolean
   persistTracks: (tracks: MusicFile[]) => void
+  addTracksToPlaylist: (playlistId: number, tracks: MusicFile[]) => Promise<number>
 }
 
 function parseIds(trackIds: string): number[] {
@@ -192,5 +193,26 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
 
   isInPlaylist: (id: number) => {
     return get().playlist.some((t) => t.id === id)
+  },
+
+  // 加入指定歌单（不切换当前活动歌单），返回实际新增数量
+  addTracksToPlaylist: async (playlistId: number, tracks: MusicFile[]) => {
+    const meta = get().playlists.find((p) => p.id === playlistId)
+    if (!meta || tracks.length === 0) return 0
+    const existingIds = parseIds(meta.trackIds)
+    const existingSet = new Set(existingIds)
+    const newTracks = tracks.filter((t) => !existingSet.has(t.id))
+    if (newTracks.length === 0) return 0
+    const updated = { ...meta, trackIds: JSON.stringify([...existingIds, ...newTracks.map((t) => t.id)]) }
+    await window.api.playlist.save(updated)
+    set((s) => ({
+      playlists: s.playlists.map((p) => (p.id === playlistId ? updated : p))
+    }))
+    if (get().activeId === playlistId) {
+      const merged = [...get().playlist, ...newTracks]
+      set({ playlist: merged })
+      usePlayerStore.getState().syncPlaylist(merged)
+    }
+    return newTracks.length
   }
 }))

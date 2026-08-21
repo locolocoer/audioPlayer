@@ -30,6 +30,7 @@ export default function HistoryPage(): JSX.Element {
   const { requestPlay, setQueue } = usePlayerStore()
   const [entries, setEntries] = useState<HistoryEntry[]>([])
   const [loading, setLoading] = useState(true)
+  const [viewMode, setViewMode] = useState<'all' | 'unique'>('all')
 
   useEffect(() => {
     window.api.music.playHistory(500).then((list) => {
@@ -38,9 +39,23 @@ export default function HistoryPage(): JSX.Element {
     }).catch(() => setLoading(false))
   }, [])
 
+  // 去重视图：每首歌只显示最近一次播放（entries 已按时间倒序）
+  const uniqueEntries = useMemo(() => {
+    const seen = new Set<number>()
+    const list: HistoryEntry[] = []
+    for (const e of entries) {
+      if (seen.has(e.track.id)) continue
+      seen.add(e.track.id)
+      list.push(e)
+    }
+    return list
+  }, [entries])
+
+  const source = viewMode === 'all' ? entries : uniqueEntries
+
   const groups = useMemo(() => {
     const map = new Map<string, HistoryEntry[]>()
-    for (const e of entries) {
+    for (const e of source) {
       const k = dayKey(e.playedAt)
       const arr = map.get(k) || []
       arr.push(e)
@@ -49,7 +64,7 @@ export default function HistoryPage(): JSX.Element {
     return Array.from(map.entries())
       .sort((a, b) => b[0].localeCompare(a[0]))
       .map(([day, list]) => ({ day, list }))
-  }, [entries])
+  }, [source])
 
   const dayLabel = (day: string): string => {
     const today = dayKey(new Date().toISOString())
@@ -70,13 +85,17 @@ export default function HistoryPage(): JSX.Element {
       <div className="page-header">
         <h2>{t('nav.history')}</h2>
         <div className="library-controls">
-          <span className="album-meta">{t('history.total', { count: entries.length })}</span>
+          <div className="playlist-switcher">
+            <button className={`browse-tab${viewMode === 'all' ? ' active' : ''}`} onClick={() => setViewMode('all')}>{t('history.all')}</button>
+            <button className={`browse-tab${viewMode === 'unique' ? ' active' : ''}`} onClick={() => setViewMode('unique')}>{t('history.unique')}</button>
+          </div>
+          <span className="album-meta">{t('history.total', { count: source.length })}</span>
           <span className="album-meta" style={{ marginLeft: 8 }}>{t('history.retention', { n: 2000 })}</span>
         </div>
       </div>
       {loading ? (
         <div className="empty-state"><p>{t('common.loading')}</p></div>
-      ) : entries.length === 0 ? (
+      ) : source.length === 0 ? (
         <div className="empty-state"><p>{t('history.empty')}</p></div>
       ) : (
         <div className="history-scroll">

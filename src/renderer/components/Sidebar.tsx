@@ -51,12 +51,6 @@ export default function Sidebar(): JSX.Element {
           </svg>
           <span>{t('nav.favorites')}</span>
         </NavLink>
-        <NavLink to="/recent" className={({ isActive }) => isActive ? 'sidebar-link active' : 'sidebar-link'}>
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-            <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/>
-          </svg>
-          <span>{t('nav.recent')}</span>
-        </NavLink>
         <NavLink to="/history" className={({ isActive }) => isActive ? 'sidebar-link active' : 'sidebar-link'}>
           <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
             <path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/>

@@ -190,6 +190,65 @@ export function registerIpcHandlers(): void {
     return true
   })
 
+  // 歌单导出：保存为可分享的 JSON 文件
+  ipcMain.handle('playlist:export', async (_event, payload: { playlist: Playlist; tracks: MusicFile[] }) => {
+    try {
+      const data = {
+        app: 'feiyu-music',
+        format: 1,
+        name: payload.playlist.name,
+        createdAt: payload.playlist.createdAt,
+        tracks: payload.tracks.map((t) => ({
+          title: t.title || t.filename,
+          artist: t.artist || '',
+          album: t.album || ''
+        }))
+      }
+      const win = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0]
+      const { canceled, filePath } = await dialog.showSaveDialog(win, {
+        title: '导出歌单',
+        defaultPath: `${payload.playlist.name.replace(/[\\/:*?"<>|]/g, '_')}.feiyu-playlist.json`,
+        filters: [{ name: '飞鱼歌单', extensions: ['json'] }]
+      })
+      if (canceled || !filePath) return { ok: false, error: 'canceled' }
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8')
+      return { ok: true, path: filePath }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
+  // 歌单导入：读取分享的 JSON 歌单
+  ipcMain.handle('playlist:import', async () => {
+    try {
+      const win = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0]
+      const { canceled, filePaths } = await dialog.showOpenDialog(win, {
+        title: '导入歌单',
+        filters: [{ name: '飞鱼歌单', extensions: ['json'] }],
+        properties: ['openFile']
+      })
+      if (canceled || filePaths.length === 0) return { ok: false, error: 'canceled' }
+      const raw = fs.readFileSync(filePaths[0], 'utf-8')
+      const parsed = JSON.parse(raw)
+      if (!parsed || parsed.app !== 'feiyu-music' || !Array.isArray(parsed.tracks)) {
+        return { ok: false, error: 'invalid' }
+      }
+      return {
+        ok: true,
+        name: String(parsed.name || '导入的歌单'),
+        tracks: parsed.tracks
+          .filter((t: unknown) => !!t && typeof t === 'object' && typeof (t as { title?: unknown }).title === 'string')
+          .map((t: { title: string; artist?: unknown; album?: unknown }) => ({
+            title: t.title,
+            artist: typeof t.artist === 'string' ? t.artist : '',
+            album: typeof t.album === 'string' ? t.album : ''
+          }))
+      }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
   // Cache
   ipcMain.handle('cache:clear', async () => {
     clearAllMusicFiles()

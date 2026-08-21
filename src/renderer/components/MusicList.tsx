@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import Modal from './Modal'
+import PlaylistPickerModal from './PlaylistPickerModal'
 import type { MusicFile } from '../../main/types'
 import { usePlayerStore } from '../stores/playerStore'
 import { useMusicStore } from '../stores/musicStore'
-import { usePlaylistStore } from '../stores/playlistStore'
 import { useT } from '../i18n'
 
 interface MusicListProps {
@@ -148,18 +148,14 @@ function EditModal({ track, onClose }: { track: MusicFile; onClose: () => void }
   )
 }
 
-function ContextMenu({ x, y, track, onClose, onEdit }: {
-  x: number; y: number; track: MusicFile; onClose: () => void; onEdit: () => void
+function ContextMenu({ x, y, track, onClose, onEdit, onAddToPlaylist }: {
+  x: number; y: number; track: MusicFile; onClose: () => void; onEdit: () => void; onAddToPlaylist: () => void
 }): JSX.Element {
   const t = useT()
   const toggleFavorite = useMusicStore((s) => s.toggleFavorite)
   const configs = useMusicStore((s) => s.configs)
   const isLocal = configs.find((c) => c.id === track.webdavId)?.sourceType === 'local'
   const isFav = track.favorite === 1
-  const playlist = usePlaylistStore((s) => s.playlist)
-  const addTrack = usePlaylistStore((s) => s.addTrack)
-  const removeTrack = usePlaylistStore((s) => s.removeTrack)
-  const inPlaylist = playlist.some((t) => t.id === track.id)
 
   useEffect(() => {
     const handler = () => onClose()
@@ -185,15 +181,11 @@ function ContextMenu({ x, y, track, onClose, onEdit }: {
         </svg>
         {isFav ? t('player.unfavorite') : t('ctx.favorite')}
       </div>
-      <div className="context-menu-item" onClick={() => { inPlaylist ? removeTrack(track.id) : addTrack(track); onClose() }}>
+      <div className="context-menu-item" onClick={() => { onAddToPlaylist(); onClose() }}>
         <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-          {inPlaylist ? (
-            <path d="M6 19h12v2H6v-2z"/>
-          ) : (
-            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-          )}
+          <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
         </svg>
-        {inPlaylist ? t('ctx.removeFromPlaylist') : t('ctx.addToPlaylist')}
+        {t('ctx.addToPlaylist')}
       </div>
     </div>
   )
@@ -203,9 +195,9 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
   const t = useT()
   const currentTrack = usePlayerStore((s) => s.currentTrack)
   const toggleFavorite = useMusicStore((s) => s.toggleFavorite)
-  const addTracks = usePlaylistStore((s) => s.addTracks)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; track: MusicFile } | null>(null)
   const [editTrack, setEditTrack] = useState<MusicFile | null>(null)
+  const [pickerTracks, setPickerTracks] = useState<MusicFile[] | null>(null)
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const selectAllRef = useRef<HTMLInputElement>(null)
@@ -270,10 +262,11 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
     setSelected(new Set())
   }
 
-  const batchAddToPlaylist = (): void => {
+  // 批量加入歌单：弹出目标歌单选择器
+  const openBatchPicker = (): void => {
     const sel = tracks.filter((t) => selected.has(t.id))
-    if (sel.length > 0) addTracks(sel)
-    exitSelectMode()
+    if (sel.length === 0) return
+    setPickerTracks(sel)
   }
 
   const batchFavorite = (): void => {
@@ -315,7 +308,7 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
           <button className="btn btn-secondary" onClick={handleSelectAll}>
             {selected.size === tracks.length ? t('list.selectNone') : t('list.selectAll')}
           </button>
-          <button className="btn btn-secondary" onClick={batchAddToPlaylist}>{t('list.addToPlaylist')}</button>
+          <button className="btn btn-secondary" onClick={openBatchPicker}>{t('list.addToPlaylist')}</button>
           <button className="btn btn-secondary" onClick={batchFavorite}>{t('list.favorite')}</button>
           <button className="btn btn-secondary" onClick={exitSelectMode}>{t('common.cancel')}</button>
         </div>
@@ -452,9 +445,16 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
           track={contextMenu.track}
           onClose={() => setContextMenu(null)}
           onEdit={() => { setEditTrack(contextMenu.track); setContextMenu(null) }}
+          onAddToPlaylist={() => setPickerTracks([contextMenu.track])}
         />
       )}
       {editTrack && <EditModal track={editTrack} onClose={() => setEditTrack(null)} />}
+      {pickerTracks && (
+        <PlaylistPickerModal
+          tracks={pickerTracks}
+          onClose={() => { setPickerTracks(null); if (selectMode) exitSelectMode() }}
+        />
+      )}
     </>
   )
 }

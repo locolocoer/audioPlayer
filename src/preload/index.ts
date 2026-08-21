@@ -52,7 +52,11 @@ const api = {
   playlist: {
     save: (playlist: Playlist): Promise<boolean> => ipcRenderer.invoke('playlist:save', playlist),
     list: (): Promise<Playlist[]> => ipcRenderer.invoke('playlist:list'),
-    delete: (id: number): Promise<boolean> => ipcRenderer.invoke('playlist:delete', id)
+    delete: (id: number): Promise<boolean> => ipcRenderer.invoke('playlist:delete', id),
+    export: (playlist: Playlist, tracks: MusicFile[]): Promise<{ ok: boolean; path?: string; error?: string }> =>
+      ipcRenderer.invoke('playlist:export', { playlist, tracks }),
+    import: (): Promise<{ ok: boolean; name?: string; tracks?: { title: string; artist: string; album: string }[]; error?: string }> =>
+      ipcRenderer.invoke('playlist:import')
   },
   player: {
     getAudioPath: (configId: string, filePath: string): Promise<{ localUrl?: string; error?: string }> =>

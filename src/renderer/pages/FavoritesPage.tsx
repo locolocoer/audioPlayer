@@ -1,9 +1,10 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useMusicStore } from '../stores/musicStore'
 import { usePlayerStore } from '../stores/playerStore'
-import { usePlaylistStore } from '../stores/playlistStore'
+import PlaylistPickerModal from '../components/PlaylistPickerModal'
 import MusicList from '../components/MusicList'
 import { useT } from '../i18n'
+import type { MusicFile } from '../../main/types'
 
 type SortField = 'title' | 'artist' | 'album' | 'duration' | 'playCount' | 'lastPlayed'
 type SortDir = 'asc' | 'desc'
@@ -13,7 +14,7 @@ export default function FavoritesPage(): JSX.Element {
   const favorites = useMusicStore((s) => s.favorites)
   const loadFavorites = useMusicStore((s) => s.loadFavorites)
   const { requestPlay, setQueue } = usePlayerStore()
-  const addTracks = usePlaylistStore((s) => s.addTracks)
+  const [pickerTracks, setPickerTracks] = useState<MusicFile[] | null>(null)
   const [search, setSearch] = useState('')
   const [sortField, setSortField] = useState<SortField>('title')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
@@ -75,7 +76,7 @@ export default function FavoritesPage(): JSX.Element {
             className="search-input"
           />
           {favorites.length > 0 && (
-            <button className="btn btn-secondary" onClick={() => addTracks(favorites)} title={t('favorites.addAllTitle')}>
+            <button className="btn btn-secondary" onClick={() => setPickerTracks(favorites)} title={t('favorites.addAllTitle')}>
               {t('favorites.addAll')}
             </button>
           )}
@@ -89,6 +90,9 @@ export default function FavoritesPage(): JSX.Element {
         onRowClick={handleRowClick}
         showFavorite={true}
       />
+      {pickerTracks && (
+        <PlaylistPickerModal tracks={pickerTracks} onClose={() => setPickerTracks(null)} />
+      )}
     </div>
   )
 }
