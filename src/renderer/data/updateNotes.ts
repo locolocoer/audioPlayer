@@ -6,6 +6,11 @@ export interface UpdateNote {
 }
 
 export const UPDATE_NOTES: Record<string, UpdateNote> = {
+  '1.4.1': {
+    added: [
+      '歌曲详情展示音频技术信息：采样率、位深、码率、编码器、声道数（本地文件）'
+    ]
+  },
   '1.4.0': {
     added: [
       '歌单广场：卡片网格浏览所有歌单，播放全部/删除/点击即开',

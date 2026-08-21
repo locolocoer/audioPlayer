@@ -44,6 +44,8 @@ const api = {
       ipcRenderer.invoke('music:recent', limit),
     playHistory: (limit?: number): Promise<{ playedAt: string; track: MusicFile }[]> =>
       ipcRenderer.invoke('music:playHistory', limit),
+    audioInfo: (configId: string, filePath: string): Promise<{ ok: boolean; info?: { container: string; codec: string; sampleRate: number; bitsPerSample: number; bitrate: number; channels: number }; error?: string }> =>
+      ipcRenderer.invoke('music:audioInfo', configId, filePath),
     alternatives: (title: string, webdavId: string): Promise<MusicFile[]> =>
       ipcRenderer.invoke('music:alternatives', title, webdavId),
     setSourcePref: (title: string, trackId: number): Promise<boolean> =>

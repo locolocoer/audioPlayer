@@ -144,6 +144,32 @@ export function registerIpcHandlers(): void {
     return true
   })
 
+  // 音频技术信息（采样率/位深/码率/编码器）：仅本地文件支持
+  ipcMain.handle('music:audioInfo', async (_event, configId: string, filePath: string) => {
+    try {
+      const config = getAllWebDAVConfigs().find((c) => c.id === configId)
+      if (!config || config.sourceType !== 'local') {
+        return { ok: false, error: 'remote' }
+      }
+      const musicMetadata = await import('music-metadata')
+      const metadata = await musicMetadata.parseFile(filePath, { skipCovers: true })
+      const f = metadata.format
+      return {
+        ok: true,
+        info: {
+          container: f.container || '',
+          codec: f.codec || '',
+          sampleRate: f.sampleRate || 0,
+          bitsPerSample: f.bitsPerSample || 0,
+          bitrate: f.bitrate || 0,
+          channels: f.numberOfChannels || 0
+        }
+      }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
   ipcMain.handle('music:updateMetaBatch', async (_event, ids: number[], meta: { title?: string; artist?: string; album?: string }) => {
     let attempted = 0
     let failed = 0

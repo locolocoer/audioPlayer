@@ -38,6 +38,8 @@ function EditModal({ track, onClose }: { track: MusicFile; onClose: () => void }
   const [album, setAlbum] = useState(track.album || '')
   const [sources, setSources] = useState<MusicFile[]>([])
   const [activeTrack, setActiveTrack] = useState<MusicFile>(track)
+  const [audioInfo, setAudioInfo] = useState<{ container: string; codec: string; sampleRate: number; bitsPerSample: number; bitrate: number; channels: number } | null>(null)
+  const [audioInfoErr, setAudioInfoErr] = useState('')
   const updateMeta = useMusicStore((s) => s.updateMeta)
   const switchTrackSource = useMusicStore((s) => s.switchTrackSource)
   const configs = useMusicStore((s) => s.configs)
@@ -48,6 +50,16 @@ function EditModal({ track, onClose }: { track: MusicFile; onClose: () => void }
       setActiveTrack(list.find((s) => s.id === track.id) || track)
     }).catch(() => {})
   }, [track.title, track.webdavId, track.id])
+
+  // 音频技术信息：随当前音源变化重新加载
+  useEffect(() => {
+    setAudioInfo(null)
+    setAudioInfoErr('')
+    window.api.music.audioInfo(activeTrack.webdavId, activeTrack.path).then((r) => {
+      if (r.ok && r.info) setAudioInfo(r.info)
+      else setAudioInfoErr(r.error === 'remote' ? t('track.audioInfoRemote') : t('track.audioInfoFailed'))
+    }).catch(() => setAudioInfoErr(t('track.audioInfoFailed')))
+  }, [activeTrack.webdavId, activeTrack.path, t])
 
   const sourceName = (id: string): string => {
     const c = configs.find((x) => x.id === id)
@@ -115,6 +127,40 @@ function EditModal({ track, onClose }: { track: MusicFile; onClose: () => void }
             <span className="detail-label">{t('track.size')}</span>
             <span className="detail-value">{(activeTrack.size / 1024 / 1024).toFixed(1)} MB</span>
           </div>
+          {audioInfo ? (
+            <>
+              <div className="detail-row">
+                <span className="detail-label">{t('track.sampleRate')}</span>
+                <span className="detail-value">{audioInfo.sampleRate ? `${(audioInfo.sampleRate / 1000).toFixed(1)} kHz` : '--'}</span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">{t('track.bitDepth')}</span>
+                <span className="detail-value">{audioInfo.bitsPerSample ? `${audioInfo.bitsPerSample} bit` : '--'}</span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">{t('track.bitrate')}</span>
+                <span className="detail-value">{audioInfo.bitrate ? `${Math.round(audioInfo.bitrate / 1000)} kbps` : '--'}</span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">{t('track.codec')}</span>
+                <span className="detail-value">{audioInfo.codec || audioInfo.container || '--'}</span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">{t('track.channels')}</span>
+                <span className="detail-value">{audioInfo.channels ? `${audioInfo.channels}` : '--'}</span>
+              </div>
+            </>
+          ) : audioInfoErr ? (
+            <div className="detail-row">
+              <span className="detail-label">{t('track.audioInfo')}</span>
+              <span className="detail-value" style={{ color: 'var(--text-secondary)' }}>{audioInfoErr}</span>
+            </div>
+          ) : (
+            <div className="detail-row">
+              <span className="detail-label">{t('track.audioInfo')}</span>
+              <span className="detail-value">{t('common.loading')}</span>
+            </div>
+          )}
         </div>
         {sources.length > 1 && (
           <div className="form-group">
