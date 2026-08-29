@@ -42,9 +42,16 @@ function EditModal({ track, onClose }: { track: MusicFile; onClose: () => void }
   const [activeTrack, setActiveTrack] = useState<MusicFile>(track)
   const [audioInfo, setAudioInfo] = useState<{ container: string; codec: string; sampleRate: number; bitsPerSample: number; bitrate: number; channels: number } | null>(null)
   const [audioInfoErr, setAudioInfoErr] = useState('')
+  const [aiTags, setAiTags] = useState<string[]>([])
   const updateMeta = useMusicStore((s) => s.updateMeta)
   const switchTrackSource = useMusicStore((s) => s.switchTrackSource)
   const configs = useMusicStore((s) => s.configs)
+
+  useEffect(() => {
+    window.api.music.getAiTags().then((list) => {
+      setAiTags(list.find((x) => x.trackId === activeTrack.id)?.tags || [])
+    }).catch(() => {})
+  }, [activeTrack.id])
 
   useEffect(() => {
     window.api.music.alternatives(track.title, track.webdavId).then((list) => {
@@ -161,6 +168,16 @@ function EditModal({ track, onClose }: { track: MusicFile; onClose: () => void }
             <div className="detail-row">
               <span className="detail-label">{t('track.audioInfo')}</span>
               <span className="detail-value">{t('common.loading')}</span>
+            </div>
+          )}
+          {aiTags.length > 0 && (
+            <div className="detail-row" style={{ alignItems: 'flex-start' }}>
+              <span className="detail-label">{t('track.aiTags')}</span>
+              <span className="detail-value" style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {aiTags.map((tag) => (
+                  <span key={tag} className="ai-mood-tag">{tag}</span>
+                ))}
+              </span>
             </div>
           )}
         </div>

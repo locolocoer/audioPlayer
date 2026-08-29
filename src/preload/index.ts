@@ -37,6 +37,8 @@ const api = {
     duplicates: (): Promise<{ title: string; trackCount: number; tracks: MusicFile[] }[]> =>
       ipcRenderer.invoke('music:duplicates'),
     deleteTrack: (id: number): Promise<boolean> => ipcRenderer.invoke('music:deleteTrack', id),
+    getAiTags: (): Promise<{ trackId: number; tags: string[] }[]> => ipcRenderer.invoke('music:getAiTags'),
+    saveAiTags: (batch: { trackId: number; tags: string[] }[]): Promise<boolean> => ipcRenderer.invoke('music:saveAiTags', batch),
     enrich: (id: number): Promise<{ ok: boolean; meta?: { title?: string; artist?: string; album?: string } }> =>
       ipcRenderer.invoke('music:enrich', id),
     recordPlay: (id: number): Promise<boolean> =>

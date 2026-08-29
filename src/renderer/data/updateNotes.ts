@@ -6,6 +6,14 @@ export interface UpdateNote {
 }
 
 export const UPDATE_NOTES: Record<string, UpdateNote> = {
+  '1.5.2': {
+    added: [
+      '曲库 AI 自动分类打标：整库生成情绪/风格/场景标签，分批可中断、断点续跑',
+      '音乐库按 AI 标签多选筛选（并集）',
+      '歌曲详情显示 AI 标签',
+      '心情电台接入 AI 标签随机播放'
+    ]
+  },
   '1.5.1': {
     added: [
       'AI 回复中的歌曲可点击直接播放（自动从回复提取）',

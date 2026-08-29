@@ -86,7 +86,20 @@ export default function LibraryPage(): JSX.Element {
   const { tracks, loadTracks, configs, loadConfigs } = useMusicStore()
   const { requestPlay, setQueue } = usePlayerStore()
   const t = useT()
+  const addToast = useToastStore((s) => s.addToast)
   const [pickerTracks, setPickerTracks] = useState<MusicFile[] | null>(null)
+  // AI 分类打标
+  const [aiTags, setAiTags] = useState<Map<number, string[]>>(new Map())
+  const [classifying, setClassifying] = useState(false)
+  const [classifyProgress, setClassifyProgress] = useState<{ done: number; total: number } | null>(null)
+  const classifyCancelRef = useRef(false)
+  const [tagFilters, setTagFilters] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    window.api.music.getAiTags().then((list) => {
+      setAiTags(new Map(list.map((x) => [x.trackId, x.tags])))
+    }).catch(() => {})
+  }, [])
 
   const displayName = (name: string): string => {
     if (name === UNKNOWN_ALBUM) return t('library.unknownAlbum')
@@ -196,6 +209,14 @@ export default function LibraryPage(): JSX.Element {
     if (filterConfig) {
       result = result.filter((t) => t.webdavId === filterConfig)
     }
+    if (tagFilters.size > 0) {
+      result = result.filter((t) => {
+        const tags = aiTags.get(t.id)
+        if (!tags) return false
+        // 多选取并集：满足任一选中标签即可
+        return Array.from(tagFilters).some((f) => tags.includes(f))
+      })
+    }
     result = [...result].sort((a, b) => {
       let cmp = 0
       if (sortField === 'duration') {
@@ -212,7 +233,77 @@ export default function LibraryPage(): JSX.Element {
       return sortDir === 'asc' ? cmp : -cmp
     })
     return result
-  }, [baseTracks, search, filterConfig, sortField, sortDir])
+  }, [baseTracks, search, filterConfig, sortField, sortDir, tagFilters, aiTags])
+
+  // 全部已打标标签（按数量排序，取前 20 用于筛选）
+  const allTags = useMemo(() => {
+    const counter = new Map<string, number>()
+    for (const tags of aiTags.values()) {
+      for (const tag of tags) counter.set(tag, (counter.get(tag) || 0) + 1)
+    }
+    return Array.from(counter.entries()).sort((a, b) => b[1] - a[1]).slice(0, 20)
+  }, [aiTags])
+
+  // AI 整库分类打标：分批调用，断点续跑（跳过已打标），可中断
+  const classifyAll = async (): Promise<void> => {
+    if (classifying) return
+    const all = useMusicStore.getState().tracks
+    const pending = all.filter((x) => !aiTags.has(x.id))
+    if (pending.length === 0) {
+      addToast(t('library.aiClassifyEmpty'), 'info')
+      return
+    }
+    setClassifying(true)
+    setClassifyProgress({ done: 0, total: pending.length })
+    classifyCancelRef.current = false
+    const tagMap = new Map(aiTags)
+    const BATCH = 20
+    for (let i = 0; i < pending.length; i += BATCH) {
+      if (classifyCancelRef.current) break
+      const batch = pending.slice(i, i + BATCH)
+      const prompt = batch
+        .map((x, idx) => `${idx}. ${x.title || x.filename}${x.artist ? ` - ${x.artist}` : ''}${x.album ? ` [${x.album}]` : ''}`)
+        .join('\n')
+      const r = await window.api.ai.chat([{ role: 'user', content: prompt }], {
+        system: '为下列每首歌曲生成 2-4 个中文标签（情绪/风格/场景，如：治愈、伤感、激昂、摇滚、民谣、跑步、学习、睡前、通勤）。根据歌名/歌手/专辑信息合理推断，不确定就给出常见风格标签。只输出严格 JSON 数组，不要任何其他文字：[{"index":0,"tags":["治愈","民谣"]},...]，index 对应输入行序号。',
+        maxTokens: 1200,
+        temperature: 0.3
+      })
+      if (!r.ok || !r.text) {
+        addToast(t('ai.failed'), 'error')
+        break
+      }
+      let parsed: { index: number; tags: unknown[] }[] = []
+      try {
+        let raw = r.text.trim()
+        const fence = raw.match(/```(?:json)?\s*([\s\S]*?)```/)
+        if (fence) raw = fence[1].trim()
+        const arr = JSON.parse(raw)
+        parsed = Array.isArray(arr) ? arr : []
+      } catch { /* ignore */ }
+      const toSave: { trackId: number; tags: string[] }[] = []
+      for (const item of parsed) {
+        const track = batch[item.index]
+        if (track && Array.isArray(item.tags) && item.tags.length > 0) {
+          const tags = item.tags.map(String).filter(Boolean).slice(0, 8)
+          if (tags.length > 0) {
+            toSave.push({ trackId: track.id, tags })
+            tagMap.set(track.id, tags)
+          }
+        }
+      }
+      if (toSave.length > 0) {
+        await window.api.music.saveAiTags(toSave)
+        setAiTags(new Map(tagMap))
+      }
+      setClassifyProgress({ done: Math.min(i + BATCH, pending.length), total: pending.length })
+    }
+    setClassifying(false)
+    setClassifyProgress(null)
+    if (!classifyCancelRef.current) {
+      addToast(t('library.aiClassifyDone'), 'success')
+    }
+  }
 
   const albums = useMemo(() => {
     const map = new Map<string, { name: string; artist: string; tracks: MusicFile[] }>()
@@ -362,13 +453,25 @@ export default function LibraryPage(): JSX.Element {
     { key: 'immersion', labelKey: 'library.mood.immersion', descKey: 'library.mood.immersion.desc' }
   ]
 
+  // 心情电台：基于 AI 标签匹配（需要先对曲库执行 AI 分类）
+  const MOOD_TAGS: Record<string, string[]> = {
+    focus: ['学习', '专注', '工作', '安静'],
+    relax: ['放松', '治愈', '舒缓', '温柔'],
+    energetic: ['运动', '跑步', '激昂', '动感', '高能'],
+    immersion: ['沉浸', '深夜', '民谣', '纯音乐', '氛围']
+  }
+
   const playMood = (mood: string): void => {
     setMoodOpen(false)
-    let pool = tracks
-    if (mood === 'relax') pool = tracks.filter((t) => t.favorite === 1)
-    else if (mood === 'energetic') pool = tracks.filter((t) => (t.playCount || 0) >= 3)
-    else if (mood === 'immersion') pool = tracks.filter((t) => (t.playCount || 0) > 0)
-    if (pool.length === 0) pool = tracks
+    const wanted = MOOD_TAGS[mood] || []
+    const pool = tracks.filter((t) => {
+      const tags = aiTags.get(t.id)
+      return !!tags && tags.some((tag) => wanted.includes(tag))
+    })
+    if (pool.length === 0) {
+      useToastStore.getState().addToast(t('library.moodNoTags'), 'info')
+      return
+    }
     const shuffled = [...pool].sort(() => Math.random() - 0.5)
     usePlayerStore.getState().setPlayMode('shuffle')
     usePlayerStore.getState().playSelection(shuffled)
@@ -471,6 +574,15 @@ export default function LibraryPage(): JSX.Element {
               </div>
             )}
           </div>
+          {classifying ? (
+            <button className="btn btn-sm btn-primary" onClick={() => { classifyCancelRef.current = true }}>
+              {t('library.aiClassifyRunning', classifyProgress ? { done: classifyProgress.done, total: classifyProgress.total } : undefined)}（{t('library.aiClassifyCancel')}）
+            </button>
+          ) : (
+            <button className="btn btn-sm" onClick={classifyAll} title={t('library.aiClassifyTitle')}>
+              ✨ {t('library.aiClassify')}
+            </button>
+          )}
           <input
             type="text"
             placeholder={t('library.search')}
@@ -501,6 +613,33 @@ export default function LibraryPage(): JSX.Element {
           </div>
         </div>
       </div>
+
+      {allTags.length > 0 && (
+        <div className="tag-filter-bar">
+          {allTags.map(([tag, count]) => {
+            const active = tagFilters.has(tag)
+            return (
+              <button
+                key={tag}
+                className={`tag-chip${active ? ' active' : ''}`}
+                onClick={() => {
+                  setTagFilters((prev) => {
+                    const next = new Set(prev)
+                    if (next.has(tag)) next.delete(tag)
+                    else next.add(tag)
+                    return next
+                  })
+                }}
+              >
+                {tag} <span className="tag-count">{count}</span>
+              </button>
+            )
+          })}
+          {tagFilters.size > 0 && (
+            <button className="tag-clear" onClick={() => setTagFilters(new Set())}>{t('library.tagFilterClear')}</button>
+          )}
+        </div>
+      )}
 
       {viewMode === 'folders' ? (
         <div className="folder-view">

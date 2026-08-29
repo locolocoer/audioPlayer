@@ -32,7 +32,9 @@ import {
   getStatsReport,
   getPlayTrend,
   getPlayHistory,
-  deleteMusicFileByPath
+  deleteMusicFileByPath,
+  getAiTags,
+  saveAiTags
 } from './database'
 import type { WebDAVConfig, MusicFile, ScanProgress, Playlist, ScanSettings } from './types'
 import fs from 'fs'
@@ -348,6 +350,15 @@ export function registerIpcHandlers(): void {
     const row = getMusicFileById(id)
     if (!row) return false
     deleteMusicFileByPath(row.webdavId, row.path)
+    return true
+  })
+
+  // AI 标签：查询 / 批量保存
+  ipcMain.handle('music:getAiTags', async () => {
+    return getAiTags()
+  })
+  ipcMain.handle('music:saveAiTags', async (_e, batch: { trackId: number; tags: string[] }[]) => {
+    saveAiTags(Array.isArray(batch) ? batch : [])
     return true
   })
 

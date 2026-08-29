@@ -152,6 +152,14 @@ export async function initDatabase(): Promise<void> {
   `)
   db.run('CREATE INDEX IF NOT EXISTS idx_play_history_playedAt ON play_history(playedAt)')
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS ai_tags (
+      trackId INTEGER PRIMARY KEY,
+      tags TEXT NOT NULL DEFAULT '[]',
+      updatedAt TEXT NOT NULL DEFAULT ''
+    )
+  `)
+
   db.run('CREATE INDEX IF NOT EXISTS idx_music_webdav ON music_files(webdavId)')
   db.run('CREATE INDEX IF NOT EXISTS idx_music_title ON music_files(title)')
   db.run('CREATE INDEX IF NOT EXISTS idx_music_title_key ON music_files(title_key)')
@@ -596,5 +604,29 @@ export function getPlaylists(): Playlist[] {
 
 export function deletePlaylist(id: number): void {
   db.run('DELETE FROM playlists WHERE id = ?', [id])
+  saveToDisk()
+}
+
+// AI 标签
+export function getAiTags(): { trackId: number; tags: string[] }[] {
+  const rows = queryAll<{ trackId: number; tags: string }>('SELECT trackId, tags FROM ai_tags')
+  return rows.map((r) => {
+    try {
+      const parsed = JSON.parse(r.tags)
+      return { trackId: r.trackId, tags: Array.isArray(parsed) ? parsed.map(String) : [] }
+    } catch {
+      return { trackId: r.trackId, tags: [] }
+    }
+  })
+}
+
+export function saveAiTags(batch: { trackId: number; tags: string[] }[]): void {
+  const now = new Date().toISOString()
+  for (const item of batch) {
+    db.run(
+      'INSERT OR REPLACE INTO ai_tags (trackId, tags, updatedAt) VALUES (?, ?, ?)',
+      [item.trackId, JSON.stringify(item.tags.slice(0, 8)), now]
+    )
+  }
   saveToDisk()
 }
