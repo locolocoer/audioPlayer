@@ -6,6 +6,14 @@ export interface UpdateNote {
 }
 
 export const UPDATE_NOTES: Record<string, UpdateNote> = {
+  '1.5.1': {
+    added: [
+      'AI 回复中的歌曲可点击直接播放（自动从回复提取）',
+      '情绪分析支持「播放相似情绪」：相同情绪的歌曲组成队列随机播放',
+      'AI 回复与周报一键复制',
+      'AI 助手显示当前模型与累计 token 用量'
+    ]
+  },
   '1.5.0': {
     added: [
       'AI 服务：设置页配置接口（OpenAI 兼容 / Anthropic 双格式），Key 仅存本机',

@@ -88,10 +88,24 @@ export interface AiStreamPart {
   content?: string
 }
 
+export interface AiUsage {
+  prompt_tokens?: number
+  completion_tokens?: number
+  total_tokens?: number
+}
+
+export interface AiResult {
+  ok: boolean
+  text?: string
+  reasoning?: string
+  usage?: AiUsage
+  error?: string
+}
+
 export async function aiChat(
   messages: AiMessage[],
   opts?: AiChatOptions
-): Promise<{ ok: boolean; text?: string; reasoning?: string; error?: string }> {
+): Promise<AiResult> {
   return aiChatImpl(messages, opts, false)
 }
 
@@ -100,7 +114,7 @@ export async function aiChatStream(
   messages: AiMessage[],
   opts: AiChatOptions | undefined,
   onPart: (part: AiStreamPart) => void
-): Promise<{ ok: boolean; text?: string; reasoning?: string; error?: string }> {
+): Promise<AiResult> {
   return aiChatImpl(messages, opts, true, onPart)
 }
 
@@ -109,7 +123,7 @@ async function aiChatImpl(
   opts?: AiChatOptions,
   stream = false,
   onPart?: (part: AiStreamPart) => void
-): Promise<{ ok: boolean; text?: string; reasoning?: string; error?: string }> {
+): Promise<AiResult> {
   if (!config.enabled || !config.apiKey) {
     return { ok: false, error: 'not-configured' }
   }
@@ -142,12 +156,16 @@ async function aiChatImpl(
       if (stream) {
         let full = ''
         let chunks = 0
+        let usage: AiUsage | undefined
         await readSse(resp, (json) => {
-          const j = json as { type?: string; delta?: { type?: string; text?: string } }
+          const j = json as { type?: string; delta?: { type?: string; text?: string }; usage?: { input_tokens?: number; output_tokens?: number } }
           if (j.type === 'content_block_delta' && j.delta?.type === 'text_delta' && j.delta.text) {
             chunks++
             full += j.delta.text
             onPart?.({ content: j.delta.text })
+          }
+          if (j.usage) {
+            usage = { prompt_tokens: j.usage.input_tokens, completion_tokens: j.usage.output_tokens }
           }
         })
         console.log(`[AI] anthropic stream done, chunks=${chunks}, fullLen=${full.length}`)
@@ -155,14 +173,16 @@ async function aiChatImpl(
           console.log('[AI] anthropic stream empty, fallback to non-stream')
           return aiChatImpl(messages, opts, false)
         }
-        return { ok: true, text: full }
+        return { ok: true, text: full, usage }
       }
       const data = await resp.json()
       const text = (data.content || [])
         .filter((b: { type: string }) => b.type === 'text')
         .map((b: { text: string }) => b.text)
         .join('')
-      return { ok: true, text }
+      const u = data.usage as { input_tokens?: number; output_tokens?: number } | undefined
+      const usage: AiUsage | undefined = u ? { prompt_tokens: u.input_tokens, completion_tokens: u.output_tokens } : undefined
+      return { ok: true, text, usage }
     }
     // OpenAI 兼容格式
     const base = (config.baseUrl || 'https://api.openai.com/v1').replace(/\/+$/, '')
@@ -195,8 +215,9 @@ async function aiChatImpl(
       let full = ''
       let fullReasoning = ''
       let chunks = 0
+      let usage: AiUsage | undefined
       await readSse(resp, (json) => {
-        const j = json as { choices?: { delta?: { content?: string; reasoning_content?: string } }[] }
+        const j = json as { choices?: { delta?: { content?: string; reasoning_content?: string } }[]; usage?: AiUsage }
         const d = j.choices?.[0]?.delta
         // 推理模型：思考过程在 reasoning_content，正式回答在 content，分开推送
         if (typeof d?.reasoning_content === 'string' && d.reasoning_content) {
@@ -209,20 +230,22 @@ async function aiChatImpl(
           full += d.content
           onPart?.({ content: d.content })
         }
+        if (j.usage) usage = j.usage
       })
       console.log(`[AI] openai stream done, chunks=${chunks}, contentLen=${full.length}, reasoningLen=${fullReasoning.length}`)
       if (!full && !fullReasoning) {
         console.log('[AI] openai stream empty, fallback to non-stream')
         return aiChatImpl(messages, opts, false)
       }
-      return { ok: true, text: full, reasoning: fullReasoning }
+      return { ok: true, text: full, reasoning: fullReasoning, usage }
     }
     const data = await resp.json()
     const msg = data.choices?.[0]?.message
     const reasoning = msg?.reasoning_content || ''
     const text = msg?.content || reasoning
+    const usage = data.usage as AiUsage | undefined
     console.log(`[AI] openai non-stream status=${resp.status}, textLen=${text.length}, reasoningLen=${reasoning.length}`)
-    return { ok: true, text, reasoning }
+    return { ok: true, text, reasoning, usage }
   } catch (err) {
     console.log('[AI] 请求异常:', err)
     return { ok: false, error: err instanceof Error ? err.message : String(err) }

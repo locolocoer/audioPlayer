@@ -183,11 +183,19 @@ export default function StatsPage(): JSX.Element {
           ) : weekReportErr ? (
             <p className="ai-error">{weekReportErr}</p>
           ) : (
-            <div className="ai-report-text">{weekReport}</div>
+            <>
+              <div className="ai-report-text">{weekReport}</div>
+              <div className="modal-actions">
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    navigator.clipboard.writeText(weekReport).catch(() => {})
+                  }}
+                >{t('ai.copy')}</button>
+                <button className="btn btn-primary" onClick={() => setWeekReportOpen(false)}>{t('common.close')}</button>
+              </div>
+            </>
           )}
-          <div className="modal-actions">
-            <button className="btn btn-primary" onClick={() => setWeekReportOpen(false)}>{t('common.close')}</button>
-          </div>
         </Modal>
       )}
     </div>

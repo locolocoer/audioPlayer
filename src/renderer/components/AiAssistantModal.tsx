@@ -10,6 +10,7 @@ import type { MusicFile } from '../../main/types'
 interface ChatMsg {
   role: 'user' | 'assistant'
   content: string
+  trackIds?: number[]
 }
 
 // 对话历史持久化：关闭对话框再打开不丢失；本地最多保留 60 条，避免 localStorage 膨胀
@@ -126,6 +127,28 @@ function matchTracks(list: AiTrack[]): MusicFile[] {
   return matched
 }
 
+// 从回复文本中启发式提取歌曲列表（"- 歌名"、"1. 歌名 - 歌手" 等行），
+// 不依赖 AI 是否输出 <play> 动作块
+function extractTracksFromText(text: string): AiTrack[] {
+  const out: AiTrack[] = []
+  const seen = new Set<string>()
+  const lines = text.split('\n')
+  for (const line of lines) {
+    const trimmed = line.trim()
+    const m = trimmed.match(/^[-*•]\s*(.+)$/) || trimmed.match(/^\d+[.、)]\s*(.+)$/)
+    if (!m) continue
+    const rest = m[1].replace(/[「」《》"'']/g, '')
+    const parts = rest.split(/\s+[-–—]\s+/)
+    const title = (parts[0] || '').trim()
+    const artist = parts.length > 1 ? parts[parts.length - 1].trim() : ''
+    if (title.length >= 2 && !seen.has(title)) {
+      seen.add(title)
+      out.push({ title, artist })
+    }
+  }
+  return out
+}
+
 // 轻量 Markdown 渲染：先转义 HTML 再替换常见语法，保证安全
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -151,6 +174,7 @@ function renderMd(s: string): string {
 
 export default function AiAssistantModal({ onClose }: AiAssistantModalProps): JSX.Element {
   const t = useT()
+  const allTracks = useMusicStore((s) => s.tracks)
   const [messages, setMessages] = useState<ChatMsg[]>(() => loadHistory())
   const [reasoning, setReasoning] = useState('')
   const [streamingText, setStreamingText] = useState('')
@@ -158,8 +182,14 @@ export default function AiAssistantModal({ onClose }: AiAssistantModalProps): JS
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [modelName, setModelName] = useState('')
+  const [totalTokens, setTotalTokens] = useState(0)
   const listRef = useRef<HTMLDivElement>(null)
   const reasoningBodyRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    window.api.ai.getConfig().then((cfg) => setModelName(cfg.model || '')).catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight
@@ -189,31 +219,45 @@ export default function AiAssistantModal({ onClose }: AiAssistantModalProps): JS
   const handleAssistantReply = (fullText: string): void => {
     const { display, plays, playlist } = parseActions(fullText)
     const displayMsg = display || fullText
-    setMessages((prev) => [...prev, { role: 'assistant', content: displayMsg }])
-    if (plays.length > 0) {
-      const matched = matchTracks(plays)
-      if (matched.length > 0) {
-        // 用 playSelection：清空当前播放列表、完整替换队列，避免被已有歌单覆盖
-        usePlayerStore.getState().setPlayMode('sequential')
-        usePlayerStore.getState().playSelection(matched)
-        if (matched.length < plays.length) {
-          useToastStore.getState().addToast(t('ai.playingPartial', { n: matched.length, total: plays.length }), 'info')
-        } else {
-          useToastStore.getState().addToast(t('ai.playingNow', { n: matched.length }), 'success')
-        }
+    // 歌曲候选：优先 <play> 动作块，否则从回复文本提取（"- 歌名" 列表行）
+    const candidates = plays.length > 0 ? plays : extractTracksFromText(displayMsg)
+    const matched = matchTracks(candidates)
+    setMessages((prev) => [
+      ...prev,
+      { role: 'assistant', content: displayMsg, trackIds: matched.map((x) => x.id) }
+    ])
+    // 仅在 AI 明确输出 <play> 动作时自动播放；文本提取的歌曲通过 chips 点击播放
+    if (plays.length > 0 && matched.length > 0) {
+      // 用 playSelection：清空当前播放列表、完整替换队列，避免被已有歌单覆盖
+      usePlayerStore.getState().setPlayMode('sequential')
+      usePlayerStore.getState().playSelection(matched)
+      if (matched.length < plays.length) {
+        useToastStore.getState().addToast(t('ai.playingPartial', { n: matched.length, total: plays.length }), 'info')
       } else {
-        useToastStore.getState().addToast(t('ai.noneMatched'), 'info')
+        useToastStore.getState().addToast(t('ai.playingNow', { n: matched.length }), 'success')
       }
     }
     if (playlist && playlist.tracks.length > 0) {
-      const matched = matchTracks(playlist.tracks)
-      if (matched.length > 0) {
+      const plMatched = matchTracks(playlist.tracks)
+      if (plMatched.length > 0) {
         usePlaylistStore.getState().createPlaylist(playlist.name || t('ai.playlistDefault')).then(() => {
-          usePlaylistStore.getState().addTracks(matched)
-          useToastStore.getState().addToast(t('ai.playlistCreated', { name: playlist.name || t('ai.playlistDefault'), n: matched.length }), 'success')
+          usePlaylistStore.getState().addTracks(plMatched)
+          useToastStore.getState().addToast(t('ai.playlistCreated', { name: playlist.name || t('ai.playlistDefault'), n: plMatched.length }), 'success')
         })
       }
     }
+  }
+
+  const playOne = (track: MusicFile): void => {
+    usePlayerStore.getState().setPlayMode('sequential')
+    usePlayerStore.getState().playSelection([track])
+  }
+
+  const copyText = async (text: string): Promise<void> => {
+    try {
+      await navigator.clipboard.writeText(text)
+      useToastStore.getState().addToast(t('ai.copied'), 'success')
+    } catch { /* ignore */ }
   }
 
   const send = async (): Promise<void> => {
@@ -249,6 +293,9 @@ export default function AiAssistantModal({ onClose }: AiAssistantModalProps): JS
       const fullReasoning = accReasoning || r.reasoning || ''
       if (fullReasoning) setReasoning((prev) => (fullReasoning.length > prev.length ? fullReasoning : prev))
       const finalText = accText || (r.text && !fullReasoning ? r.text : '')
+      // 累积 token 用量
+      const used = r.usage?.total_tokens || ((r.usage?.prompt_tokens || 0) + (r.usage?.completion_tokens || 0))
+      if (used > 0) setTotalTokens((prev) => prev + used)
       if (r.ok) {
         if (finalText) handleAssistantReply(finalText)
         else if (!fullReasoning) setError(t('ai.failed'))
@@ -279,6 +326,12 @@ export default function AiAssistantModal({ onClose }: AiAssistantModalProps): JS
         <div className="ai-chat-title">
           <span className="ai-chat-logo">✨</span>
           <h3>{t('ai.assistant')}</h3>
+          {modelName && (
+            <span className="ai-model-info">
+              {modelName}
+              {totalTokens > 0 ? ` · ${totalTokens} tokens` : ''}
+            </span>
+          )}
         </div>
         {messages.length > 0 && (
           <button className="btn btn-sm btn-secondary" onClick={() => setMessages([])}>{t('ai.clearChat')}</button>
@@ -311,7 +364,22 @@ export default function AiAssistantModal({ onClose }: AiAssistantModalProps): JS
           <div key={i} className={`ai-chat-msg ${m.role}`}>
             <span className={`ai-chat-avatar ${m.role}`}>{m.role === 'user' ? '🧑' : '🤖'}</span>
             {m.role === 'assistant' ? (
-              <span className="ai-chat-bubble ai-chat-md" dangerouslySetInnerHTML={{ __html: renderMd(m.content) }} />
+              <div className="ai-msg-col">
+                <span className="ai-chat-bubble ai-chat-md" dangerouslySetInnerHTML={{ __html: renderMd(m.content) }} />
+                {m.trackIds && m.trackIds.length > 0 && (
+                  <div className="ai-track-chips">
+                    {m.trackIds.map((id) => {
+                      const tr = allTracks.find((x) => x.id === id)
+                      return tr ? (
+                        <button key={id} type="button" className="ai-track-chip" onClick={() => playOne(tr)} title={`${tr.artist || ''} · ${tr.album || ''}`}>
+                          ▶ {tr.title}
+                        </button>
+                      ) : null
+                    })}
+                  </div>
+                )}
+                <button className="ai-copy-btn" onClick={() => copyText(m.content)}>{t('ai.copy')}</button>
+              </div>
             ) : (
               <span className="ai-chat-bubble">{m.content}</span>
             )}

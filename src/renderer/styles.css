@@ -3197,6 +3197,74 @@ body {
   gap: 8px;
 }
 
+.ai-model-info {
+  margin-left: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+/* 消息列：气泡 + 歌曲 chips + 复制 */
+.ai-msg-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  max-width: 80%;
+}
+
+.ai-msg-col .ai-chat-bubble {
+  max-width: 100%;
+}
+
+.ai-track-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ai-track-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  font-size: 12px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+}
+
+.ai-track-chip:hover {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  transform: translateY(-1px);
+}
+
+.ai-copy-btn {
+  padding: 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.ai-chat-msg.assistant:hover .ai-copy-btn {
+  opacity: 0.8;
+}
+
+.ai-copy-btn:hover {
+  color: var(--accent);
+}
+
 .ai-chat-logo {
   display: flex;
   align-items: center;

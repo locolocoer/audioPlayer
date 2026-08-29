@@ -134,7 +134,7 @@ const api = {
       ipcRenderer.invoke('ai:setConfig', cfg),
     test: (cfg?: { enabled: boolean; provider: 'openai' | 'anthropic'; baseUrl: string; apiKey: string; model: string }): Promise<{ ok: boolean; error?: string }> =>
       ipcRenderer.invoke('ai:test', cfg),
-    chat: (messages: { role: 'system' | 'user' | 'assistant'; content: string }[], opts?: { system?: string; maxTokens?: number; temperature?: number }): Promise<{ ok: boolean; text?: string; reasoning?: string; error?: string }> =>
+    chat: (messages: { role: 'system' | 'user' | 'assistant'; content: string }[], opts?: { system?: string; maxTokens?: number; temperature?: number }): Promise<{ ok: boolean; text?: string; reasoning?: string; usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }; error?: string }> =>
       ipcRenderer.invoke('ai:chat', messages, opts),
     chatStream: (messages: { role: 'system' | 'user' | 'assistant'; content: string }[], opts?: { system?: string; maxTokens?: number; temperature?: number }): void =>
       ipcRenderer.send('ai:chat-stream', messages, opts),
@@ -143,8 +143,8 @@ const api = {
       ipcRenderer.on('ai:chat-stream-chunk', handler)
       return () => ipcRenderer.removeListener('ai:chat-stream-chunk', handler)
     },
-    onAiEnd: (callback: (result: { ok: boolean; text?: string; reasoning?: string; error?: string }) => void): (() => void) => {
-      const handler = (_event: Electron.IpcRendererEvent, result: { ok: boolean; text?: string; reasoning?: string; error?: string }): void => callback(result)
+    onAiEnd: (callback: (result: { ok: boolean; text?: string; reasoning?: string; usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }; error?: string }) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, result: { ok: boolean; text?: string; reasoning?: string; usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }; error?: string }): void => callback(result)
       ipcRenderer.on('ai:chat-stream-end', handler)
       return () => ipcRenderer.removeListener('ai:chat-stream-end', handler)
     }

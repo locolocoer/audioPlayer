@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { usePlayerStore } from '../stores/playerStore'
 import { useMusicStore } from '../stores/musicStore'
+import { useToastStore } from '../stores/toastStore'
 import { useLyricsStyleStore } from '../stores/lyricsStyleStore'
 import { useSkinStore } from '../stores/skinStore'
 import { useVisualizerStore } from '../stores/visualizerStore'
@@ -206,6 +207,28 @@ export default function PlayerPage(): JSX.Element {
     }
   }
 
+  // 按当前歌曲情绪，从曲库中找出已分析出相同情绪的歌曲组成队列播放
+  const playSimilarMood = (): void => {
+    if (!aiMood) return
+    const all = useMusicStore.getState().tracks
+    const similar = all.filter((tr) => {
+      if (tr.id === currentTrack?.id) return true
+      try {
+        const cached = localStorage.getItem(`ai_mood_${tr.id}`)
+        if (!cached) return false
+        const m = JSON.parse(cached)
+        return Array.isArray(m.tags) && m.tags.some((tag: string) => aiMood.tags.includes(tag))
+      } catch { return false }
+    })
+    if (similar.length > 0) {
+      usePlayerStore.getState().setPlayMode('shuffle')
+      usePlayerStore.getState().playSelection(similar)
+      useToastStore.getState().addToast(t('ai.moodPlaying', { n: similar.length }), 'success')
+    } else {
+      useToastStore.getState().addToast(t('ai.moodNoSimilar'), 'info')
+    }
+  }
+
   useEffect(() => {
     if (!currentTrack || loadedRef.current) return
     loadedRef.current = 1
@@ -303,6 +326,7 @@ export default function PlayerPage(): JSX.Element {
                     ))}
                   </div>
                   {aiMood.summary && <span className="ai-mood-summary">{aiMood.summary}</span>}
+                  <button className="btn btn-sm" onClick={playSimilarMood} title={t('ai.moodPlayTitle')}>{t('ai.moodPlay')}</button>
                 </div>
               )}
               {aiMoodErr && <div className="ai-error">{aiMoodErr}</div>}
