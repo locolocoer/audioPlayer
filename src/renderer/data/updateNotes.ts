@@ -6,6 +6,11 @@ export interface UpdateNote {
 }
 
 export const UPDATE_NOTES: Record<string, UpdateNote> = {
+  '1.4.2': {
+    changed: [
+      '唱片机皮肤封面去掉黑色螺旋纹，保留干净圆形封面与播放旋转动画'
+    ]
+  },
   '1.4.1': {
     added: [
       '歌曲详情展示音频技术信息：采样率、位深、码率、编码器、声道数（本地文件）'

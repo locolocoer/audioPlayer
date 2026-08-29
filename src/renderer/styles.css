@@ -2087,15 +2087,6 @@ body {
   border-radius: 50%;
 }
 
-.skin-turntable .player-artwork-large::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: repeating-radial-gradient(circle, rgba(0, 0, 0, 0.18) 0 2px, transparent 2px 6px);
-  pointer-events: none;
-}
-
 .skin-turntable .player-artwork-large .artwork-placeholder {
   border-radius: 50%;
 }
