@@ -76,7 +76,7 @@ export default function AiPlaylistModal({ onClose }: AiPlaylistModalProps): JSX.
 
   const confirmCreate = async (): Promise<void> => {
     if (!result) return
-    await createPlaylist(result.name)
+    await createPlaylist(result.name, 'favorite')
     if (result.matched.length > 0) addTracks(result.matched)
     addToast(t('ai.playlistCreated', { name: result.name, n: result.matched.length }), 'success')
     onClose()

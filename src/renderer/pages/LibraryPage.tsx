@@ -94,6 +94,7 @@ export default function LibraryPage(): JSX.Element {
   const [classifyProgress, setClassifyProgress] = useState<{ done: number; total: number } | null>(null)
   const classifyCancelRef = useRef(false)
   const [tagFilters, setTagFilters] = useState<Set<string>>(new Set())
+  const [tagsOpen, setTagsOpen] = useState(false)
 
   useEffect(() => {
     window.api.music.getAiTags().then((list) => {
@@ -614,7 +615,7 @@ export default function LibraryPage(): JSX.Element {
         </div>
       </div>
 
-      {allTags.length > 0 && (
+      {allTags.length > 0 && tagsOpen && (
         <div className="tag-filter-bar">
           {allTags.map(([tag, count]) => {
             const active = tagFilters.has(tag)
@@ -682,6 +683,15 @@ export default function LibraryPage(): JSX.Element {
           sortDir={sortDir}
           onSort={handleSort}
           onRowClick={handleRowClick}
+          toolbarExtra={
+            allTags.length > 0 ? (
+              <button className="tag-toggle" onClick={() => setTagsOpen((o) => !o)}>
+                <span>🏷️ {t('library.tagFilter')}</span>
+                <span className="tag-toggle-arrow">{tagsOpen ? '▾' : '▸'}</span>
+                {tagFilters.size > 0 && <span className="tag-toggle-count">{tagFilters.size}</span>}
+              </button>
+            ) : undefined
+          }
         />
       ) : viewMode === 'albums' ? (
         <div className="browse-scroll" onScroll={(e) => setAlbumScrollTop(e.currentTarget.scrollTop)}>

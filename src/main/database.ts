@@ -131,9 +131,18 @@ export async function initDatabase(): Promise<void> {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       trackIds TEXT NOT NULL DEFAULT '',
-      createdAt TEXT NOT NULL
+      createdAt TEXT NOT NULL,
+      kind TEXT NOT NULL DEFAULT 'playlist'
     )
   `)
+
+  // 迁移：旧库补充 kind 列
+  try {
+    const cols = queryAll<{ name: string }>('PRAGMA table_info(playlists)')
+    if (!cols.some((c) => c.name === 'kind')) {
+      db.run("ALTER TABLE playlists ADD COLUMN kind TEXT NOT NULL DEFAULT 'playlist'")
+    }
+  } catch { /* ignore */ }
 
   db.run(`
     CREATE TABLE IF NOT EXISTS source_prefs (
@@ -593,8 +602,8 @@ export function updateMusicFileMeta(id: number, meta: { title?: string; artist?:
 
 // Playlists
 export function savePlaylist(playlist: Playlist): void {
-  db.run('INSERT OR REPLACE INTO playlists (id, name, trackIds, createdAt) VALUES (?, ?, ?, ?)',
-    [playlist.id, playlist.name, playlist.trackIds, playlist.createdAt])
+  db.run('INSERT OR REPLACE INTO playlists (id, name, trackIds, createdAt, kind) VALUES (?, ?, ?, ?, ?)',
+    [playlist.id, playlist.name, playlist.trackIds, playlist.createdAt, playlist.kind || 'playlist'])
   saveToDisk()
 }
 

@@ -20,6 +20,9 @@ export default function PlaylistPickerModal({ tracks, onClose }: PlaylistPickerM
   const [newName, setNewName] = useState('')
   const [busy, setBusy] = useState(false)
 
+  // 选择器只列出收藏列表（播放列表固定单一，不参与选择）
+  const favLists = playlists.filter((p) => p.kind === 'favorite')
+
   const countOf = (trackIds: string): number => {
     try {
       const parsed = JSON.parse(trackIds)
@@ -46,7 +49,7 @@ export default function PlaylistPickerModal({ tracks, onClose }: PlaylistPickerM
   const createAndAdd = async (): Promise<void> => {
     if (busy || !newName.trim()) return
     setBusy(true)
-    await createPlaylist(newName.trim())
+    await createPlaylist(newName.trim(), 'favorite')
     addTracks(tracks)
     setBusy(false)
     addToast(t('playlist.createdAndAdded', { name: newName.trim(), n: tracks.length }), 'success')
@@ -57,12 +60,15 @@ export default function PlaylistPickerModal({ tracks, onClose }: PlaylistPickerM
     <Modal onClose={onClose} width={340}>
       <h3>{t('playlist.addToTitle', { n: tracks.length })}</h3>
       <div className="playlist-picker-list">
-        {playlists.map((p) => (
+        {favLists.map((p) => (
           <div key={p.id} className="playlist-picker-item" onClick={() => pick(p.id)}>
             <span className="playlist-picker-name">{p.name}</span>
             <span className="album-meta">{t('playlist.songCount', { count: countOf(p.trackIds) })}</span>
           </div>
         ))}
+        {favLists.length === 0 && (
+          <div className="playlist-picker-empty">{t('playlist.noFavLists')}</div>
+        )}
       </div>
       <div className="playlist-picker-new">
         <input

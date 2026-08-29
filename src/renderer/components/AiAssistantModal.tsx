@@ -240,7 +240,7 @@ export default function AiAssistantModal({ onClose }: AiAssistantModalProps): JS
     if (playlist && playlist.tracks.length > 0) {
       const plMatched = matchTracks(playlist.tracks)
       if (plMatched.length > 0) {
-        usePlaylistStore.getState().createPlaylist(playlist.name || t('ai.playlistDefault')).then(() => {
+        usePlaylistStore.getState().createPlaylist(playlist.name || t('ai.playlistDefault'), 'favorite').then(() => {
           usePlaylistStore.getState().addTracks(plMatched)
           useToastStore.getState().addToast(t('ai.playlistCreated', { name: playlist.name || t('ai.playlistDefault'), n: plMatched.length }), 'success')
         })

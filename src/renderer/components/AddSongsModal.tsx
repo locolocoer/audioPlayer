@@ -5,28 +5,33 @@ import { useMusicStore } from '../stores/musicStore'
 import { usePlaylistStore } from '../stores/playlistStore'
 import { useToastStore } from '../stores/toastStore'
 import { useT } from '../i18n'
+import type { MusicFile } from '../../main/types'
 
 const ROW_HEIGHT = 52
 
 interface AddSongsModalProps {
   onClose: () => void
+  targetId?: number
+  targetTracks?: MusicFile[]
+  onAdded?: (tracks: MusicFile[]) => void
 }
 
-export default function AddSongsModal({ onClose }: AddSongsModalProps): JSX.Element {
+export default function AddSongsModal({ onClose, targetId, targetTracks, onAdded }: AddSongsModalProps): JSX.Element {
   const t = useT()
   const allTracks = useMusicStore((s) => s.tracks)
   const playlist = usePlaylistStore((s) => s.playlist)
+  const playlistTracks = usePlaylistStore((s) => s.playlistTracks)
   const addTracksToPlaylist = usePlaylistStore((s) => s.addTracksToPlaylist)
   const addToast = useToastStore((s) => s.addToast)
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [busy, setBusy] = useState(false)
 
-  // 排除已在当前歌单中的歌曲
+  // 排除已在目标列表中的歌曲
   const available = useMemo(() => {
-    const existing = new Set(playlist.map((x) => x.id))
+    const existing = new Set((targetTracks ?? playlist).map((x) => x.id))
     return allTracks.filter((x) => !existing.has(x.id))
-  }, [allTracks, playlist])
+  }, [allTracks, playlist, targetTracks])
 
   const filtered = useMemo(() => {
     if (!search) return available
@@ -60,10 +65,17 @@ export default function AddSongsModal({ onClose }: AddSongsModalProps): JSX.Elem
     if (busy || selected.size === 0) return
     setBusy(true)
     const tracks = allTracks.filter((x) => selected.has(x.id))
-    const added = await addTracksToPlaylist(usePlaylistStore.getState().activeId ?? -1, tracks)
+    const st = usePlaylistStore.getState()
+    const target = targetId ?? st.activeId ?? -1
+    const added = await addTracksToPlaylist(target, tracks)
     setBusy(false)
     if (added > 0) {
-      addToast(t('playlist.addedTo', { name: usePlaylistStore.getState().playlists.find((p) => p.id === usePlaylistStore.getState().activeId)?.name || '', n: added }), 'success')
+      if (onAdded) {
+        onAdded(tracks)
+      } else {
+        const name = st.playlists.find((p) => p.id === target)?.name || ''
+        addToast(t('playlist.addedTo', { name, n: added }), 'success')
+      }
     }
     onClose()
   }

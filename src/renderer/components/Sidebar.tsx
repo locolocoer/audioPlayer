@@ -11,7 +11,7 @@ export default function Sidebar(): JSX.Element {
   const t = useT()
   const count = useMusicStore((s) => s.count)
   const loadCount = useMusicStore((s) => s.loadCount)
-  const playlistCount = usePlaylistStore((s) => s.playlist.length)
+  const playlistCount = usePlaylistStore((s) => s.playlistTracks.length)
   const theme = useThemeStore((s) => s.theme)
   const toggleTheme = useThemeStore((s) => s.toggleTheme)
   const [aiOpen, setAiOpen] = useState(false)

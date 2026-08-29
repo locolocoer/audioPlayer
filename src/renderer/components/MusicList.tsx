@@ -17,6 +17,8 @@ interface MusicListProps {
   onReorder?: (from: number, to: number) => void
   onReorderMany?: (ids: number[], toIndex: number) => void
   onRemoveFromPlaylist?: (track: MusicFile) => void
+  toolbarExtra?: React.ReactNode
+  showMultiSelect?: boolean
 }
 
 const OVERSCAN = 10
@@ -264,7 +266,7 @@ function ContextMenu({ x, y, track, onClose, onEdit, onAddToPlaylist, onRemoveFr
   )
 }
 
-export default function MusicList({ tracks, sortField, sortDir, onSort, onRowClick, showFavorite, onReorder, onReorderMany, onRemoveFromPlaylist }: MusicListProps): JSX.Element {
+export default function MusicList({ tracks, sortField, sortDir, onSort, onRowClick, showFavorite, onReorder, onReorderMany, onRemoveFromPlaylist, toolbarExtra, showMultiSelect = true }: MusicListProps): JSX.Element {
   const t = useT()
   const currentTrack = usePlayerStore((s) => s.currentTrack)
   const toggleFavorite = useMusicStore((s) => s.toggleFavorite)
@@ -392,7 +394,10 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
         </div>
       ) : (
         <div className="list-toolbar">
-          <button className="btn btn-sm" onClick={() => setSelectMode(true)}>{t('list.multiSelect')}</button>
+          <div className="list-toolbar-left">{toolbarExtra}</div>
+          {showMultiSelect && (
+            <button className="btn btn-sm" onClick={() => setSelectMode(true)}>{t('list.multiSelect')}</button>
+          )}
         </div>
       )}
       <div className="music-table-container" ref={tableRef} onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}>

@@ -34,6 +34,7 @@ export interface Playlist {
   name: string
   trackIds: string
   createdAt: string
+  kind?: 'playlist' | 'favorite'
 }
 
 export interface ScanProgress {

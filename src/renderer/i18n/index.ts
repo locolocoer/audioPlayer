@@ -39,6 +39,7 @@ const zh: Dict = {
 
   // 收藏 / 最近
   'favorites.search': '搜索收藏...',
+  'favorites.default': '我的收藏',
   'favorites.addAll': '+ 全部添加到播放列表',
   'favorites.addAllTitle': '将所有收藏歌曲添加到播放列表',
   'recent.search': '搜索最近播放...',
@@ -124,11 +125,13 @@ const zh: Dict = {
   'playlist.invalidFile': '不是有效的飞鱼歌单文件',
   'playlist.importFailed': '导入失败：{msg}',
   'playlist.importDone': '导入成功：{name}（匹配 {matched}/{total} 首）',
-  'playlist.addToTitle': '加入歌单（{n} 首）',
+  'playlist.noFavLists': '还没有收藏列表，先新建一个',
+  'playlist.addToTitle': '加入收藏（{n} 首）',
   'playlist.createAndAdd': '新建并加入',
   'playlist.addedTo': '已加入歌单「{name}」{n} 首',
   'playlist.createdAndAdded': '歌单「{name}」已创建，加入 {n} 首',
   'playlist.alreadyIn': '这些歌曲已在所选歌单中',
+  'playlist.deleted': '已删除列表',
   'playlist.addSongs': '添加歌曲',
   'playlist.addSongsTitle': '从音乐库添加歌曲',
   'playlist.allAdded': '曲库中的歌曲都已在该歌单中',
@@ -273,6 +276,7 @@ const zh: Dict = {
   'library.aiClassifyDone': 'AI 分类完成',
   'library.aiClassifyEmpty': '曲库歌曲都已打标',
   'library.tagFilterClear': '清除筛选',
+  'library.tagFilter': '标签筛选',
   'library.moodNoTags': '曲库还没有 AI 标签，请先点「AI 分类」',
 
   // 桌面歌词
@@ -497,6 +501,7 @@ const en: Dict = {
   'queue.more': '… {total} tracks total, showing {view} from current',
 
   'favorites.search': 'Search favorites...',
+  'favorites.default': 'My Favorites',
   'favorites.addAll': '+ Add all to playlist',
   'favorites.addAllTitle': 'Add all favorites to playlist',
   'recent.search': 'Search recently played...',
@@ -578,11 +583,13 @@ const en: Dict = {
   'playlist.invalidFile': 'Not a valid FeiYu playlist file',
   'playlist.importFailed': 'Import failed: {msg}',
   'playlist.importDone': 'Imported: {name} ({matched}/{total} tracks matched)',
-  'playlist.addToTitle': 'Add to playlist ({n} tracks)',
+  'playlist.noFavLists': 'No favorite lists yet. Create one first.',
+  'playlist.addToTitle': 'Add to favorites ({n} tracks)',
   'playlist.createAndAdd': 'Create & add',
   'playlist.addedTo': 'Added {n} tracks to "{name}"',
   'playlist.createdAndAdded': 'Playlist "{name}" created, {n} tracks added',
   'playlist.alreadyIn': 'These tracks are already in that playlist',
+  'playlist.deleted': 'List deleted',
   'playlist.addSongs': 'Add songs',
   'playlist.addSongsTitle': 'Add songs from library',
   'playlist.allAdded': 'All library tracks are already in this playlist',
@@ -720,6 +727,7 @@ const en: Dict = {
   'library.aiClassifyDone': 'AI tagging done',
   'library.aiClassifyEmpty': 'All tracks already tagged',
   'library.tagFilterClear': 'Clear filters',
+  'library.tagFilter': 'Tag filter',
   'library.moodNoTags': 'Library has no AI tags yet. Run "AI tag" first.',
 
   'desktopLyrics.settings': 'Lyrics settings',

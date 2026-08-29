@@ -6,6 +6,14 @@ export interface UpdateNote {
 }
 
 export const UPDATE_NOTES: Record<string, UpdateNote> = {
+  '1.5.3': {
+    changed: [
+      '播放列表改为单一列表，标题固定「播放列表」，操作集中标题行',
+      '收藏支持多收藏列表：卡片网格 + 右键菜单管理，旧歌单自动迁移',
+      '列表表头固定吸顶（毛玻璃背景）',
+      '标签筛选条布局优化'
+    ]
+  },
   '1.5.2': {
     added: [
       '曲库 AI 自动分类打标：整库生成情绪/风格/场景标签，分批可中断、断点续跑',
