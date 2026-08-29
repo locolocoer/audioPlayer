@@ -33,6 +33,9 @@ export default function PlayerPage(): JSX.Element {
   const [searchArtist, setSearchArtist] = useState('')
   const [searchAlbum, setSearchAlbum] = useState('')
   const [lrcMsgSuccess, setLrcMsgSuccess] = useState(false)
+  const [aiMood, setAiMood] = useState<{ tags: string[]; summary: string } | null>(null)
+  const [aiMoodBusy, setAiMoodBusy] = useState(false)
+  const [aiMoodErr, setAiMoodErr] = useState('')
   const loadedRef = useRef(0)
   const activeIdxRef = useRef(-1)
 
@@ -157,9 +160,51 @@ export default function PlayerPage(): JSX.Element {
     setLrcText('')
     setLrcSearchMsg('')
     setLrcFromOnline(false)
+    setAiMood(null)
+    setAiMoodErr('')
+    if (currentTrack) {
+      try {
+        const cached = localStorage.getItem(`ai_mood_${currentTrack.id}`)
+        if (cached) setAiMood(JSON.parse(cached))
+      } catch { /* ignore */ }
+    }
     loadedRef.current = 0
     activeIdxRef.current = -1
   }, [currentTrack?.id])
+
+  const analyzeMood = async (): Promise<void> => {
+    if (!currentTrack || aiMoodBusy || !lrcText) return
+    setAiMoodBusy(true)
+    setAiMoodErr('')
+    const r = await window.api.ai.chat(
+      [{ role: 'user', content: `歌曲：${currentTrack.title}\n歌词：\n${lrcText.slice(0, 3000)}` }],
+      {
+        system: '分析这首歌歌词表达的情感，输出严格 JSON（不要任何其他文字）：{"tags":["标签1","标签2"...（2-4个中文情感标签）],"summary":"一句话总结歌曲情感"}',
+        maxTokens: 300,
+        temperature: 0.5
+      }
+    )
+    setAiMoodBusy(false)
+    if (!r.ok || !r.text) {
+      setAiMoodErr(r.error === 'not-configured' ? t('ai.notConfigured') : (r.error || t('ai.failed')))
+      return
+    }
+    let raw = r.text.trim()
+    const fence = raw.match(/```(?:json)?\s*([\s\S]*?)```/)
+    if (fence) raw = fence[1].trim()
+    try {
+      const parsed = JSON.parse(raw)
+      if (parsed && Array.isArray(parsed.tags)) {
+        const mood = { tags: parsed.tags.map(String).slice(0, 5), summary: String(parsed.summary || '') }
+        setAiMood(mood)
+        try { localStorage.setItem(`ai_mood_${currentTrack.id}`, JSON.stringify(mood)) } catch { /* ignore */ }
+      } else {
+        setAiMoodErr(t('ai.failed'))
+      }
+    } catch {
+      setAiMoodErr(t('ai.failed'))
+    }
+  }
 
   useEffect(() => {
     if (!currentTrack || loadedRef.current) return
@@ -244,8 +289,23 @@ export default function PlayerPage(): JSX.Element {
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
                   {t('playerPage.reSearch')}
                 </button>
+                <button className="lyrics-btn" onClick={analyzeMood} disabled={aiMoodBusy || !lrcText} title={t('ai.moodTitle')}>
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>
+                  {aiMoodBusy ? t('common.loading') : (aiMood ? t('ai.moodAgain') : t('ai.mood'))}
+                </button>
                 {lrcSearchMsg && <span className={`lrc-search-msg${lrcMsgSuccess ? ' success' : ''}`}>{lrcSearchMsg}</span>}
               </div>
+              {aiMood && (
+                <div className="ai-mood-bar">
+                  <div className="ai-mood-tags">
+                    {aiMood.tags.map((tag) => (
+                      <span key={tag} className="ai-mood-tag">{tag}</span>
+                    ))}
+                  </div>
+                  {aiMood.summary && <span className="ai-mood-summary">{aiMood.summary}</span>}
+                </div>
+              )}
+              {aiMoodErr && <div className="ai-error">{aiMoodErr}</div>}
             </>
           ) : (
             <div className="lyrics-empty">

@@ -6,6 +6,22 @@ export interface UpdateNote {
 }
 
 export const UPDATE_NOTES: Record<string, UpdateNote> = {
+  '1.5.0': {
+    added: [
+      'AI 服务：设置页配置接口（OpenAI 兼容 / Anthropic 双格式），Key 仅存本机',
+      'AI 智能歌单生成：描述歌单，AI 从曲库选歌',
+      '歌词情感分析：一键分析歌词情绪标签与总结',
+      'AI 听歌周报：近 7 天播放数据生成趣味周报',
+      'AI 助手对话：流式输出、思考过程折叠、可直接播放/加歌单、历史持久化、支持 Markdown'
+    ],
+    changed: [
+      '歌词操作区与 AI 对话界面美化'
+    ],
+    fixed: [
+      'AI 播放推荐歌曲时队列被已有歌单覆盖的问题',
+      'AI 歌曲模糊匹配，匹配率提升并提示匹配数量'
+    ]
+  },
   '1.4.3': {
     added: [
       '重复歌曲管理：自动识别同歌多版本，对比/设为默认/删除冗余',

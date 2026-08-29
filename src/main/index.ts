@@ -12,6 +12,7 @@ import { initDatabase, closeDatabase, getAllWebDAVConfigs } from './database'
 import { setupFolderWatchers, closeFolderWatchers } from './folderWatch'
 import { buildBaseUrl, createWebDAVClient, downloadFile } from './webdav'
 import { setMainLang, getMainLang, mt } from './i18n'
+import { loadAiConfig, getAiConfig, saveAiConfig, aiChat, aiChatStream, testAiConnection } from './ai'
 import type { UpdateStatus } from './types'
 
 declare const __COMMIT__: string
@@ -480,6 +481,39 @@ function registerSystemIpc(): void {
     return true
   })
 
+  ipcMain.handle('ai:getConfig', () => getAiConfig())
+  ipcMain.handle('ai:setConfig', (_e, cfg: Parameters<typeof saveAiConfig>[0]) => {
+    saveAiConfig(cfg)
+    return true
+  })
+  ipcMain.handle('ai:test', async (_e, cfg?: Parameters<typeof saveAiConfig>[0]) => testAiConnection(cfg))
+  ipcMain.handle('ai:chat', async (_e, messages: Parameters<typeof aiChat>[0], opts?: Parameters<typeof aiChat>[1]) => {
+    const cfg = getAiConfig()
+    console.log(`[AI] chat called, enabled=${cfg.enabled}, hasKey=${!!cfg.apiKey}, msgs=${messages?.length ?? 0}`)
+    return aiChat(messages, opts)
+  })
+  ipcMain.on('ai:chat-stream', async (e, messages: Parameters<typeof aiChat>[0], opts?: Parameters<typeof aiChat>[1]) => {
+    // 合并推送：DeepSeek 推理模型思考内容逐字到达（数千次），直接转发会塞爆渲染进程，
+    // 每 30ms 批量发一次，保持流畅的打字机效果
+    let timer: NodeJS.Timeout | null = null
+    let pending: { reasoning?: string; content?: string } = {}
+    const flush = (): void => {
+      timer = null
+      if (e.sender.isDestroyed()) return
+      console.log(`[AI-MAIN] flush reasoning=${(pending.reasoning || '').length} content=${(pending.content || '').length}`)
+      e.sender.send('ai:chat-stream-chunk', pending)
+      pending = {}
+    }
+    const r = await aiChatStream(messages, opts, (part) => {
+      if (part.reasoning) pending.reasoning = (pending.reasoning || '') + part.reasoning
+      if (part.content) pending.content = (pending.content || '') + part.content
+      if (!timer) timer = setTimeout(flush, 30)
+    })
+    if (timer) clearTimeout(timer)
+    if (Object.keys(pending).length > 0) flush()
+    if (!e.sender.isDestroyed()) e.sender.send('ai:chat-stream-end', r)
+  })
+
   ipcMain.handle('app:getCloseBehavior', () => closeBehavior)
   ipcMain.handle('app:setCloseBehavior', (_e, v: string) => {
     if (v === 'quit' || v === 'tray') {
@@ -830,6 +864,7 @@ app.whenReady().then(async () => {
   Menu.setApplicationMenu(null)
   await initDatabase()
   loadAppSettings()
+  loadAiConfig()
   registerIpcHandlers()
   registerLocalMediaProtocol()
   registerWebDAVMediaProtocol()

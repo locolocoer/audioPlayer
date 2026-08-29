@@ -127,6 +127,28 @@ const api = {
       return () => ipcRenderer.removeListener('i18n:lang', handler)
     }
   },
+  ai: {
+    getConfig: (): Promise<{ enabled: boolean; provider: 'openai' | 'anthropic'; baseUrl: string; apiKey: string; model: string }> =>
+      ipcRenderer.invoke('ai:getConfig'),
+    setConfig: (cfg: { enabled: boolean; provider: 'openai' | 'anthropic'; baseUrl: string; apiKey: string; model: string }): Promise<boolean> =>
+      ipcRenderer.invoke('ai:setConfig', cfg),
+    test: (cfg?: { enabled: boolean; provider: 'openai' | 'anthropic'; baseUrl: string; apiKey: string; model: string }): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke('ai:test', cfg),
+    chat: (messages: { role: 'system' | 'user' | 'assistant'; content: string }[], opts?: { system?: string; maxTokens?: number; temperature?: number }): Promise<{ ok: boolean; text?: string; reasoning?: string; error?: string }> =>
+      ipcRenderer.invoke('ai:chat', messages, opts),
+    chatStream: (messages: { role: 'system' | 'user' | 'assistant'; content: string }[], opts?: { system?: string; maxTokens?: number; temperature?: number }): void =>
+      ipcRenderer.send('ai:chat-stream', messages, opts),
+    onAiChunk: (callback: (part: { reasoning?: string; content?: string }) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, part: { reasoning?: string; content?: string }): void => callback(part)
+      ipcRenderer.on('ai:chat-stream-chunk', handler)
+      return () => ipcRenderer.removeListener('ai:chat-stream-chunk', handler)
+    },
+    onAiEnd: (callback: (result: { ok: boolean; text?: string; reasoning?: string; error?: string }) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, result: { ok: boolean; text?: string; reasoning?: string; error?: string }): void => callback(result)
+      ipcRenderer.on('ai:chat-stream-end', handler)
+      return () => ipcRenderer.removeListener('ai:chat-stream-end', handler)
+    }
+  },
   updater: {
     check: (): Promise<boolean> => ipcRenderer.invoke('update:check'),
     install: (): Promise<boolean> => ipcRenderer.invoke('update:install'),

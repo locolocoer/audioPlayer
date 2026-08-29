@@ -5,6 +5,7 @@ import { useMusicStore } from '../stores/musicStore'
 import { useToastStore } from '../stores/toastStore'
 import MusicList from '../components/MusicList'
 import AddSongsModal from '../components/AddSongsModal'
+import AiPlaylistModal from '../components/AiPlaylistModal'
 import { getCoverCached, setCoverCached, coverCacheKey } from '../utils/coverCache'
 import { useT } from '../i18n'
 import type { MusicFile } from '../../main/types'
@@ -81,6 +82,7 @@ export default function PlaylistPage(): JSX.Element {
   const [editing, setEditing] = useState(false)
   const [editName, setEditName] = useState('')
   const [addSongsOpen, setAddSongsOpen] = useState(false)
+  const [aiPlaylistOpen, setAiPlaylistOpen] = useState(false)
 
   const activeName = playlists.find((p) => p.id === activeId)?.name || ''
 
@@ -209,6 +211,7 @@ export default function PlaylistPage(): JSX.Element {
             <button className={`browse-tab${viewMode === 'square' ? ' active' : ''}`} onClick={() => setViewMode('square')}>{t('playlist.square')}</button>
           </div>
           <button className="btn btn-sm" onClick={handleImport} title={t('playlist.importTitle')}>{t('playlist.import')}</button>
+          <button className="btn btn-sm" onClick={() => setAiPlaylistOpen(true)} title={t('ai.playlistTitle')}>{t('ai.generatePlaylist')}</button>
           {viewMode === 'list' && (
             <button className="btn btn-sm" onClick={handleExport} title={t('playlist.exportTitle')}>{t('playlist.export')}</button>
           )}
@@ -330,6 +333,7 @@ export default function PlaylistPage(): JSX.Element {
       )}
 
       {addSongsOpen && <AddSongsModal onClose={() => setAddSongsOpen(false)} />}
+      {aiPlaylistOpen && <AiPlaylistModal onClose={() => setAiPlaylistOpen(false)} />}
     </div>
   )
 }

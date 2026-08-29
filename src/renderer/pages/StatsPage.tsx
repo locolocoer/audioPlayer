@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { usePlayerStore } from '../stores/playerStore'
+import Modal from '../components/Modal'
 import { useT } from '../i18n'
 import type { MusicFile } from '../../main/types'
 
@@ -85,6 +86,10 @@ export default function StatsPage(): JSX.Element {
   const t = useT()
   const [report, setReport] = useState<Report | null>(null)
   const [trend, setTrend] = useState<{ date: string; plays: number }[]>([])
+  const [weekReportOpen, setWeekReportOpen] = useState(false)
+  const [weekReport, setWeekReport] = useState('')
+  const [weekReportBusy, setWeekReportBusy] = useState(false)
+  const [weekReportErr, setWeekReportErr] = useState('')
 
   useEffect(() => {
     window.api.stats.report().then((r) => setReport(r)).catch(() => {})
@@ -95,10 +100,36 @@ export default function StatsPage(): JSX.Element {
     usePlayerStore.getState().requestPlay(track)
   }
 
+  const generateWeekReport = async (): Promise<void> => {
+    setWeekReportOpen(true)
+    setWeekReport('')
+    setWeekReportErr('')
+    setWeekReportBusy(true)
+    const trend7 = await window.api.stats.trend(7).catch(() => [])
+    const totalPlays = trend7.reduce((s, d) => s + d.plays, 0)
+    const topSongs = (report?.topSongs || []).slice(0, 8).map((s, i) => `${i + 1}. ${s.title || s.filename}（${s.playCount ?? 0}次）`).join('\n')
+    const topArtists = (report?.topArtists || []).slice(0, 5).map((a, i) => `${i + 1}. ${a.artist}（${a.plays}次）`).join('\n')
+    const trendText = trend7.map((d) => `${d.date}: ${d.plays}次`).join('\n')
+    const context = `近 7 天播放统计：\n总播放 ${totalPlays} 次\n最常听歌曲：\n${topSongs || '暂无'}\n最常听歌手：\n${topArtists || '暂无'}\n每日播放趋势：\n${trendText || '暂无'}`
+    const r = await window.api.ai.chat([{ role: 'user', content: context }], {
+      system: '根据用户的听歌统计，写一份轻松有趣的周报（150-250字），总结听歌习惯、突出亮点，语气亲切，用中文。',
+      maxTokens: 600,
+      temperature: 0.8
+    })
+    setWeekReportBusy(false)
+    if (r.ok && r.text) setWeekReport(r.text)
+    else setWeekReportErr(r.error === 'not-configured' ? t('ai.notConfigured') : (r.error || t('ai.failed')))
+  }
+
   return (
     <div className="page stats-page">
       <div className="page-header">
         <h2>{t('nav.stats')}</h2>
+        <div className="library-controls">
+          <button className="btn btn-sm" onClick={generateWeekReport} disabled={weekReportBusy}>
+            {weekReportBusy ? t('common.loading') : t('ai.weekReport')}
+          </button>
+        </div>
       </div>
       {report ? (
         <>
@@ -142,6 +173,22 @@ export default function StatsPage(): JSX.Element {
         </>
       ) : (
         <p className="stats-empty">{t('common.loading')}</p>
+      )}
+
+      {weekReportOpen && (
+        <Modal onClose={() => setWeekReportOpen(false)} width={480}>
+          <h3>{t('ai.weekReport')}</h3>
+          {weekReportBusy ? (
+            <p className="ai-error">{t('common.loading')}</p>
+          ) : weekReportErr ? (
+            <p className="ai-error">{weekReportErr}</p>
+          ) : (
+            <div className="ai-report-text">{weekReport}</div>
+          )}
+          <div className="modal-actions">
+            <button className="btn btn-primary" onClick={() => setWeekReportOpen(false)}>{t('common.close')}</button>
+          </div>
+        </Modal>
       )}
     </div>
   )

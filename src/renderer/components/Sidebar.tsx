@@ -2,8 +2,9 @@ import { NavLink } from 'react-router-dom'
 import { useMusicStore } from '../stores/musicStore'
 import { useThemeStore } from '../stores/themeStore'
 import { usePlaylistStore } from '../stores/playlistStore'
-import { useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import logoUrl from '../logo.png'
+import AiAssistantModal from './AiAssistantModal'
 import { useT } from '../i18n'
 
 export default function Sidebar(): JSX.Element {
@@ -13,6 +14,7 @@ export default function Sidebar(): JSX.Element {
   const playlistCount = usePlaylistStore((s) => s.playlist.length)
   const theme = useThemeStore((s) => s.theme)
   const toggleTheme = useThemeStore((s) => s.toggleTheme)
+  const [aiOpen, setAiOpen] = useState(false)
 
   useEffect(() => {
     loadCount()
@@ -78,6 +80,11 @@ export default function Sidebar(): JSX.Element {
       </nav>
 
       <div className="sidebar-footer">
+        <button className="sidebar-theme-btn" onClick={() => setAiOpen(true)} title={t('ai.assistant')}>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM8 13H6v-2h2v2zm5 0h-2v-2h2v2zm5 0h-2v-2h2v2z"/>
+          </svg>
+        </button>
         <button className="sidebar-theme-btn" onClick={toggleTheme} title={t('nav.switchTheme')}>
           {theme === 'dark' ? (
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -91,6 +98,7 @@ export default function Sidebar(): JSX.Element {
         </button>
         <span className="sidebar-count">{t('nav.songCount', { count })}</span>
       </div>
+      {aiOpen && <AiAssistantModal onClose={() => setAiOpen(false)} />}
     </aside>
   )
 }

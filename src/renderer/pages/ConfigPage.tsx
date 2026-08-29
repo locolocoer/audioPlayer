@@ -117,6 +117,38 @@ export default function ConfigPage(): JSX.Element {
   const [recording, setRecording] = useState<ShortcutAction | null>(null)
   const [autoLaunch, setAutoLaunch] = useState(false)
   const [closeBehavior, setCloseBehavior] = useState<'quit' | 'tray'>('quit')
+  const [aiConfig, setAiConfig] = useState<{ enabled: boolean; provider: 'openai' | 'anthropic'; baseUrl: string; apiKey: string; model: string }>({
+    enabled: false, provider: 'openai', baseUrl: '', apiKey: '', model: ''
+  })
+  const [aiTestState, setAiTestState] = useState<'idle' | 'testing' | 'ok' | 'fail'>('idle')
+  const [aiTestMsg, setAiTestMsg] = useState('')
+  const [aiSaved, setAiSaved] = useState(false)
+
+  useEffect(() => {
+    window.api.ai.getConfig().then((cfg) => setAiConfig(cfg)).catch(() => {})
+  }, [])
+
+  const saveAi = async (): Promise<void> => {
+    await window.api.ai.setConfig(aiConfig)
+    setAiSaved(true)
+    setTimeout(() => setAiSaved(false), 2000)
+  }
+
+  const testAi = async (): Promise<void> => {
+    setAiTestState('testing')
+    setAiTestMsg('')
+    // 直接使用当前表单配置测试；通过后自动保存，让 AI 功能立即生效
+    const cfg = { ...aiConfig, enabled: true }
+    const r = await window.api.ai.test(cfg)
+    setAiTestState(r.ok ? 'ok' : 'fail')
+    setAiTestMsg(r.error || '')
+    if (r.ok) {
+      await window.api.ai.setConfig(cfg)
+      setAiConfig(cfg)
+      setAiSaved(true)
+      setTimeout(() => setAiSaved(false), 2000)
+    }
+  }
 
   useEffect(() => {
     if (!recording) return
@@ -536,6 +568,81 @@ export default function ConfigPage(): JSX.Element {
           </div>
         </div>
         <p className="settings-hint">{t('settings.backoffHint')}</p>
+      </div>
+
+      {/* AI 服务 */}
+      <div className="settings-section">
+        <div className="settings-section-header">
+          <h3>{t('settings.ai')}</h3>
+          <button
+            className={`btn btn-sm${aiConfig.enabled ? ' btn-primary' : ' btn-secondary'}`}
+            onClick={() => setAiConfig({ ...aiConfig, enabled: !aiConfig.enabled })}
+          >{aiConfig.enabled ? t('settings.enabled') : t('settings.disabled')}</button>
+        </div>
+        <div className="settings-row">
+          <span className="settings-label">{t('settings.aiProvider')}</span>
+          <div className="settings-controls">
+            <select
+              className="filter-select"
+              value={aiConfig.provider}
+              onChange={(e) => setAiConfig({ ...aiConfig, provider: e.target.value as 'openai' | 'anthropic' })}
+            >
+              <option value="openai">{t('settings.aiProviderOpenai')}</option>
+              <option value="anthropic">{t('settings.aiProviderAnthropic')}</option>
+            </select>
+          </div>
+        </div>
+        <div className="settings-row">
+          <span className="settings-label">{t('settings.aiBaseUrl')}</span>
+          <div className="settings-controls">
+            <input
+              type="text"
+              className="filter-select"
+              style={{ width: 320 }}
+              value={aiConfig.baseUrl}
+              onChange={(e) => setAiConfig({ ...aiConfig, baseUrl: e.target.value })}
+              placeholder={aiConfig.provider === 'anthropic' ? 'https://api.anthropic.com' : 'https://api.openai.com/v1'}
+            />
+          </div>
+        </div>
+        <div className="settings-row">
+          <span className="settings-label">{t('settings.aiModel')}</span>
+          <div className="settings-controls">
+            <input
+              type="text"
+              className="filter-select"
+              style={{ width: 220 }}
+              value={aiConfig.model}
+              onChange={(e) => setAiConfig({ ...aiConfig, model: e.target.value })}
+              placeholder={aiConfig.provider === 'anthropic' ? 'claude-sonnet-4-20250514' : 'gpt-4o-mini'}
+            />
+          </div>
+        </div>
+        <div className="settings-row">
+          <span className="settings-label">{t('settings.aiApiKey')}</span>
+          <div className="settings-controls">
+            <input
+              type="password"
+              className="filter-select"
+              style={{ width: 320 }}
+              value={aiConfig.apiKey}
+              onChange={(e) => setAiConfig({ ...aiConfig, apiKey: e.target.value })}
+              placeholder="sk-..."
+            />
+          </div>
+        </div>
+        <div className="settings-row">
+          <span className="settings-label">{t('settings.aiActions')}</span>
+          <div className="settings-controls">
+            <button className="btn btn-sm btn-secondary" onClick={saveAi}>{aiSaved ? t('settings.saved') : t('common.save')}</button>
+            <button className="btn btn-sm btn-secondary" onClick={testAi} disabled={aiTestState === 'testing'}>
+              {aiTestState === 'testing' ? t('common.loading') : t('settings.aiTest')}
+            </button>
+            {aiTestState === 'ok' && <span className="settings-value" style={{ color: 'var(--accent)' }}>{t('settings.testOk')}</span>}
+            {aiTestState === 'fail' && <span className="settings-value" style={{ color: '#e94560' }}>{t('settings.testFailed')}{aiTestMsg ? `：${aiTestMsg}` : ''}</span>}
+          </div>
+        </div>
+        <p className="settings-hint">{t('settings.aiHint')}</p>
       </div>
 
       {/* 关于与更新 */}
