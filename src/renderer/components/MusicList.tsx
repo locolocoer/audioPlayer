@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import Modal from './Modal'
 import PlaylistPickerModal from './PlaylistPickerModal'
+import BatchEditModal from './BatchEditModal'
 import type { MusicFile } from '../../main/types'
 import { usePlayerStore } from '../stores/playerStore'
 import { useMusicStore } from '../stores/musicStore'
@@ -15,6 +16,7 @@ interface MusicListProps {
   showFavorite?: boolean
   onReorder?: (from: number, to: number) => void
   onReorderMany?: (ids: number[], toIndex: number) => void
+  onRemoveFromPlaylist?: (track: MusicFile) => void
 }
 
 const OVERSCAN = 10
@@ -194,8 +196,8 @@ function EditModal({ track, onClose }: { track: MusicFile; onClose: () => void }
   )
 }
 
-function ContextMenu({ x, y, track, onClose, onEdit, onAddToPlaylist }: {
-  x: number; y: number; track: MusicFile; onClose: () => void; onEdit: () => void; onAddToPlaylist: () => void
+function ContextMenu({ x, y, track, onClose, onEdit, onAddToPlaylist, onRemoveFromPlaylist }: {
+  x: number; y: number; track: MusicFile; onClose: () => void; onEdit: () => void; onAddToPlaylist: () => void; onRemoveFromPlaylist?: () => void
 }): JSX.Element {
   const t = useT()
   const toggleFavorite = useMusicStore((s) => s.toggleFavorite)
@@ -233,17 +235,26 @@ function ContextMenu({ x, y, track, onClose, onEdit, onAddToPlaylist }: {
         </svg>
         {t('ctx.addToPlaylist')}
       </div>
+      {onRemoveFromPlaylist && (
+        <div className="context-menu-item" onClick={() => { onRemoveFromPlaylist(); onClose() }}>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+            <path d="M6 19h12v2H6v-2z"/>
+          </svg>
+          {t('ctx.removeFromPlaylist')}
+        </div>
+      )}
     </div>
   )
 }
 
-export default function MusicList({ tracks, sortField, sortDir, onSort, onRowClick, showFavorite, onReorder, onReorderMany }: MusicListProps): JSX.Element {
+export default function MusicList({ tracks, sortField, sortDir, onSort, onRowClick, showFavorite, onReorder, onReorderMany, onRemoveFromPlaylist }: MusicListProps): JSX.Element {
   const t = useT()
   const currentTrack = usePlayerStore((s) => s.currentTrack)
   const toggleFavorite = useMusicStore((s) => s.toggleFavorite)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; track: MusicFile } | null>(null)
   const [editTrack, setEditTrack] = useState<MusicFile | null>(null)
   const [pickerTracks, setPickerTracks] = useState<MusicFile[] | null>(null)
+  const [batchEditTracks, setBatchEditTracks] = useState<MusicFile[] | null>(null)
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const selectAllRef = useRef<HTMLInputElement>(null)
@@ -355,6 +366,10 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
             {selected.size === tracks.length ? t('list.selectNone') : t('list.selectAll')}
           </button>
           <button className="btn btn-secondary" onClick={openBatchPicker}>{t('list.addToPlaylist')}</button>
+          <button className="btn btn-secondary" onClick={() => {
+            const sel = tracks.filter((t) => selected.has(t.id))
+            if (sel.length > 0) setBatchEditTracks(sel)
+          }}>{t('list.editTags')}</button>
           <button className="btn btn-secondary" onClick={batchFavorite}>{t('list.favorite')}</button>
           <button className="btn btn-secondary" onClick={exitSelectMode}>{t('common.cancel')}</button>
         </div>
@@ -492,6 +507,7 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
           onClose={() => setContextMenu(null)}
           onEdit={() => { setEditTrack(contextMenu.track); setContextMenu(null) }}
           onAddToPlaylist={() => setPickerTracks([contextMenu.track])}
+          onRemoveFromPlaylist={onRemoveFromPlaylist ? () => { onRemoveFromPlaylist(contextMenu.track) } : undefined}
         />
       )}
       {editTrack && <EditModal track={editTrack} onClose={() => setEditTrack(null)} />}
@@ -499,6 +515,12 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
         <PlaylistPickerModal
           tracks={pickerTracks}
           onClose={() => { setPickerTracks(null); if (selectMode) exitSelectMode() }}
+        />
+      )}
+      {batchEditTracks && (
+        <BatchEditModal
+          tracks={batchEditTracks}
+          onClose={() => { setBatchEditTracks(null); if (selectMode) exitSelectMode() }}
         />
       )}
     </>

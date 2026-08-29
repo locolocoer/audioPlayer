@@ -8,6 +8,7 @@ import FavoritesPage from './pages/FavoritesPage'
 import PlaylistPage from './pages/PlaylistPage'
 import HistoryPage from './pages/HistoryPage'
 import StatsPage from './pages/StatsPage'
+import DuplicatesPage from './pages/DuplicatesPage'
 import PlayerBar from './components/PlayerBar'
 import AudioEngine from './components/AudioEngine'
 import Sidebar from './components/Sidebar'
@@ -136,6 +137,7 @@ export default function App(): JSX.Element {
               <Route path="/history" element={<HistoryPage />} />
               <Route path="/recent" element={<Navigate to="/history" replace />} />
               <Route path="/stats" element={<StatsPage />} />
+              <Route path="/duplicates" element={<DuplicatesPage />} />
               <Route path="/config" element={<ConfigPage />} />
               </Routes>
             </main>

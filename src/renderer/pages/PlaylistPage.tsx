@@ -1,10 +1,11 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { usePlaylistStore } from '../stores/playlistStore'
 import { usePlayerStore } from '../stores/playerStore'
 import { useMusicStore } from '../stores/musicStore'
 import { useToastStore } from '../stores/toastStore'
 import MusicList from '../components/MusicList'
 import AddSongsModal from '../components/AddSongsModal'
+import { getCoverCached, setCoverCached, coverCacheKey } from '../utils/coverCache'
 import { useT } from '../i18n'
 import type { MusicFile } from '../../main/types'
 
@@ -26,6 +27,36 @@ function formatDate(iso: string): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+// 歌单广场卡片封面：显示歌单内第一首歌曲的封面
+function SquareCover({ track }: { track: MusicFile | undefined }): JSX.Element {
+  const [url, setUrl] = useState('')
+  useEffect(() => {
+    if (!track) return
+    const key = coverCacheKey(track)
+    const cached = getCoverCached(key)
+    if (cached) {
+      setUrl(cached)
+      return
+    }
+    window.api.player.getCover(track.webdavId, track.path).then((r) => {
+      if (r.data && r.data.length > 0) {
+        const blob = new Blob([new Uint8Array(r.data)], { type: r.format || 'image/jpeg' })
+        const u = URL.createObjectURL(blob)
+        setCoverCached(key, u)
+        setUrl(u)
+      }
+    }).catch(() => {})
+  }, [track])
+  if (url) return <img className="square-card-cover square-card-cover-img" src={url} alt="" loading="lazy" />
+  return (
+    <div className="square-card-cover">
+      <svg viewBox="0 0 24 24" width="34" height="34" fill="currentColor">
+        <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+      </svg>
+    </div>
+  )
+}
+
 export default function PlaylistPage(): JSX.Element {
   const t = useT()
   const playlists = usePlaylistStore((s) => s.playlists)
@@ -37,6 +68,7 @@ export default function PlaylistPage(): JSX.Element {
   const selectPlaylist = usePlaylistStore((s) => s.selectPlaylist)
   const clearPlaylist = usePlaylistStore((s) => s.clearPlaylist)
   const addTracks = usePlaylistStore((s) => s.addTracks)
+  const removeTrack = usePlaylistStore((s) => s.removeTrack)
   const reorder = usePlaylistStore((s) => s.reorder)
   const reorderMany = usePlaylistStore((s) => s.reorderMany)
   const { requestPlay, setQueue } = usePlayerStore()
@@ -191,13 +223,11 @@ export default function PlaylistPage(): JSX.Element {
             <div className="square-grid">
               {playlists.map((p) => {
                 const count = parseTrackIds(p.trackIds).length
+                const firstId = parseTrackIds(p.trackIds)[0]
+                const firstTrack = firstId !== undefined ? useMusicStore.getState().tracks.find((x) => x.id === firstId) : undefined
                 return (
                   <div key={p.id} className="square-card" onClick={() => openSquarePlaylist(p.id)}>
-                    <div className="square-card-cover">
-                      <svg viewBox="0 0 24 24" width="34" height="34" fill="currentColor">
-                        <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
-                      </svg>
-                    </div>
+                    <SquareCover track={firstTrack} />
                     <div className="square-card-name">{p.name}</div>
                     <div className="square-card-meta">
                       {t('playlist.songCount', { count })}
@@ -271,6 +301,14 @@ export default function PlaylistPage(): JSX.Element {
                 <button className="btn btn-secondary" onClick={() => { setEditName(activeName); setEditing(true) }}>{t('playlist.rename')}</button>
               </>
             )}
+            <input
+              type="text"
+              className="search-input"
+              style={{ width: 160 }}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t('library.search')}
+            />
             <button className="btn btn-secondary" onClick={() => { if (activeId !== null) deletePlaylist(activeId) }}>{t('playlist.delete')}</button>
             <button className="btn btn-secondary" onClick={clearPlaylist} title={t('playlist.clearTitle')}>{t('playlist.clear')}</button>
             <button className="btn btn-primary" onClick={() => setAddSongsOpen(true)} title={t('playlist.addSongsTitle')}>{t('playlist.addSongs')}</button>
@@ -283,6 +321,7 @@ export default function PlaylistPage(): JSX.Element {
             onRowClick={handleRowClick}
             onReorder={sortField === 'order' ? wrapReorder : undefined}
             onReorderMany={sortField === 'order' ? wrapReorderMany : undefined}
+            onRemoveFromPlaylist={(track) => removeTrack(track.id)}
           />
           <div className="playlist-status">
             {t('playlist.songCount', { count: playlist.length })}

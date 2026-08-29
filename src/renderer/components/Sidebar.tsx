@@ -57,6 +57,12 @@ export default function Sidebar(): JSX.Element {
           </svg>
           <span>{t('nav.history')}</span>
         </NavLink>
+        <NavLink to="/duplicates" className={({ isActive }) => isActive ? 'sidebar-link active' : 'sidebar-link'}>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+            <path d="M11 7H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5h-2v5H6V9h5V7zm10 2h-2V5.41L11.41 13 10 11.59 17.59 4H14V2h7v7z"/>
+          </svg>
+          <span>{t('nav.duplicates')}</span>
+        </NavLink>
         <NavLink to="/stats" className={({ isActive }) => isActive ? 'sidebar-link active' : 'sidebar-link'}>
           <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
             <path d="M5 9.2h3V19H5V9.2zM10.6 5h2.8v14h-2.8V5zm5.6 8H19v6h-2.8v-6z"/>

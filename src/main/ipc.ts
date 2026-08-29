@@ -31,7 +31,8 @@ import {
   getDuplicateGroups,
   getStatsReport,
   getPlayTrend,
-  getPlayHistory
+  getPlayHistory,
+  deleteMusicFileByPath
 } from './database'
 import type { WebDAVConfig, MusicFile, ScanProgress, Playlist, ScanSettings } from './types'
 import fs from 'fs'
@@ -340,6 +341,14 @@ export function registerIpcHandlers(): void {
   // Duplicates
   ipcMain.handle('music:duplicates', async () => {
     return getDuplicateGroups()
+  })
+
+  // 删除曲库中的单曲（重复歌曲管理用）
+  ipcMain.handle('music:deleteTrack', async (_event, id: number) => {
+    const row = getMusicFileById(id)
+    if (!row) return false
+    deleteMusicFileByPath(row.webdavId, row.path)
+    return true
   })
 
   // Stats

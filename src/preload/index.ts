@@ -36,6 +36,7 @@ const api = {
       ipcRenderer.invoke('music:updateMetaBatch', ids, meta),
     duplicates: (): Promise<{ title: string; trackCount: number; tracks: MusicFile[] }[]> =>
       ipcRenderer.invoke('music:duplicates'),
+    deleteTrack: (id: number): Promise<boolean> => ipcRenderer.invoke('music:deleteTrack', id),
     enrich: (id: number): Promise<{ ok: boolean; meta?: { title?: string; artist?: string; album?: string } }> =>
       ipcRenderer.invoke('music:enrich', id),
     recordPlay: (id: number): Promise<boolean> =>

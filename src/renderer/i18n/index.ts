@@ -14,6 +14,7 @@ const zh: Dict = {
   'nav.favorites': '我的收藏',
   'nav.recent': '最近播放',
   'nav.history': '播放历史',
+  'nav.duplicates': '重复歌曲',
   'nav.stats': '听歌统计',
   'nav.settings': '设置',
   'nav.songCount': '{count} 首歌曲',
@@ -50,6 +51,16 @@ const zh: Dict = {
   'history.all': '全部记录',
   'history.unique': '按歌曲去重',
   'history.empty': '暂无播放历史，播放几首歌后这里会记录每次播放',
+
+  // 重复歌曲
+  'duplicates.groups': '{n} 组重复',
+  'duplicates.versions': '{n} 个版本',
+  'duplicates.empty': '没有发现重复歌曲',
+  'duplicates.setDefault': '设为默认',
+  'duplicates.defaultSet': '已将「{name}」设为默认源',
+  'duplicates.deleted': '已删除：{title}',
+  'duplicates.deleteFail': '删除失败',
+  'duplicates.keepOne': '至少保留一个版本',
 
   // 统计
   'stats.totalPlays': '累计播放',
@@ -151,6 +162,9 @@ const zh: Dict = {
   'track.channels': '声道数',
   'track.audioInfoRemote': '仅支持本地文件',
   'track.audioInfoFailed': '无法读取音频信息',
+  'track.batchEditTitle': '批量编辑标签（{n} 首）',
+  'track.batchEditHint': '留空表示不修改该项',
+  'track.batchKeep': '保持不变',
 
   // 右键菜单
   'ctx.detail': '查看详情',
@@ -170,6 +184,7 @@ const zh: Dict = {
   'list.title': '歌名',
   'list.artist': '歌手',
   'list.album': '专辑',
+  'list.editTags': '编辑标签',
   'list.duration': '时长',
 
   // 弹窗
@@ -399,6 +414,7 @@ const en: Dict = {
   'nav.favorites': 'Favorites',
   'nav.recent': 'Recently Played',
   'nav.history': 'Play History',
+  'nav.duplicates': 'Duplicates',
   'nav.stats': 'Statistics',
   'nav.settings': 'Settings',
   'nav.songCount': '{count} songs',
@@ -431,6 +447,16 @@ const en: Dict = {
   'history.all': 'All plays',
   'history.unique': 'By track',
   'history.empty': 'No play history yet. Play some songs and each play will be recorded here.',
+
+  // 重复歌曲
+  'duplicates.groups': '{n} groups',
+  'duplicates.versions': '{n} versions',
+  'duplicates.empty': 'No duplicate tracks found',
+  'duplicates.setDefault': 'Set default',
+  'duplicates.defaultSet': '"{name}" set as default source',
+  'duplicates.deleted': 'Deleted: {title}',
+  'duplicates.deleteFail': 'Delete failed',
+  'duplicates.keepOne': 'Keep at least one version',
 
   'stats.totalPlays': 'Total Plays',
   'stats.totalTime': 'Total Listening Time',
@@ -526,6 +552,9 @@ const en: Dict = {
   'track.channels': 'Channels',
   'track.audioInfoRemote': 'Local files only',
   'track.audioInfoFailed': 'Could not read audio info',
+  'track.batchEditTitle': 'Batch edit tags ({n} tracks)',
+  'track.batchEditHint': 'Leave blank to keep unchanged',
+  'track.batchKeep': 'Keep',
 
   'ctx.detail': 'View details',
   'ctx.openLocation': 'Open file location',
@@ -544,6 +573,7 @@ const en: Dict = {
   'list.artist': 'Artist',
   'list.album': 'Album',
   'list.duration': 'Duration',
+  'list.editTags': 'Edit tags',
 
   'resume.title': 'Continue Playing?',
   'resume.message': 'You were playing "{name}". Continue?',
