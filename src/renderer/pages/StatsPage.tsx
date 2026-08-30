@@ -82,10 +82,31 @@ function RankList({ title, items }: { title: string; items: { name: string; valu
   )
 }
 
+// 情绪/标签分布条形图
+function MoodBar({ rows, empty }: { rows: { tag: string; count: number }[]; empty: string }): JSX.Element {
+  if (rows.length === 0) return <p className="stats-empty">{empty}</p>
+  const max = Math.max(1, ...rows.map((r) => r.count))
+  return (
+    <div className="mood-dist">
+      {rows.map((r) => (
+        <div key={r.tag} className="mood-bar-row">
+          <span className="mood-bar-label">{r.tag}</span>
+          <div className="mood-bar-track">
+            <div className="mood-bar-fill" style={{ width: `${Math.max(4, (r.count / max) * 100)}%` }} />
+          </div>
+          <span className="mood-bar-count">{r.count}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function StatsPage(): JSX.Element {
   const t = useT()
   const [report, setReport] = useState<Report | null>(null)
   const [trend, setTrend] = useState<{ date: string; plays: number }[]>([])
+  const [aiTagDist, setAiTagDist] = useState<{ tag: string; count: number }[]>([])
+  const [recentMood, setRecentMood] = useState<{ tag: string; count: number }[]>([])
   const [weekReportOpen, setWeekReportOpen] = useState(false)
   const [weekReport, setWeekReport] = useState('')
   const [weekReportBusy, setWeekReportBusy] = useState(false)
@@ -94,6 +115,23 @@ export default function StatsPage(): JSX.Element {
   useEffect(() => {
     window.api.stats.report().then((r) => setReport(r)).catch(() => {})
     window.api.stats.trend(30).then((t) => setTrend(t)).catch(() => {})
+    // 情绪分布：曲库 AI 标签统计 + 最近播放情绪统计
+    window.api.music.getAiTags().then((list) => {
+      const map = new Map(list.map((x) => [x.trackId, x.tags]))
+      const counter = new Map<string, number>()
+      for (const x of list) {
+        for (const tag of x.tags) counter.set(tag, (counter.get(tag) || 0) + 1)
+      }
+      setAiTagDist(Array.from(counter.entries()).map(([tag, count]) => ({ tag, count })).sort((a, b) => b.count - a.count).slice(0, 12))
+      window.api.music.playHistory(300).then((entries) => {
+        const moodCounter = new Map<string, number>()
+        for (const e of entries) {
+          const tags = map.get(e.track.id)
+          if (tags) for (const tag of tags) moodCounter.set(tag, (moodCounter.get(tag) || 0) + 1)
+        }
+        setRecentMood(Array.from(moodCounter.entries()).map(([tag, count]) => ({ tag, count })).sort((a, b) => b.count - a.count).slice(0, 10))
+      }).catch(() => {})
+    }).catch(() => {})
   }, [])
 
   const play = (track: MusicFile): void => {
@@ -170,6 +208,23 @@ export default function StatsPage(): JSX.Element {
               items={report.topAlbums.map((a) => ({ name: a.album, value: t('stats.times', { n: a.plays }) }))}
             />
           </div>
+
+          {(aiTagDist.length > 0 || recentMood.length > 0) && (
+            <div className="stats-grid">
+              {aiTagDist.length > 0 && (
+                <div className="stats-card">
+                  <h3>{t('stats.moodDist')}</h3>
+                  <MoodBar rows={aiTagDist} empty={t('stats.moodEmpty')} />
+                </div>
+              )}
+              {recentMood.length > 0 && (
+                <div className="stats-card">
+                  <h3>{t('stats.recentMood')}</h3>
+                  <MoodBar rows={recentMood} empty={t('stats.moodEmpty')} />
+                </div>
+              )}
+            </div>
+          )}
         </>
       ) : (
         <p className="stats-empty">{t('common.loading')}</p>

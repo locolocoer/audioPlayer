@@ -292,7 +292,11 @@ export default function PlayerPage(): JSX.Element {
           {visualizerEnabled && <Visualizer />}
           {lyrics.length > 0 ? (
             <>
-              <div className="lyrics-container" ref={lyricsRef} style={{ fontSize: lyricsFontSize, textAlign: lyricsAlign }}>
+              <div
+                className="lyrics-container"
+                ref={lyricsRef}
+                style={{ fontSize: lyricsFontSize, textAlign: lyricsAlign }}
+              >
                 <div className="lyrics-spacer" />
                 {lyrics.map((line, idx) => (
                   <div key={idx} data-idx={idx} className={`lyrics-line${activeIndex === idx ? ' active' : ''}`}>

@@ -6,6 +6,11 @@ export interface UpdateNote {
 }
 
 export const UPDATE_NOTES: Record<string, UpdateNote> = {
+  '1.5.4': {
+    added: [
+      '统计页情绪分布：曲库 AI 标签分布与最近播放情绪分布（条形图）'
+    ]
+  },
   '1.5.3': {
     changed: [
       '播放列表改为单一列表，标题固定「播放列表」，操作集中标题行',
