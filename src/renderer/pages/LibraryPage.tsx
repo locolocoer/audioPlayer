@@ -38,6 +38,7 @@ function AlbumCover({ album, tracks }: { album: string; tracks: MusicFile[] }): 
   const [coverUrl, setCoverUrl] = useState('')
   const [inView, setInView] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const loadSeqRef = useRef(0)
 
   useEffect(() => {
     const el = ref.current
@@ -56,6 +57,7 @@ function AlbumCover({ album, tracks }: { album: string; tracks: MusicFile[] }): 
     if (!inView) return
     const first = tracks[0]
     if (!first) return
+    const seq = ++loadSeqRef.current
     const key = coverCacheKey(first)
     const cached = getCoverCached(key)
     if (cached) {
@@ -63,6 +65,7 @@ function AlbumCover({ album, tracks }: { album: string; tracks: MusicFile[] }): 
       return
     }
     window.api.player.getCover(first.webdavId, first.path).then((r) => {
+      if (seq !== loadSeqRef.current) return
       if (r.data && r.data.length > 0) {
         const blob = new Blob([new Uint8Array(r.data)], { type: r.format || 'image/jpeg' })
         const url = URL.createObjectURL(blob)
@@ -259,6 +262,7 @@ export default function LibraryPage(): JSX.Element {
     classifyCancelRef.current = false
     const tagMap = new Map(aiTags)
     const BATCH = 20
+    let failed = false
     for (let i = 0; i < pending.length; i += BATCH) {
       if (classifyCancelRef.current) break
       const batch = pending.slice(i, i + BATCH)
@@ -272,6 +276,7 @@ export default function LibraryPage(): JSX.Element {
       })
       if (!r.ok || !r.text) {
         addToast(t('ai.failed'), 'error')
+        failed = true
         break
       }
       let parsed: { index: number; tags: unknown[] }[] = []
@@ -301,7 +306,7 @@ export default function LibraryPage(): JSX.Element {
     }
     setClassifying(false)
     setClassifyProgress(null)
-    if (!classifyCancelRef.current) {
+    if (!classifyCancelRef.current && !failed) {
       addToast(t('library.aiClassifyDone'), 'success')
     }
   }
@@ -366,6 +371,17 @@ export default function LibraryPage(): JSX.Element {
   const albumEnd = Math.min(albums.length, albumEndRow * albumCols)
   const albumTopPad = albumStartRow * albumRowH
   const albumBottomPad = Math.max(0, (albumRowCount - albumEndRow) * albumRowH)
+  // 内容收缩（窗口变高/曲库变小）时把滚动位置钳制回最大合法值，避免渲染空白
+  const albumMaxScroll = Math.max(0, albumRowCount * albumRowH - albumViewportH)
+  useEffect(() => {
+    if (!albumGridNode) return
+    const scrollParent = albumGridNode.parentElement
+    if (!scrollParent) return
+    if (scrollParent.scrollTop > albumMaxScroll) {
+      scrollParent.scrollTop = albumMaxScroll
+      setAlbumScrollTop(albumMaxScroll)
+    }
+  }, [albumMaxScroll, albumGridNode])
 
   const folderData = useMemo(() => {
     const subdirs = new Map<string, { label: string; key: string; count: number }>()
@@ -395,6 +411,25 @@ export default function LibraryPage(): JSX.Element {
     }
   }, [tracks, browseFolder])
 
+  // 文件夹内文件按当前排序规则重排（MusicList 不自行排序）
+  const sortedFolderFiles = useMemo(() => {
+    return [...folderData.files].sort((a, b) => {
+      let cmp = 0
+      if (sortField === 'duration') {
+        cmp = a.duration - b.duration
+      } else if (sortField === 'playCount') {
+        cmp = (a.playCount || 0) - (b.playCount || 0)
+      } else if (sortField === 'rating') {
+        cmp = (a.rating || 0) - (b.rating || 0)
+      } else if (sortField === 'lastPlayed') {
+        cmp = String(a.lastPlayed || '').localeCompare(String(b.lastPlayed || ''))
+      } else {
+        cmp = String(a[sortField] || '').localeCompare(String(b[sortField] || ''))
+      }
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+  }, [folderData.files, sortField, sortDir])
+
   // 文件夹子目录虚拟化（固定行高 52px）
   const folderWin = useVirtualWindow(folderData.subdirs.length, 52)
 
@@ -402,6 +437,12 @@ export default function LibraryPage(): JSX.Element {
     setQueue(filtered)
     requestPlay(track)
   }, [filtered, requestPlay, setQueue])
+
+  // 文件夹视图点击播放：队列用当前文件夹内的排序结果，而不是全库 filtered
+  const handleFolderRowClick = useCallback((track: MusicFile) => {
+    setQueue(sortedFolderFiles)
+    requestPlay(track)
+  }, [sortedFolderFiles, requestPlay, setQueue])
 
   const backToBrowse = useCallback(() => {
     setBrowseAlbum(null)
@@ -666,11 +707,11 @@ export default function LibraryPage(): JSX.Element {
           )}
           {folderData.files.length > 0 ? (
             <MusicList
-              tracks={folderData.files}
+              tracks={sortedFolderFiles}
               sortField={sortField}
               sortDir={sortDir}
               onSort={handleSort}
-              onRowClick={handleRowClick}
+              onRowClick={handleFolderRowClick}
             />
           ) : folderData.subdirs.length === 0 ? (
             <div className="empty-state"><p>{t('library.emptyFolder')}</p></div>

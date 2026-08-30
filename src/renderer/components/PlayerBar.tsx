@@ -17,16 +17,11 @@ const RATES = [1, 1.25, 1.5, 2, 0.75, 0.5]
 
 function BarCover({ track }: { track: { webdavId: string; path: string } }): JSX.Element {
   const [coverUrl, setCoverUrl] = useState('')
-  const loadingRef = useRef(false)
+  const seqRef = useRef(0)
 
   useEffect(() => {
+    const seq = ++seqRef.current
     setCoverUrl('')
-    loadingRef.current = false
-  }, [track.webdavId, track.path])
-
-  useEffect(() => {
-    if (loadingRef.current) return
-    loadingRef.current = true
     const key = coverCacheKey(track)
     const cached = getCoverCached(key)
     if (cached) {
@@ -34,6 +29,8 @@ function BarCover({ track }: { track: { webdavId: string; path: string } }): JSX
       return
     }
     window.api.player.getCover(track.webdavId, track.path).then((r) => {
+      // 丢弃过期请求的返回，避免上一首歌的封面覆盖当前封面
+      if (seq !== seqRef.current) return
       if (r.data && r.data.length > 0) {
         const blob = new Blob([new Uint8Array(r.data)], { type: r.format || 'image/jpeg' })
         const url = URL.createObjectURL(blob)

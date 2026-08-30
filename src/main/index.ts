@@ -27,6 +27,11 @@ process.on('unhandledRejection', (reason) => {
 
 app.setName('feiyu-music')
 
+// E2E 测试支持：指向临时 userData，自动化测试不污染真实数据库/设置
+if (process.env.FEIYU_TEST_USERDATA) {
+  app.setPath('userData', process.env.FEIYU_TEST_USERDATA)
+}
+
 const MAX_WINDOW_WIDTH = 1600
 
 let mainWindow: BrowserWindow | null = null
@@ -271,6 +276,8 @@ function createWindow(): void {
   })
   mainWindow.on('ready-to-show', () => mainWindow?.show())
 
+  mainWindow.on('closed', () => { mainWindow = null })
+
   let boundsTimer: ReturnType<typeof setTimeout> | null = null
   const onBoundsChange = (): void => {
     if (boundsTimer) clearTimeout(boundsTimer)
@@ -446,7 +453,7 @@ function registerWindowIpc(): void {
     return true
   })
 
-  ipcMain.handle('window:isMaximized', () => mainWindow?.isMaximized() ?? false)
+  ipcMain.handle('window:isMaximized', () => (mainWindow && !mainWindow.isDestroyed()) ? mainWindow.isMaximized() : false)
 
   ipcMain.handle('player:sendCommand', (_e, cmd: string) => {
     sendPlayerCommand(cmd)
@@ -547,21 +554,48 @@ function findFFmpeg(): string {
   return findResourceFile(name) || 'ffmpeg'
 }
 
+// 跳过 44 字节 WAV 头，把 DTS 负载流式写入 .dts 文件（不整文件读入内存，
+// 大文件时避免内存暴涨；失败时正常 reject，不会让 Promise 悬挂）
+function writeDtsPayload(inputPath: string, dtsPath: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const src = fs.createReadStream(inputPath, { start: 44 })
+    const dst = fs.createWriteStream(dtsPath)
+    let settled = false
+    const fail = (err: Error): void => {
+      if (settled) return
+      settled = true
+      try { src.destroy() } catch { /* ignore */ }
+      try { dst.destroy() } catch { /* ignore */ }
+      reject(err)
+    }
+    src.on('error', fail)
+    dst.on('error', fail)
+    dst.on('finish', () => {
+      if (!settled) { settled = true; resolve() }
+    })
+    src.pipe(dst)
+  })
+}
+
 function transcodeToPCM(inputPath: string, outputPath: string): Promise<void> {
   return new Promise((resolve, reject) => {
     execFile(findFFmpeg(), [
       '-y', '-i', inputPath, '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', outputPath
     ], { timeout: 120000 }, (err) => {
       if (!err) { resolve(); return }
-      const buf = fs.readFileSync(inputPath)
+      // ffmpeg 直接转码失败：尝试 DTS-in-WAV 兜底
       const dtsPath = inputPath + '.dts'
-      fs.writeFileSync(dtsPath, buf.subarray(44))
-      execFile(findFFmpeg(), [
-        '-y', '-f', 'dts', '-i', dtsPath, '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', outputPath
-      ], { timeout: 120000 }, (err2) => {
-        try { fs.unlinkSync(dtsPath) } catch { /* */ }
-        if (err2) reject(err2)
-        else resolve()
+      writeDtsPayload(inputPath, dtsPath).then(() => {
+        execFile(findFFmpeg(), [
+          '-y', '-f', 'dts', '-i', dtsPath, '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', outputPath
+        ], { timeout: 120000 }, (err2) => {
+          try { fs.unlinkSync(dtsPath) } catch { /* ignore */ }
+          if (err2) reject(err2)
+          else resolve()
+        })
+      }).catch((e2) => {
+        try { fs.unlinkSync(dtsPath) } catch { /* ignore */ }
+        reject(e2)
       })
     })
   })
@@ -896,9 +930,11 @@ app.on('before-quit', () => {
 app.on('will-quit', () => {
   globalShortcut.unregisterAll()
   closeFolderWatchers()
+  // 数据库在真正退出前关闭（不能在 window-all-closed 关：
+  // macOS 关窗不退出，activate 重建窗口时数据库已关会导致查询失败）
+  closeDatabase()
 })
 
 app.on('window-all-closed', () => {
-  closeDatabase()
   if (process.platform !== 'darwin') app.quit()
 })

@@ -5,5 +5,5 @@
     "outDir": "out/main",
     "types": ["node"]
   },
-  "include": ["src/main/**/*.ts"]
+  "include": ["src/main/**/*.ts", "src/test/**/*.ts", "e2e/**/*.ts"]
 }

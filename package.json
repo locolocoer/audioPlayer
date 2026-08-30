@@ -1,6 +1,6 @@
 {
   "name": "feiyu-music",
-  "version": "1.5.4",
+  "version": "1.5.5",
   "description": "飞鱼音乐 - WebDAV 桌面音乐播放器",
   "main": "./out/main/index.js",
   "scripts": {
@@ -9,7 +9,12 @@
     "preview": "electron-vite preview",
     "start": "chcp 65001 > nul && electron-vite preview --skipBuild",
     "package": "electron-builder",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "check": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json && vitest run && electron-vite build",
+    "verify": "npm run check && npm run test:e2e"
   },
   "dependencies": {
     "chinese-s2t": "^1.0.0",
@@ -24,13 +29,21 @@
     "zustand": "^4.5.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.6",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@types/sql.js": "^1.4.9",
     "@vitejs/plugin-react": "^4.3.1",
+    "@vitest/coverage-v8": "^3.2.7",
     "electron": "^31.3.1",
     "electron-builder": "^24.13.3",
     "electron-vite": "^2.3.0",
+    "jsdom": "^30.0.1",
+    "playwright": "^1.62.1",
     "sharp": "^0.32.6",
     "typescript": "^5.5.4",
     "vite": "^5.4.0",

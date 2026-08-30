@@ -39,6 +39,8 @@ export default function PlayerPage(): JSX.Element {
   const [aiMoodErr, setAiMoodErr] = useState('')
   const loadedRef = useRef(0)
   const activeIdxRef = useRef(-1)
+  // 切歌竞态守卫：每次换歌递增，异步回调只接受最新一代的结果
+  const loadGenRef = useRef(0)
 
   useEffect(() => {
     localStorage.setItem('eq_panel', eqOpen ? '1' : '0')
@@ -93,6 +95,7 @@ export default function PlayerPage(): JSX.Element {
 
   const searchOnlineLrc = async (): Promise<void> => {
     if (!currentTrack) return
+    const trackId = currentTrack.id
     setSearchingLrc(true)
     setLrcSearchMsg('')
     const res = await window.api.lrc.search({
@@ -102,6 +105,7 @@ export default function PlayerPage(): JSX.Element {
       duration: currentTrack.duration
     })
     setSearchingLrc(false)
+    if (usePlayerStore.getState().currentTrack?.id !== trackId) return
     if (res.ok && res.lrc) {
       setLrcText(res.lrc)
       setLrcFromOnline(true)
@@ -122,6 +126,7 @@ export default function PlayerPage(): JSX.Element {
   }
 
   const searchWithInfo = async (): Promise<void> => {
+    const trackId = usePlayerStore.getState().currentTrack?.id
     setSearchingLrc(true)
     setLrcSearchMsg('')
     const res = await window.api.lrc.search({
@@ -131,6 +136,7 @@ export default function PlayerPage(): JSX.Element {
       duration: currentTrack?.duration || 0
     })
     setSearchingLrc(false)
+    if (usePlayerStore.getState().currentTrack?.id !== trackId) return
     if (res.ok && res.lrc) {
       setLrcText(res.lrc)
       setLrcFromOnline(true)
@@ -171,10 +177,12 @@ export default function PlayerPage(): JSX.Element {
     }
     loadedRef.current = 0
     activeIdxRef.current = -1
+    loadGenRef.current++
   }, [currentTrack?.id])
 
   const analyzeMood = async (): Promise<void> => {
     if (!currentTrack || aiMoodBusy || !lrcText) return
+    const trackId = currentTrack.id
     setAiMoodBusy(true)
     setAiMoodErr('')
     const r = await window.api.ai.chat(
@@ -186,6 +194,7 @@ export default function PlayerPage(): JSX.Element {
       }
     )
     setAiMoodBusy(false)
+    if (usePlayerStore.getState().currentTrack?.id !== trackId) return
     if (!r.ok || !r.text) {
       setAiMoodErr(r.error === 'not-configured' ? t('ai.notConfigured') : (r.error || t('ai.failed')))
       return
@@ -234,12 +243,14 @@ export default function PlayerPage(): JSX.Element {
     loadedRef.current = 1
 
     const track = currentTrack
+    const gen = loadGenRef.current
     const key = coverCacheKey(track)
     const cached = getCoverCached(key)
     if (cached) {
       setCoverUrl(cached)
     } else {
       window.api.player.getCover(track.webdavId, track.path).then((r) => {
+        if (gen !== loadGenRef.current) return
         if (r.data && r.data.length > 0) {
           const blob = new Blob([new Uint8Array(r.data)], { type: r.format || 'image/jpeg' })
           const url = URL.createObjectURL(blob)
@@ -250,6 +261,7 @@ export default function PlayerPage(): JSX.Element {
     }
 
     window.api.player.getLrc(track.webdavId, track.path).then((r) => {
+      if (gen !== loadGenRef.current) return
       if (r.text) {
         setLrcText(r.text)
         setLrcFromOnline(false)

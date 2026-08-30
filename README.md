@@ -2,7 +2,7 @@
 
 一款基于 Electron 的桌面音乐播放器，支持 WebDAV 云端与本地文件夹两种音乐源，内置完整的播放、歌词、封面、收藏、播放列表与统计体系。
 
-当前版本：**v1.5.4**（详见 [CHANGELOG](./CHANGELOG.md)）
+当前版本：**v1.5.5**（详见 [CHANGELOG](./CHANGELOG.md)）
 
 ---
 
@@ -100,6 +100,45 @@ npm run package
 ```
 
 > 提示：`npm start` 直接启动现有 `out/` 产物，不会重建；改代码后先 `npm run build`。
+
+---
+
+## 🧪 自动化测试
+
+> **写完代码后必须自测**：固定流程见 [TESTING.md](./TESTING.md)（写完 → `npm run verify` → 失败即修复 → 重跑直到全绿 → 才交付）。AI 助手工作约定见 [AGENTS.md](./AGENTS.md)。
+
+基于 **Vitest**（双环境 projects：`unit`=node / `dom`=jsdom + Testing Library）+ **Playwright**（Electron E2E 冒烟）。
+
+```bash
+# 完整自测（交付前必跑）：typecheck ×2 → 全部测试 → 构建 → E2E 冒烟
+npm run verify
+
+# 快速自测（不含 E2E）
+npm run check
+
+# 跑全部单元/回归/组件测试
+npm test
+
+# 监听模式（改代码时实时跑）
+npm run test:watch
+
+# 覆盖率报告（控制台 + coverage/ 目录下的 HTML）
+npm run test:coverage
+
+# E2E 冒烟：启动真实应用验证窗口/导航/页面渲染（需先 npm run build）
+npm run test:e2e
+```
+
+**覆盖范围与约定**：
+
+- `src/main/**/*.test.ts`（unit）：主进程逻辑。`ai.ts`（请求构造、临时配置隔离）、`database.ts`（sql.js 内存库：幂等插入、去重不误删替代音源、收藏/播放记录/历史裁剪、密码加密、歌单 kind 迁移等）——electron 已 mock，`userData` 指向系统临时目录
+- `src/renderer/utils/*.test.ts`（unit）：纯函数（LRC 解析等）
+- `src/renderer/stores/**/*.test.ts`（dom）：zustand 业务逻辑 —— **重点回归区**，历次修过的 bug（临时队列语义、队列操作不误删收藏、replaceTrack 双轨同步等）都固化在这里
+- `src/renderer/hooks/**` 与 `components/**`（dom）：hook 边界钳制、右键菜单/多选交互、添加歌曲不双重添加等
+- 组件测试统一使用 `src/test/setup-dom.ts` 提供的 `window.api` mock（结构与 `src/preload/index.ts` 一致），**不依赖真实 IPC**
+- `e2e/smoke.spec.ts`（Playwright `_electron`）：启动真实应用（临时 `userData`，`FEIYU_TEST_USERDATA` 环境变量隔离，不碰真实数据），验证窗口标题、侧边栏导航、各页面渲染与播放器空状态
+
+写新逻辑时遵循：能抽成纯函数就写 unit 测试；动 Store/交互就补 dom 测试；修 bug 先写复现测试再修；大版本或 UI 布局调整后跑一遍 E2E 冒烟。
 
 ---
 

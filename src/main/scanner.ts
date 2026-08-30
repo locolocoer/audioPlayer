@@ -102,6 +102,7 @@ export async function scanWebDAV(
   const settings = scanSettings || DEFAULT_SCAN_SETTINGS
   const existingFiles = getExistingFilePaths(config.id)
   const scannedPaths = new Set<string>()
+  const failedDirs = new Set<string>()
 
   let scannedCount = 0
   let totalCount = 0
@@ -117,6 +118,7 @@ export async function scanWebDAV(
     const contents = await retryGetDirectoryContents(client, dirPath, settings)
       .catch((err) => {
         console.log(`[Scan] skipping dir ${dirPath}: ${err}`)
+        failedDirs.add(dirPath)
         return []
       })
 
@@ -203,7 +205,8 @@ export async function scanWebDAV(
         try {
           const isMp3 = item.basename.toLowerCase().endsWith('.mp3')
           const existingSame = findMusicFileByTitle(title, config.id)
-          if (existingSame && isMp3) {
+          if (existingSame && isMp3 && existingSame.path !== fullPath) {
+            // 同名不同路径：作为替代音源插入（保留原记录）
             const sources = findAlternativeSources(title, config.id)
             const hasThisSource = sources.some((s) => s.path === fullPath)
             if (!hasThisSource) {
@@ -212,6 +215,7 @@ export async function scanWebDAV(
               console.log(`[Scan] 新增音源: "${item.basename}" (歌曲: "${title}")`)
             }
           } else {
+            // 本路径已存在（文件变更）或新文件：insertMusicFile 内部按 path+webdavId 更新 mtime/size
             insertMusicFile(musicFile)
           }
         } catch { /* skip */ }
@@ -222,8 +226,17 @@ export async function scanWebDAV(
 
   await scanDirectory('/')
 
-  for (const existingPath of existingFiles.keys()) {
-    if (!scannedPaths.has(existingPath)) {
+  // 取消扫描时不执行增量清理，避免误删库中歌曲
+  if (gen === activeGeneration) {
+    for (const existingPath of existingFiles.keys()) {
+      if (gen !== activeGeneration) break
+      if (scannedPaths.has(existingPath)) continue
+      // 列举失败的目录子树不清理（可能只是临时网络错误）
+      let underFailedDir = false
+      for (const d of failedDirs) {
+        if (existingPath.startsWith(d)) { underFailedDir = true; break }
+      }
+      if (underFailedDir) continue
       deleteMusicFileByPath(config.id, existingPath)
     }
   }
@@ -277,7 +290,13 @@ export async function scanLocal(
         totalCount++
         scannedPaths.add(fullPath)
 
-        const stat = await fsLocal.promises.stat(fullPath)
+        let stat: import('fs').Stats | null = null
+        try {
+          stat = await fsLocal.promises.stat(fullPath)
+        } catch {
+          // 文件在枚举后被删除/移动：跳过，不中断整个扫描
+          continue
+        }
         const existing = existingFiles.get(fullPath)
         if (existing && existing.mtime === stat.mtime.toISOString() && existing.size === stat.size) {
           scannedCount++
@@ -316,7 +335,7 @@ export async function scanLocal(
         try {
           const isMp3 = entry.name.toLowerCase().endsWith('.mp3')
           const existingSame = findMusicFileByTitle(title, config.id)
-          if (existingSame && isMp3) {
+          if (existingSame && isMp3 && existingSame.path !== fullPath) {
             const sources = findAlternativeSources(title, config.id)
             const hasThisSource = sources.some((s) => s.path === fullPath)
             if (!hasThisSource) {
@@ -335,9 +354,13 @@ export async function scanLocal(
 
   await walk(folderPath)
 
-  for (const existingPath of existingFiles.keys()) {
-    if (!scannedPaths.has(existingPath)) {
-      deleteMusicFileByPath(config.id, existingPath)
+  // 取消扫描时不执行增量清理，避免误删库中歌曲
+  if (gen === activeGeneration) {
+    for (const existingPath of existingFiles.keys()) {
+      if (gen !== activeGeneration) break
+      if (!scannedPaths.has(existingPath)) {
+        deleteMusicFileByPath(config.id, existingPath)
+      }
     }
   }
 

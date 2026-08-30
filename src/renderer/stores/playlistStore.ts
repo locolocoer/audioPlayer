@@ -193,9 +193,17 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
 
   replaceTrack: (oldId: number, newTrack: MusicFile) => {
     const updated = get().playlist.map((t) => t.id === oldId ? newTrack : t)
-    if (updated.every((t, i) => t.id === get().playlist[i]?.id)) return
-    set({ playlist: updated })
-    get().persistTracks(updated)
+    if (!updated.every((t, i) => t.id === get().playlist[i]?.id)) {
+      set({ playlist: updated })
+      get().persistTracks(updated)
+    }
+    // 同步固定播放列表（音源切换修复也应作用于播放列表）
+    const plUpdated = get().playlistTracks.map((t) => t.id === oldId ? newTrack : t)
+    if (!plUpdated.every((t, i) => t.id === get().playlistTracks[i]?.id)) {
+      set({ playlistTracks: plUpdated })
+      usePlayerStore.getState().syncPlaylist(plUpdated)
+      get().persistPlaylistTracks(plUpdated)
+    }
   },
 
   reorder: (from: number, to: number) => {

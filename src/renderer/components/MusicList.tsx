@@ -5,6 +5,8 @@ import BatchEditModal from './BatchEditModal'
 import type { MusicFile } from '../../main/types'
 import { usePlayerStore } from '../stores/playerStore'
 import { useMusicStore } from '../stores/musicStore'
+import { usePlaylistStore } from '../stores/playlistStore'
+import { useToastStore } from '../stores/toastStore'
 import { useT } from '../i18n'
 
 interface MusicListProps {
@@ -16,7 +18,6 @@ interface MusicListProps {
   showFavorite?: boolean
   onReorder?: (from: number, to: number) => void
   onReorderMany?: (ids: number[], toIndex: number) => void
-  onRemoveFromPlaylist?: (track: MusicFile) => void
   toolbarExtra?: React.ReactNode
   showMultiSelect?: boolean
 }
@@ -215,14 +216,12 @@ function EditModal({ track, onClose }: { track: MusicFile; onClose: () => void }
   )
 }
 
-function ContextMenu({ x, y, track, onClose, onEdit, onAddToPlaylist, onRemoveFromPlaylist }: {
-  x: number; y: number; track: MusicFile; onClose: () => void; onEdit: () => void; onAddToPlaylist: () => void; onRemoveFromPlaylist?: () => void
+function ContextMenu({ x, y, track, onClose, onEdit, onAddToPlaylistDirect, onAddToFavorites }: {
+  x: number; y: number; track: MusicFile; onClose: () => void; onEdit: () => void; onAddToPlaylistDirect?: () => void; onAddToFavorites: () => void
 }): JSX.Element {
   const t = useT()
-  const toggleFavorite = useMusicStore((s) => s.toggleFavorite)
   const configs = useMusicStore((s) => s.configs)
   const isLocal = configs.find((c) => c.id === track.webdavId)?.sourceType === 'local'
-  const isFav = track.favorite === 1
 
   useEffect(() => {
     const handler = () => onClose()
@@ -242,35 +241,39 @@ function ContextMenu({ x, y, track, onClose, onEdit, onAddToPlaylist, onRemoveFr
           {t('ctx.openLocation')}
         </div>
       )}
-      <div className="context-menu-item" onClick={() => { toggleFavorite(track.id); onClose() }}>
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-          <path d={isFav ? "M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" : "M22 9.24l-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24zM12 15.4l-3.76 2.27 1-4.28-3.32-2.88 4.38-.38L12 6.1l1.71 4.04 4.38.38-3.32 2.88 1 4.28L12 15.4z"}/>
-        </svg>
-        {isFav ? t('player.unfavorite') : t('ctx.favorite')}
-      </div>
-      <div className="context-menu-item" onClick={() => { onAddToPlaylist(); onClose() }}>
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-          <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-        </svg>
-        {t('ctx.addToPlaylist')}
-      </div>
-      {onRemoveFromPlaylist && (
-        <div className="context-menu-item" onClick={() => { onRemoveFromPlaylist(); onClose() }}>
+      {onAddToPlaylistDirect && (
+        <div className="context-menu-item" onClick={() => { onAddToPlaylistDirect(); onClose() }}>
           <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-            <path d="M6 19h12v2H6v-2z"/>
+            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
           </svg>
-          {t('ctx.removeFromPlaylist')}
+          {t('ctx.addToPlaylist')}
         </div>
       )}
+      <div className="context-menu-item" onClick={() => { onAddToFavorites(); onClose() }}>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+          <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+        </svg>
+        {t('ctx.addToFavorites')}
+      </div>
     </div>
   )
 }
 
-export default function MusicList({ tracks, sortField, sortDir, onSort, onRowClick, showFavorite, onReorder, onReorderMany, onRemoveFromPlaylist, toolbarExtra, showMultiSelect = true }: MusicListProps): JSX.Element {
+export default function MusicList({ tracks, sortField, sortDir, onSort, onRowClick, showFavorite, onReorder, onReorderMany, toolbarExtra, showMultiSelect = true }: MusicListProps): JSX.Element {
   const t = useT()
   const currentTrack = usePlayerStore((s) => s.currentTrack)
   const toggleFavorite = useMusicStore((s) => s.toggleFavorite)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; track: MusicFile } | null>(null)
+  // 直接加入播放列表（单一播放列表）
+  const addToPlaylistDirect = (track: MusicFile): void => {
+    const st = usePlaylistStore.getState()
+    if (st.playlistId === null) {
+      useToastStore.getState().addToast(t('playlist.noPlaylist'), 'info')
+      return
+    }
+    st.addPlaylistTracks([track])
+    useToastStore.getState().addToast(t('playlist.addedToPlaylist'), 'success')
+  }
   const [editTrack, setEditTrack] = useState<MusicFile | null>(null)
   const [pickerTracks, setPickerTracks] = useState<MusicFile[] | null>(null)
   const [batchEditTracks, setBatchEditTracks] = useState<MusicFile[] | null>(null)
@@ -338,17 +341,25 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
     setSelected(new Set())
   }
 
-  // 批量加入歌单：弹出目标歌单选择器
-  const openBatchPicker = (): void => {
+  // 批量加入播放列表（单一播放列表）：直接加入
+  const addBatchToPlaylist = (): void => {
+    const sel = tracks.filter((t) => selected.has(t.id))
+    if (sel.length === 0) return
+    const st = usePlaylistStore.getState()
+    if (st.playlistId === null) {
+      useToastStore.getState().addToast(t('playlist.noPlaylist'), 'info')
+      return
+    }
+    st.addPlaylistTracks(sel)
+    useToastStore.getState().addToast(t('playlist.addedToPlaylist'), 'success')
+    exitSelectMode()
+  }
+
+  // 批量加入收藏：打开收藏选择器（我的收藏 / 收藏夹）
+  const openBatchFavPicker = (): void => {
     const sel = tracks.filter((t) => selected.has(t.id))
     if (sel.length === 0) return
     setPickerTracks(sel)
-  }
-
-  const batchFavorite = (): void => {
-    const sel = tracks.filter((t) => selected.has(t.id))
-    for (const t of sel) toggleFavorite(t.id)
-    exitSelectMode()
   }
 
   const handleRowClick = (track: MusicFile): void => {
@@ -384,12 +395,12 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
           <button className="btn btn-secondary" onClick={handleSelectAll}>
             {selected.size === tracks.length ? t('list.selectNone') : t('list.selectAll')}
           </button>
-          <button className="btn btn-secondary" onClick={openBatchPicker}>{t('list.addToPlaylist')}</button>
+          <button className="btn btn-secondary" onClick={addBatchToPlaylist}>{t('list.addToPlaylist')}</button>
+          <button className="btn btn-secondary" onClick={openBatchFavPicker}>{t('list.favorite')}</button>
           <button className="btn btn-secondary" onClick={() => {
             const sel = tracks.filter((t) => selected.has(t.id))
             if (sel.length > 0) setBatchEditTracks(sel)
           }}>{t('list.editTags')}</button>
-          <button className="btn btn-secondary" onClick={batchFavorite}>{t('list.favorite')}</button>
           <button className="btn btn-secondary" onClick={exitSelectMode}>{t('common.cancel')}</button>
         </div>
       ) : (
@@ -528,8 +539,8 @@ export default function MusicList({ tracks, sortField, sortDir, onSort, onRowCli
           track={contextMenu.track}
           onClose={() => setContextMenu(null)}
           onEdit={() => { setEditTrack(contextMenu.track); setContextMenu(null) }}
-          onAddToPlaylist={() => setPickerTracks([contextMenu.track])}
-          onRemoveFromPlaylist={onRemoveFromPlaylist ? () => { onRemoveFromPlaylist(contextMenu.track) } : undefined}
+          onAddToPlaylistDirect={() => addToPlaylistDirect(contextMenu.track)}
+          onAddToFavorites={() => setPickerTracks([contextMenu.track])}
         />
       )}
       {editTrack && <EditModal track={editTrack} onClose={() => setEditTrack(null)} />}

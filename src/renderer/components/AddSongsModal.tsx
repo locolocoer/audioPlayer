@@ -65,25 +65,28 @@ export default function AddSongsModal({ onClose, targetId, targetTracks, onAdded
     if (busy || selected.size === 0) return
     setBusy(true)
     const tracks = allTracks.filter((x) => selected.has(x.id))
-    const st = usePlaylistStore.getState()
-    const target = targetId ?? st.activeId ?? -1
-    const added = await addTracksToPlaylist(target, tracks)
-    setBusy(false)
-    if (added > 0) {
-      if (onAdded) {
-        onAdded(tracks)
-      } else {
+    if (onAdded) {
+      // 父组件自己执行添加（如 PlaylistPage.handleAddSongs），避免双重添加
+      await onAdded(tracks)
+    } else {
+      const st = usePlaylistStore.getState()
+      const target = targetId ?? st.activeId ?? -1
+      const added = await addTracksToPlaylist(target, tracks)
+      if (added > 0) {
         const name = st.playlists.find((p) => p.id === target)?.name || ''
         addToast(t('playlist.addedTo', { name, n: added }), 'success')
       }
     }
+    setBusy(false)
     onClose()
   }
 
+  // 组件每次打开都是全新挂载，初始状态即为空，无需随 onClose 重置；
+  // 若依赖 onClose，父组件重渲染（如列表刷新）会清空用户已勾选的歌曲
   useEffect(() => {
     setSelected(new Set())
     setSearch('')
-  }, [onClose])
+  }, [])
 
   return (
     <Modal onClose={onClose} width={520}>

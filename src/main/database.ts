@@ -24,6 +24,8 @@ function toTitleKey(title: string): string {
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 let dirty = false
+// 串行化异步写盘，避免并发写乱序覆盖（较早快照后写覆盖较新快照）
+let writeChain: Promise<void> = Promise.resolve()
 
 function saveToDisk(): void {
   if (!db) return
@@ -40,8 +42,16 @@ function flushSaveToDisk(): void {
   if (!dirty || !db) return
   dirty = false
   const data = db.export()
-  // 异步写盘，避免同步写阻塞主进程（切歌时 recordPlay 触发）
-  fs.writeFile(dbPath, Buffer.from(data), () => {})
+  // 异步写盘，避免同步写阻塞主进程（切歌时 recordPlay 触发）；写失败时保留 dirty 以便重试
+  writeChain = writeChain.then(() => new Promise<void>((resolve) => {
+    fs.writeFile(dbPath, Buffer.from(data), (err) => {
+      if (err) {
+        console.error('[DB] 写盘失败:', err)
+        dirty = true
+      }
+      resolve()
+    })
+  }))
 }
 
 function flushSaveToDiskSync(): void {
@@ -289,10 +299,12 @@ export function clearAllMusicFiles(): void {
 }
 
 export function deduplicateMusicFiles(): void {
+  // 插入已按 (path, webdavId) 幂等，正常不会产生重复；此处仅清理历史脏数据中的同路径重复行，
+  // 不按标题分组，避免误删同名不同曲或扫描器显式添加的替代音源（不同 path）。
   db.run(`
     DELETE FROM music_files
     WHERE id NOT IN (
-      SELECT MIN(id) FROM music_files GROUP BY webdavId, title
+      SELECT MIN(id) FROM music_files GROUP BY webdavId, path
     )
   `)
   saveToDisk()

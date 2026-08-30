@@ -10,6 +10,7 @@
     "src/renderer/**/*.tsx",
     "src/preload/**/*.ts",
     "src/main/types.ts",
-    "src/main/chinese-s2t.d.ts"
+    "src/main/chinese-s2t.d.ts",
+    "src/test/**/*.ts"
   ]
 }

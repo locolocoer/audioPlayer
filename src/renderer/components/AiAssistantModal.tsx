@@ -186,6 +186,18 @@ export default function AiAssistantModal({ onClose }: AiAssistantModalProps): JS
   const [totalTokens, setTotalTokens] = useState(0)
   const listRef = useRef<HTMLDivElement>(null)
   const reasoningBodyRef = useRef<HTMLDivElement>(null)
+  const unsubRef = useRef<(() => void)[]>([])
+  const disposedRef = useRef(false)
+
+  // 组件卸载时清理所有流式订阅，避免残留监听器劫持后续会话
+  useEffect(() => {
+    disposedRef.current = false
+    return () => {
+      disposedRef.current = true
+      unsubRef.current.forEach((fn) => { try { fn() } catch { /* ignore */ } })
+      unsubRef.current = []
+    }
+  }, [])
 
   useEffect(() => {
     window.api.ai.getConfig().then((cfg) => setModelName(cfg.model || '')).catch(() => {})
@@ -274,6 +286,7 @@ export default function AiAssistantModal({ onClose }: AiAssistantModalProps): JS
     let accText = ''
     let ended = false
     const unsubChunk = window.api.ai.onAiChunk((part) => {
+      if (disposedRef.current) return
       if (part.reasoning) {
         accReasoning += part.reasoning
         setReasoning(accReasoning)
@@ -284,7 +297,7 @@ export default function AiAssistantModal({ onClose }: AiAssistantModalProps): JS
       }
     })
     const unsubEnd = window.api.ai.onAiEnd((r) => {
-      if (ended) return
+      if (ended || disposedRef.current) return
       ended = true
       unsubChunk()
       unsubEnd()
@@ -304,6 +317,7 @@ export default function AiAssistantModal({ onClose }: AiAssistantModalProps): JS
       }
       setStreamingText('')
     })
+    unsubRef.current.push(unsubChunk, unsubEnd)
     try {
       window.api.ai.chatStream(
         buildContext(next),

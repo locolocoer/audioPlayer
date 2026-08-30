@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { useMusicStore } from '../stores/musicStore'
 import { usePlayerStore } from '../stores/playerStore'
 import { usePlaylistStore } from '../stores/playlistStore'
@@ -16,7 +16,10 @@ type SortDir = 'asc' | 'desc'
 // 收藏列表卡片封面：显示列表内第一首歌曲的封面
 function FavCover({ track }: { track: MusicFile | undefined }): JSX.Element {
   const [url, setUrl] = useState('')
+  const seqRef = useRef(0)
   useEffect(() => {
+    const seq = ++seqRef.current
+    setUrl('')
     if (!track) return
     const key = coverCacheKey(track)
     const cached = getCoverCached(key)
@@ -25,6 +28,7 @@ function FavCover({ track }: { track: MusicFile | undefined }): JSX.Element {
       return
     }
     window.api.player.getCover(track.webdavId, track.path).then((r) => {
+      if (seq !== seqRef.current) return
       if (r.data && r.data.length > 0) {
         const blob = new Blob([new Uint8Array(r.data)], { type: r.format || 'image/jpeg' })
         const u = URL.createObjectURL(blob)
@@ -57,7 +61,6 @@ export default function FavoritesPage(): JSX.Element {
   const renamePlaylist = usePlaylistStore((s) => s.renamePlaylist)
   const deletePlaylist = usePlaylistStore((s) => s.deletePlaylist)
   const selectPlaylist = usePlaylistStore((s) => s.selectPlaylist)
-  const removeTrack = usePlaylistStore((s) => s.removeTrack)
   // null = 网格视图；'favorites' 或 列表 id = 列表视图
   const [current, setCurrent] = useState<'favorites' | number | null>(null)
   const [menu, setMenu] = useState<{ x: number; y: number; id: 'favorites' | number } | null>(null)
@@ -140,7 +143,6 @@ export default function FavoritesPage(): JSX.Element {
           onSort={handleSort}
           onRowClick={handleRowClick}
           showFavorite={isFavorites}
-          onRemoveFromPlaylist={!isFavorites ? (track) => removeTrack(track.id) : undefined}
         />
         {!isFavorites && addSongsTo !== null && (
           <AddSongsModal targetId={addSongsTo} targetTracks={playlist} onClose={() => setAddSongsTo(null)} />
@@ -262,7 +264,7 @@ export default function FavoritesPage(): JSX.Element {
       )}
 
       {editTarget && (
-        <Modal onClose={() => setEditTarget(null)} width={340}>
+        <Modal onClose={() => { setEditTarget(null); setEditName('') }} width={340}>
           <h3>{t('playlist.rename')}</h3>
           <div className="form-group">
             <input
@@ -271,14 +273,14 @@ export default function FavoritesPage(): JSX.Element {
               value={editName}
               autoFocus
               onChange={(e) => setEditName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { renamePlaylist(editTarget.id, editName.trim()); setEditTarget(null) } }}
+              onKeyDown={(e) => { if (e.key === 'Enter') { renamePlaylist(editTarget.id, editName.trim()); setEditTarget(null); setEditName('') } }}
             />
           </div>
           <div className="modal-actions">
-            <button className="btn btn-secondary" onClick={() => setEditTarget(null)}>{t('common.cancel')}</button>
+            <button className="btn btn-secondary" onClick={() => { setEditTarget(null); setEditName('') }}>{t('common.cancel')}</button>
             <button
               className="btn btn-primary"
-              onClick={() => { if (editName.trim()) renamePlaylist(editTarget.id, editName.trim()); setEditTarget(null) }}
+              onClick={() => { if (editName.trim()) renamePlaylist(editTarget.id, editName.trim()); setEditTarget(null); setEditName('') }}
             >{t('common.save')}</button>
           </div>
         </Modal>

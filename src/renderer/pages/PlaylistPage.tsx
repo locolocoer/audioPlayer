@@ -16,12 +16,11 @@ export default function PlaylistPage(): JSX.Element {
   const playlistId = usePlaylistStore((s) => s.playlistId)
   const playlistTracks = usePlaylistStore((s) => s.playlistTracks)
   const addPlaylistTracks = usePlaylistStore((s) => s.addPlaylistTracks)
-  const removePlaylistTrack = usePlaylistStore((s) => s.removePlaylistTrack)
   const reorderPlaylist = usePlaylistStore((s) => s.reorderPlaylist)
   const reorderManyPlaylist = usePlaylistStore((s) => s.reorderManyPlaylist)
   const clearPlaylistTracks = usePlaylistStore((s) => s.clearPlaylistTracks)
   const addTracksToPlaylist = usePlaylistStore((s) => s.addTracksToPlaylist)
-  const { requestPlay, setQueue } = usePlayerStore()
+  const { playFromPlaylist } = usePlayerStore()
   const addToast = useToastStore((s) => s.addToast)
   const [sortField, setSortField] = useState<SortField>('order')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
@@ -64,9 +63,9 @@ export default function PlaylistPage(): JSX.Element {
   }, [playlistTracks, sortField, sortDir])
 
   const handleRowClick = useCallback((track: MusicFile) => {
-    setQueue(filtered)
-    requestPlay(track)
-  }, [filtered, requestPlay, setQueue])
+    // 激活播放列表模式并播放（避免覆盖用户可能正在听的临时队列语义混乱）
+    playFromPlaylist(playlistTracks, track)
+  }, [playFromPlaylist, playlistTracks])
 
   // 拖拽回调：把 filtered 中的行索引/选中 id 映射回 playlistTracks 的索引，避免搜索筛选时错位
   const wrapReorder = useCallback((from: number, to: number) => {
@@ -127,7 +126,6 @@ export default function PlaylistPage(): JSX.Element {
         onRowClick={handleRowClick}
         onReorder={sortField === 'order' ? wrapReorder : undefined}
         onReorderMany={sortField === 'order' ? wrapReorderMany : undefined}
-        onRemoveFromPlaylist={(track) => removePlaylistTrack(track.id)}
         showMultiSelect={false}
       />
       <div className="playlist-status">

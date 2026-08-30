@@ -29,16 +29,24 @@ export default function AudioEngine(): JSX.Element {
   const filtersRef = useRef<BiquadFilterNode[]>([])
   const volumeGainRef = useRef<GainNode | null>(null)
   const lyricsFetchedRef = useRef('')
+  const lyricsPendingRef = useRef<Set<string>>(new Set())
 
   const syncLyrics = (): void => {
     const track = usePlayerStore.getState().pendingTrack
     if (!track) return
     const lyrKey = `${track.webdavId}:${track.path}`
-    if (lyricsFetchedRef.current === lyrKey) return
-    lyricsFetchedRef.current = lyrKey
+    if (lyricsFetchedRef.current === lyrKey || lyricsPendingRef.current.has(lyrKey)) return
+    lyricsPendingRef.current.add(lyrKey)
     window.api.player.getLrc(track.webdavId, track.path).then((r) => {
-      window.api.player.sendLyrics(track.id, r.text || '')
-    }).catch(() => {})
+      lyricsPendingRef.current.delete(lyrKey)
+      const cur = usePlayerStore.getState().pendingTrack
+      if (!cur || `${cur.webdavId}:${cur.path}` !== lyrKey) return
+      // 只在成功时记录已取歌词；失败不置标记，允许后续（重开歌词窗等）自动重试
+      lyricsFetchedRef.current = lyrKey
+      window.api.player.sendLyrics(cur.id, r.text || '')
+    }).catch(() => {
+      lyricsPendingRef.current.delete(lyrKey)
+    })
   }
 
   const applyEq = (): void => {
@@ -113,6 +121,8 @@ export default function AudioEngine(): JSX.Element {
     const seq = ++loadSeqRef.current
     fallbackTriedRef.current = false
     fallbackSeekRef.current = null
+    // 新一次加载开始：复位播放记录标记，让本次真正开始播放的歌曲记一次播放
+    recordedPlayId = -1
 
     const audio = audioRef.current
     if (!audio) return
@@ -175,6 +185,7 @@ export default function AudioEngine(): JSX.Element {
       const track = st.pendingTrack
       if (!track) return
       lyricsFetchedRef.current = ''
+      lyricsPendingRef.current.clear()
       syncLyrics()
       window.api.player.sendLyricsTime(track.id, st.currentTime)
     })

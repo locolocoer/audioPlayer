@@ -2,6 +2,10 @@ node_modules/
 dist/
 out/
 release/
+coverage/
+e2e-results/
+e2e/screenshots/
+playwright-report/
 .vite/
 *.log
 .DS_Store

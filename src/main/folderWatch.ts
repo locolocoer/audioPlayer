@@ -6,7 +6,20 @@ import type { WebDAVConfig } from './types'
 
 const folderWatchers: fs.FSWatcher[] = []
 const rescanTimers = new Map<string, ReturnType<typeof setTimeout>>()
+const retryTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const rescanning = new Set<string>()
+
+// 网络盘暂时不可用/监控断开时延迟重建 watcher；定时器登记后 closeFolderWatchers 才能一并清理，
+// 否则退出后残留的定时器会继续重建 watcher
+function scheduleRetry(config: WebDAVConfig, delayMs: number): void {
+  const existing = retryTimers.get(config.id)
+  if (existing) clearTimeout(existing)
+  const timer = setTimeout(() => {
+    retryTimers.delete(config.id)
+    watchLocalFolder(config)
+  }, delayMs)
+  retryTimers.set(config.id, timer)
+}
 
 async function rescanLocalFolder(config: WebDAVConfig): Promise<void> {
   if (rescanning.has(config.id)) return
@@ -32,6 +45,8 @@ export function closeFolderWatchers(): void {
   folderWatchers.length = 0
   for (const t of rescanTimers.values()) clearTimeout(t)
   rescanTimers.clear()
+  for (const t of retryTimers.values()) clearTimeout(t)
+  retryTimers.clear()
 }
 
 function watchLocalFolder(config: WebDAVConfig): void {
@@ -57,7 +72,7 @@ function watchLocalFolder(config: WebDAVConfig): void {
   } catch (err) {
     console.log(`[Watch] 无法监控 ${config.url}: ${err}`)
     // 网络盘暂时不可用时延迟重试
-    setTimeout(() => watchLocalFolder(config), 30000)
+    scheduleRetry(config, 30000)
     return
   }
   // 网络驱动器（如映射盘）连接重置时 fs.watch 会抛 error 事件，
@@ -67,7 +82,7 @@ function watchLocalFolder(config: WebDAVConfig): void {
     try { watcher.close() } catch { /* ignore */ }
     const idx = folderWatchers.indexOf(watcher)
     if (idx >= 0) folderWatchers.splice(idx, 1)
-    setTimeout(() => watchLocalFolder(config), 10000)
+    scheduleRetry(config, 10000)
   })
   folderWatchers.push(watcher)
   console.log(`[Watch] 已监控本地文件夹: ${config.url}`)

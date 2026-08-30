@@ -22,6 +22,7 @@ interface PlayerState {
   autoPlayBlocked: boolean
   sleepUntil: number | null
   sleepAction: 'pause' | 'quit'
+  tempQueue: boolean
   loopA: number | null
   loopB: number | null
 
@@ -46,6 +47,7 @@ interface PlayerState {
   seek: (time: number) => void
   setLoop: (a: number | null, b: number | null) => void
   syncPlaylist: (list: MusicFile[]) => void
+  playFromPlaylist: (list: MusicFile[], track: MusicFile) => void
   replaceTrack: (oldId: number, newTrack: MusicFile) => void
   onAudioLoaded: () => void
   onAudioError: (error: string) => void
@@ -93,6 +95,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   autoPlayBlocked: false,
   sleepUntil: null,
   sleepAction: 'pause',
+  tempQueue: false,
   loopA: null,
   loopB: null,
 
@@ -131,7 +134,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   removeQueueItem: (id: number) => {
     const s = get()
     if (s.playlist.length > 0) {
-      usePlaylistStore.getState().removeTrack(id)
+      // 正在播放固定播放列表：删除对应播放列表曲目（同步到播放器与持久化）
+      usePlaylistStore.getState().removePlaylistTrack(id)
       return
     }
     set({ queue: s.queue.filter((t) => t.id !== id) })
@@ -140,7 +144,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   reorderQueue: (from: number, to: number) => {
     const s = get()
     if (s.playlist.length > 0) {
-      usePlaylistStore.getState().reorder(from, to)
+      usePlaylistStore.getState().reorderPlaylist(from, to)
       return
     }
     const q = s.queue
@@ -159,8 +163,16 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   playSelection: (tracks: MusicFile[], first?: MusicFile) => {
     if (tracks.length === 0) return
-    set({ queue: tracks, playlist: [] })
+    // 临时队列模式：避免后续播放列表同步劫持该队列
+    set({ queue: tracks, playlist: [], tempQueue: true })
     get().requestPlay(first || tracks[0])
+  },
+
+  // 从固定播放列表开始播放（激活播放列表模式）
+  playFromPlaylist: (list: MusicFile[], track: MusicFile) => {
+    if (track === undefined) return
+    set({ playlist: list, tempQueue: false })
+    get().requestPlay(track)
   },
 
   pause: () => {
@@ -267,7 +279,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   setLoop: (a: number | null, b: number | null) => set({ loopA: a, loopB: b }),
 
   syncPlaylist: (list: MusicFile[]) => {
-    set({ playlist: list })
+    // 临时队列播放中（playSelection）不覆盖，避免播放列表变更劫持用户正在听的队列
+    if (get().tempQueue) return
+    set({ playlist: list, tempQueue: false })
   },
 
   replaceTrack: (oldId: number, newTrack: MusicFile) => {

@@ -122,17 +122,20 @@ async function aiChatImpl(
   messages: AiMessage[],
   opts?: AiChatOptions,
   stream = false,
-  onPart?: (part: AiStreamPart) => void
+  onPart?: (part: AiStreamPart) => void,
+  cfgOverride?: AiConfig
 ): Promise<AiResult> {
-  if (!config.enabled || !config.apiKey) {
+  // 用本次请求的配置（测试连接传入临时配置时不改动全局 config，避免并发竞态）
+  const cfg = cfgOverride ?? config
+  if (!cfg.enabled || !cfg.apiKey) {
     return { ok: false, error: 'not-configured' }
   }
   const maxTokens = opts?.maxTokens || 1024
   try {
-    if (config.provider === 'anthropic') {
-      const base = (config.baseUrl || 'https://api.anthropic.com').replace(/\/+$/, '')
+    if (cfg.provider === 'anthropic') {
+      const base = (cfg.baseUrl || 'https://api.anthropic.com').replace(/\/+$/, '')
       const body: Record<string, unknown> = {
-        model: config.model || 'claude-sonnet-4-20250514',
+        model: cfg.model || 'claude-sonnet-4-20250514',
         max_tokens: maxTokens,
         messages: messages.filter((m) => m.role !== 'system'),
         system: opts?.system || undefined,
@@ -143,7 +146,7 @@ async function aiChatImpl(
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          'x-api-key': config.apiKey,
+          'x-api-key': cfg.apiKey,
           'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify(body)
@@ -171,7 +174,7 @@ async function aiChatImpl(
         console.log(`[AI] anthropic stream done, chunks=${chunks}, fullLen=${full.length}`)
         if (!full) {
           console.log('[AI] anthropic stream empty, fallback to non-stream')
-          return aiChatImpl(messages, opts, false)
+          return aiChatImpl(messages, opts, false, undefined, cfg)
         }
         return { ok: true, text: full, usage }
       }
@@ -185,7 +188,7 @@ async function aiChatImpl(
       return { ok: true, text, usage }
     }
     // OpenAI 兼容格式
-    const base = (config.baseUrl || 'https://api.openai.com/v1').replace(/\/+$/, '')
+    const base = (cfg.baseUrl || 'https://api.openai.com/v1').replace(/\/+$/, '')
     let url = base
     if (!url.endsWith('/chat/completions')) {
       // OpenAI 官方域名不带 /v1 时补上；DeepSeek/通义/智谱等其余地址直接拼接即可
@@ -196,10 +199,10 @@ async function aiChatImpl(
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        authorization: `Bearer ${config.apiKey}`
+        authorization: `Bearer ${cfg.apiKey}`
       },
       body: JSON.stringify({
-        model: config.model || 'gpt-4o-mini',
+        model: cfg.model || 'gpt-4o-mini',
         messages: msgs,
         max_tokens: maxTokens,
         temperature: opts?.temperature ?? 0.7,
@@ -235,7 +238,7 @@ async function aiChatImpl(
       console.log(`[AI] openai stream done, chunks=${chunks}, contentLen=${full.length}, reasoningLen=${fullReasoning.length}`)
       if (!full && !fullReasoning) {
         console.log('[AI] openai stream empty, fallback to non-stream')
-        return aiChatImpl(messages, opts, false)
+        return aiChatImpl(messages, opts, false, undefined, cfg)
       }
       return { ok: true, text: full, reasoning: fullReasoning, usage }
     }
@@ -254,10 +257,13 @@ async function aiChatImpl(
 
 export async function testAiConnection(cfg?: AiConfig): Promise<{ ok: boolean; error?: string }> {
   try {
-    const prev = { ...config }
-    if (cfg) config = { ...DEFAULT_CONFIG, ...cfg }
-    const r = await aiChat([{ role: 'user', content: 'ping' }], { system: 'Reply with exactly: OK', maxTokens: 10 })
-    config = prev
+    const r = await aiChatImpl(
+      [{ role: 'user', content: 'ping' }],
+      { system: 'Reply with exactly: OK', maxTokens: 10 },
+      false,
+      undefined,
+      cfg
+    )
     return { ok: r.ok, error: r.error }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) }

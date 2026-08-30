@@ -6,6 +6,19 @@ export interface UpdateNote {
 }
 
 export const UPDATE_NOTES: Record<string, UpdateNote> = {
+  '1.5.5': {
+    changed: [
+      '引入自动化测试体系：66 个单元/回归测试 + Electron E2E 冒烟，`npm run verify` 一条龙自测'
+    ],
+    fixed: [
+      '快速切歌时封面/歌词/情绪结果串到其他歌曲',
+      '播放列表页添加歌曲重复添加',
+      '文件夹视图排序不生效、点歌播放队列错位',
+      'AI 分类失败误弹完成提示、AI 测试连接配置竞态',
+      '网络盘监控重试定时器残留、转码兜底卡死',
+      'macOS 关窗后数据库异常、音源切换列表不同步'
+    ]
+  },
   '1.5.4': {
     added: [
       '统计页情绪分布：曲库 AI 标签分布与最近播放情绪分布（条形图）'

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Modal from './Modal'
 import { usePlaylistStore } from '../stores/playlistStore'
+import { useMusicStore } from '../stores/musicStore'
 import { useToastStore } from '../stores/toastStore'
 import { useT } from '../i18n'
 import type { MusicFile } from '../../main/types'
@@ -17,10 +18,13 @@ export default function PlaylistPickerModal({ tracks, onClose }: PlaylistPickerM
   const addTracks = usePlaylistStore((s) => s.addTracks)
   const addTracksToPlaylist = usePlaylistStore((s) => s.addTracksToPlaylist)
   const addToast = useToastStore((s) => s.addToast)
+  const favorites = useMusicStore((s) => s.favorites)
+  const toggleFavorite = useMusicStore((s) => s.toggleFavorite)
+  const loadFavorites = useMusicStore((s) => s.loadFavorites)
   const [newName, setNewName] = useState('')
   const [busy, setBusy] = useState(false)
 
-  // 选择器只列出收藏列表（播放列表固定单一，不参与选择）
+  // 选择器：我的收藏 + 自定义收藏列表（播放列表固定单一，不参与选择）
   const favLists = playlists.filter((p) => p.kind === 'favorite')
 
   const countOf = (trackIds: string): number => {
@@ -46,6 +50,25 @@ export default function PlaylistPickerModal({ tracks, onClose }: PlaylistPickerM
     onClose()
   }
 
+  // 加入「我的收藏」：批量设为收藏
+  const pickMyFavorites = async (): Promise<void> => {
+    if (busy) return
+    setBusy(true)
+    const favIds = new Set(favorites.map((x) => x.id))
+    const pending = tracks.filter((x) => !favIds.has(x.id))
+    for (const tr of pending) {
+      await toggleFavorite(tr.id)
+    }
+    if (pending.length > 0) await loadFavorites()
+    setBusy(false)
+    if (pending.length > 0) {
+      addToast(t('playlist.addedToFav', { n: pending.length }), 'success')
+    } else {
+      addToast(t('playlist.alreadyFav'), 'info')
+    }
+    onClose()
+  }
+
   const createAndAdd = async (): Promise<void> => {
     if (busy || !newName.trim()) return
     setBusy(true)
@@ -60,15 +83,16 @@ export default function PlaylistPickerModal({ tracks, onClose }: PlaylistPickerM
     <Modal onClose={onClose} width={340}>
       <h3>{t('playlist.addToTitle', { n: tracks.length })}</h3>
       <div className="playlist-picker-list">
+        <div className="playlist-picker-item" onClick={pickMyFavorites}>
+          <span className="playlist-picker-name">★ {t('favorites.default')}</span>
+          <span className="album-meta">{t('playlist.songCount', { count: favorites.length })}</span>
+        </div>
         {favLists.map((p) => (
           <div key={p.id} className="playlist-picker-item" onClick={() => pick(p.id)}>
             <span className="playlist-picker-name">{p.name}</span>
             <span className="album-meta">{t('playlist.songCount', { count: countOf(p.trackIds) })}</span>
           </div>
         ))}
-        {favLists.length === 0 && (
-          <div className="playlist-picker-empty">{t('playlist.noFavLists')}</div>
-        )}
       </div>
       <div className="playlist-picker-new">
         <input
