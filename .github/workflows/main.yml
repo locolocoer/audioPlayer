@@ -42,7 +42,21 @@ jobs:
           npx playwright install-deps chromium
 
       - name: Run E2E smoke (xvfb)
+        id: e2e
         run: xvfb-run -a npm run test:e2e
+        continue-on-error: true
+
+      - name: Upload E2E diagnostics (error context + trace)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-diagnostics
+          path: e2e-results/
+          if-no-files-found: ignore
+
+      - name: Fail job if E2E failed
+        if: steps.e2e.outcome == 'failure'
+        run: exit 1
 
   build:
     name: Build ${{ matrix.name }}
