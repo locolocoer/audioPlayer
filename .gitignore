@@ -11,3 +11,5 @@ playwright-report/
 .DS_Store
 Thumbs.db
 *.exe
+
+ui-shots/
