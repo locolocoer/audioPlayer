@@ -35,7 +35,8 @@ export default defineConfig({
           include: [
             'src/renderer/stores/**/*.test.ts',
             'src/renderer/hooks/**/*.test.{ts,tsx}',
-            'src/renderer/components/**/*.test.tsx'
+            'src/renderer/components/**/*.test.tsx',
+            'src/renderer/pages/**/*.test.tsx'
           ],
           setupFiles: ['src/test/setup-dom.ts'],
           css: false
