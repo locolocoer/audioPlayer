@@ -3,6 +3,9 @@
   "version": "1.5.5",
   "description": "飞鱼音乐 - WebDAV 桌面音乐播放器",
   "main": "./out/main/index.js",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
@@ -13,6 +16,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
+    "version:bump": "node scripts/bump-version.mjs",
     "check": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json && vitest run && electron-vite build",
     "verify": "npm run check && npm run test:e2e"
   },

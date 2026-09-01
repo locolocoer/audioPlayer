@@ -28,6 +28,8 @@
 
 ## 二、定位问题顺序
 
+**环境一致性（重要）**：CI 使用 **Node 20**（见 `.github/workflows/main.yml`），本机可能是更高版本。依赖/测试的兼容性必须以 CI 版本为准——本地验证时用 `npx -y -p node@20 -c "npm run check"` 在 Node 20 下复跑一遍（曾因 jsdom 依赖用了 Node 24 的 API 导致 CI 测试崩溃，而本机 Node 24 完全正常）。`package.json` 已声明 `engines: node >= 20`，`.nvmrc` 指向 20。
+
 `npm run verify` 输出失败时，按顺序排查：
 
 | 阶段 | 命令 | 常见问题 |

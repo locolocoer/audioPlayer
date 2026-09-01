@@ -16,6 +16,15 @@ function buildBaseUrl(config: WebDAVConfig): string {
 
 export { buildBaseUrl }
 
+// WebDAV 请求超时：网络盘不可达时避免请求无限悬挂（播放/扫描/封面歌词加载全部走这里）
+const REQUEST_TIMEOUT = 30000
+
+function withTimeout<T>(run: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT)
+  return run(controller.signal).finally(() => clearTimeout(timer))
+}
+
 export function createWebDAVClient(config: WebDAVConfig): WebDAVClient {
   const baseUrl = buildBaseUrl(config)
   return createClient(baseUrl, {
@@ -27,7 +36,7 @@ export function createWebDAVClient(config: WebDAVConfig): WebDAVClient {
 export async function testConnection(config: WebDAVConfig): Promise<{ ok: boolean; error?: string }> {
   try {
     const client = createWebDAVClient(config)
-    const contents = await client.getDirectoryContents('/')
+    const contents = await withTimeout((signal) => client.getDirectoryContents('/', { signal }))
     if (Array.isArray(contents)) {
       return { ok: true }
     }
@@ -42,7 +51,7 @@ export async function getDirectoryContents(
   client: WebDAVClient,
   path: string
 ): Promise<{ filename: string; basename: string; type: 'file' | 'directory'; size: number; lastmod: string }[]> {
-  const items = await client.getDirectoryContents(path)
+  const items = await withTimeout((signal) => client.getDirectoryContents(path, { signal }))
   if (!Array.isArray(items)) {
     return []
   }
@@ -59,7 +68,9 @@ export async function downloadFile(
   client: WebDAVClient,
   filePath: string
 ): Promise<Buffer> {
-  const content = await client.getFileContents(filePath, { format: 'binary' })
+  const content = await withTimeout((signal) =>
+    client.getFileContents(filePath, { format: 'binary', signal })
+  )
   if (Buffer.isBuffer(content)) {
     return content
   }

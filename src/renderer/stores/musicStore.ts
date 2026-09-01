@@ -101,8 +101,12 @@ export const useMusicStore = create<MusicState>((set, get) => ({
   },
 
   loadFavorites: async () => {
-    const favorites = await window.api.music.favoriteList()
-    set({ favorites })
+    try {
+      const favorites = await window.api.music.favoriteList()
+      set({ favorites })
+    } catch {
+      // 拉取失败时保留现有收藏，避免 heartbeat 等调用方出现未处理拒绝
+    }
   },
 
   toggleFavorite: async (id: number) => {
