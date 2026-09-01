@@ -2813,8 +2813,8 @@ body {
 
 .detail-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 12px;
   padding: 6px 0;
   border-bottom: 1px solid var(--border);
 }
@@ -2824,17 +2824,24 @@ body {
 }
 
 .detail-label {
+  min-width: 72px;
+  flex-shrink: 0;
   font-size: 12px;
   color: var(--text-secondary);
 }
 
 .detail-value {
+  flex: 1;
+  min-width: 0;
   font-size: 13px;
   color: var(--text-primary);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .detail-path {
-  max-width: 260px;
   overflow-x: auto;
   white-space: nowrap;
   direction: rtl;
