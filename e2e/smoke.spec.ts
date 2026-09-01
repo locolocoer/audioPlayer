@@ -13,6 +13,7 @@ const SCREENSHOT_DIR = path.join(__dirname, 'screenshots')
 
 let app: ElectronApplication
 let win: Page
+let electronLog = ''
 
 test.beforeAll(() => {
   fs.mkdirSync(TEST_USERDATA, { recursive: true })
@@ -29,6 +30,14 @@ test.beforeEach(async () => {
     cwd: path.join(__dirname, '..'),
     env: { ...process.env, FEIYU_TEST_USERDATA: TEST_USERDATA }
   })
+  // 捕获 Electron 进程输出，失败时随 artifact 上传以便定位（窗口未创建等场景）
+  electronLog = ''
+  try {
+    const proc = app.process()
+    const capture = (d: Buffer): void => { electronLog += d.toString() }
+    proc.stdout?.on('data', capture)
+    proc.stderr?.on('data', capture)
+  } catch { /* ignore */ }
   win = await app.firstWindow()
   await win.waitForLoadState('domcontentloaded')
   await dismissStartupModal(win)
@@ -44,6 +53,10 @@ async function dismissStartupModal(page: Page): Promise<void> {
 }
 
 test.afterEach(async () => {
+  try {
+    fs.mkdirSync('e2e-results', { recursive: true })
+    fs.writeFileSync(path.join('e2e-results', 'electron-stderr.log'), electronLog || '(no output captured)')
+  } catch { /* ignore */ }
   await app?.close().catch(() => {})
   fs.rmSync(TEST_USERDATA, { recursive: true, force: true })
 })
