@@ -39,14 +39,14 @@ async function retryGetDirectoryContents(client: WebDAVClient, dirPath: string, 
   return []
 }
 
-function cleanTitle(filename: string): string {
+export function cleanTitle(filename: string): string {
   let title = filename.replace(/\.[^.]+$/, '')
   title = title.replace(/^\d+[\.\s\-_]+/, '')
   title = title.trim()
   return title || filename
 }
 
-function parseFileName(filename: string): { title: string; artist: string } | null {
+export function parseFileName(filename: string): { title: string; artist: string } | null {
   const name = filename.replace(/\.[^.]+$/, '')
   const separators = [' - ', ' – ', ' — ', '--', '-', '_']
   for (const sep of separators) {
@@ -64,7 +64,7 @@ function parseFileName(filename: string): { title: string; artist: string } | nu
   return null
 }
 
-function isAudioFile(filename: string): boolean {
+export function isAudioFile(filename: string): boolean {
   if (filename.startsWith('._')) return false
   const ext = filename.toLowerCase().slice(filename.lastIndexOf('.'))
   return SUPPORTED_EXTENSIONS.includes(ext)
