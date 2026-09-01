@@ -6,7 +6,15 @@ export interface UpdateNote {
 }
 
 export const UPDATE_NOTES: Record<string, UpdateNote> = {
-  '1.5.5': {
+  '1.5.6': {
+    changed: [
+      '设置页卡片铺满全宽，消除右半空白',
+      '播放页/列表空态美化：图标 + 引导文案 +「去音乐库选歌」按钮',
+      '统计页趋势图悬浮提示跟随柱子 + x 轴日期刻度',
+      '音乐库工具栏收紧、收藏卡片渐变封面占位、歌曲详情字段对齐'
+    ]
+  },
+'1.5.5': {
     changed: [
       '引入自动化测试体系：66 个单元/回归测试 + Electron E2E 冒烟，`npm run verify` 一条龙自测'
     ],
