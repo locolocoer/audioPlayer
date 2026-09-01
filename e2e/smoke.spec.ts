@@ -21,7 +21,11 @@ test.beforeAll(() => {
 
 test.beforeEach(async () => {
   app = await electron.launch({
-    args: ['out/main/index.js'],
+    // Linux CI（root/xvfb）：Electron 需要 --no-sandbox 与禁用共享内存/GPU，否则启动即崩溃
+    args: [
+      ...(process.platform === 'linux' ? ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu'] : []),
+      'out/main/index.js'
+    ],
     cwd: path.join(__dirname, '..'),
     env: { ...process.env, FEIYU_TEST_USERDATA: TEST_USERDATA }
   })
