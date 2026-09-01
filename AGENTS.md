@@ -14,11 +14,11 @@
 
 | 命令 | 用途 |
 |---|---|
-| `npm run verify` | 交付前完整自测（必跑） |
-| `npm run check` | 快速自测（不含 E2E） |
+| `npm run verify` | 交付前完整自测（必跑；含 E2E，E2E 仅本地） |
+| `npm run check` | 快速自测（不含 E2E；CI 只跑这个） |
 | `npm test` | 全部 vitest |
 | `npm run test:watch` | 监听模式 |
-| `npm run test:e2e` | E2E 冒烟（需先 build） |
+| `npm run test:e2e` | E2E 冒烟（仅本地，需先 build） |
 | `npm run test:coverage` | 覆盖率 |
 
 ## 测试约定

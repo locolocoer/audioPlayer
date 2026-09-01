@@ -73,8 +73,7 @@ npm run test:e2e      # 仅 E2E 冒烟（需先 build）
 
 ## 五、CI 兜底
 
-`.github/workflows/main.yml` 中的 `test` job 会在 **PR / push main / tag** 时自动跑 `npm run check`；
-任何测试或类型错误会直接标红，防止带病合入。E2E 需要图形环境，留在本机 `npm run verify` 执行。
+`.github/workflows/main.yml` 中的 `test` job 会在 **push main / PR / tag** 时自动跑 `npm run check`（typecheck + 全部测试 + 构建）；任何测试或类型错误会直接标红，防止带病合入。**E2E 冒烟只在本地跑**（`npm run verify` 内含）——CI 是 Linux 无图形环境，Electron 窗口测试不稳定，故不做 CI 集成。
 
 ## 六、发版门槛
 

@@ -136,7 +136,7 @@ npm run test:e2e
 - `src/renderer/stores/**/*.test.ts`（dom）：zustand 业务逻辑 —— **重点回归区**，历次修过的 bug（临时队列语义、队列操作不误删收藏、replaceTrack 双轨同步等）都固化在这里
 - `src/renderer/hooks/**` 与 `components/**`（dom）：hook 边界钳制、右键菜单/多选交互、添加歌曲不双重添加等
 - 组件测试统一使用 `src/test/setup-dom.ts` 提供的 `window.api` mock（结构与 `src/preload/index.ts` 一致），**不依赖真实 IPC**
-- `e2e/smoke.spec.ts`（Playwright `_electron`）：启动真实应用（临时 `userData`，`FEIYU_TEST_USERDATA` 环境变量隔离，不碰真实数据），验证窗口标题、侧边栏导航、各页面渲染与播放器空状态
+- `e2e/smoke.spec.ts`（Playwright `_electron`）：启动真实应用（临时 `userData`，`FEIYU_TEST_USERDATA` 环境变量隔离，不碰真实数据），验证窗口标题、侧边栏导航、各页面渲染与播放器空状态。**E2E 只在本地跑**（CI 为 Linux 无图形环境），随 `npm run verify` 执行
 
 写新逻辑时遵循：能抽成纯函数就写 unit 测试；动 Store/交互就补 dom 测试；修 bug 先写复现测试再修；大版本或 UI 布局调整后跑一遍 E2E 冒烟。
 
