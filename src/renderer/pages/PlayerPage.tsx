@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { usePlayerStore } from '../stores/playerStore'
 import { useMusicStore } from '../stores/musicStore'
 import { useToastStore } from '../stores/toastStore'
@@ -14,6 +15,7 @@ import { useT } from '../i18n'
 
 export default function PlayerPage(): JSX.Element {
   const t = useT()
+  const navigate = useNavigate()
   const currentTrack = usePlayerStore((s) => s.currentTrack)
   const currentTime = usePlayerStore((s) => s.currentTime)
   const duration = usePlayerStore((s) => s.duration)
@@ -272,8 +274,15 @@ export default function PlayerPage(): JSX.Element {
   if (!currentTrack) {
     return (
       <div className="page player-page">
-        <div className="empty-state">
+        <div className="empty-state player-empty">
+          <div className="empty-artwork">
+            <svg viewBox="0 0 24 24" width="52" height="52" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+          </div>
           <p>{t('playerPage.noTrack')}</p>
+          <p className="empty-hint">{t('playerPage.noTrackHint')}</p>
+          <button className="btn btn-primary" onClick={() => navigate('/')}>
+            {t('playerPage.goLibrary')}
+          </button>
         </div>
       </div>
     )

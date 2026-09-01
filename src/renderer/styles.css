@@ -593,7 +593,7 @@ body {
 }
 
 .settings-section {
-  max-width: 760px;
+  max-width: 100%;
   margin: 0 auto 18px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
@@ -809,15 +809,15 @@ body {
 .library-controls {
   display: flex;
   align-items: center;
-  gap: 10px;
-  height: 38px;
+  gap: 8px;
+  height: 36px;
   flex-wrap: nowrap;
   min-width: 0;
 }
 
 .library-controls .btn {
-  height: 36px;
-  padding: 0 18px;
+  height: 32px;
+  padding: 0 12px;
   display: inline-flex;
   align-items: center;
   white-space: nowrap;
@@ -2866,6 +2866,22 @@ body {
   font-size: 15px;
 }
 
+.empty-artwork {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 14px;
+  color: var(--text-secondary);
+  opacity: 0.75;
+}
+
+.empty-state .btn {
+  margin-top: 4px;
+}
+
+.player-empty {
+  padding: 90px 20px;
+}
+
 .empty-hint {
   font-size: 13px !important;
   opacity: 0.7;
@@ -2911,7 +2927,7 @@ body {
 .square-card-cover {
   height: 96px;
   border-radius: calc(var(--radius) - 2px);
-  background: var(--bg-hover);
+  background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)), var(--bg-hover);
   display: flex;
   align-items: center;
   justify-content: center;

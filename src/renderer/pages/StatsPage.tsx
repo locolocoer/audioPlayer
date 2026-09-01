@@ -25,40 +25,59 @@ function fmtDuration(min: number, t: TFunc): string {
 }
 
 function TrendChart({ data, t }: { data: { date: string; plays: number }[]; t: TFunc }): JSX.Element {
-  const [hover, setHover] = useState<{ date: string; plays: number } | null>(null)
+  const [hover, setHover] = useState<number | null>(null)
   if (data.length === 0) return <p className="stats-empty">{t('stats.noData')}</p>
   const max = Math.max(1, ...data.map((d) => d.plays))
   const W = 720
-  const H = 180
+  const H = 200
   const pad = 6
   const maxBar = 18
   const bw = Math.min((W - pad * (data.length - 1)) / data.length, maxBar)
   const total = data.length * bw + (data.length - 1) * pad
   const x0 = (W - total) / 2
+  const axisY = H - 18
+  const barHeight = (plays: number): number => Math.max(2, (plays / max) * (H - 40))
+  // x 轴刻度：取首/中/末日期
+  const ticks = [0, Math.floor((data.length - 1) / 2), data.length - 1].filter(
+    (idx, i, arr) => idx >= 0 && arr.indexOf(idx) === i
+  )
+  // 当前 hover 柱子的信息
+  const hov = hover !== null ? data[hover] : null
+  const hovX = hover !== null ? x0 + hover * (bw + pad) + bw / 2 : 0
+  const hovY = hover !== null ? H - barHeight(data[hover].plays) - 10 : 0
   return (
     <div className="trend-wrap">
       <svg viewBox={`0 0 ${W} ${H}`} className="trend-svg" onMouseLeave={() => setHover(null)}>
         {data.map((d, i) => {
-          const h = Math.max(2, (d.plays / max) * (H - 24))
           const x = x0 + i * (bw + pad)
-          const y = H - h
+          const y = H - barHeight(d.plays)
           return (
-            <rect
-              key={d.date}
-              x={x}
-              y={y}
-              width={Math.max(2, bw)}
-              height={h}
-              rx={2}
-              fill="var(--accent)"
-              opacity={hover && hover.date === d.date ? 1 : 0.55 + (h / (H - 24)) * 0.4}
-              onMouseEnter={() => setHover(d)}
-            />
+            <g key={d.date} onMouseEnter={() => setHover(i)}>
+              <rect
+                x={x}
+                y={y}
+                width={Math.max(2, bw)}
+                height={barHeight(d.plays)}
+                rx={2}
+                fill="var(--accent)"
+                opacity={hover === i ? 1 : 0.55 + (barHeight(d.plays) / (H - 40)) * 0.4}
+              />
+            </g>
           )
         })}
-        <text x={4} y={H - 6} fontSize={11} fill="var(--text-secondary)">
-          {hover ? `${hover.date} · ${t('stats.times', { n: hover.plays })}` : t('stats.lastDays', { n: data.length })}
+        {ticks.map((i) => (
+          <text key={i} x={x0 + i * (bw + pad) + bw / 2} y={axisY + 14} textAnchor="middle" fontSize={10} fill="var(--text-secondary)" opacity={0.7}>
+            {data[i].date.slice(5)}
+          </text>
+        ))}
+        <text x={4} y={H - 4} fontSize={11} fill="var(--text-secondary)">
+          {t('stats.lastDays', { n: data.length })}
         </text>
+        {hov && (
+          <text x={hovX} y={hovY} textAnchor="middle" fontSize={11} fill="var(--text-primary)" fontWeight={600}>
+            {hov.date} · {t('stats.times', { n: hov.plays })}
+          </text>
+        )}
       </svg>
     </div>
   )
