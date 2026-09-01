@@ -25,12 +25,12 @@
     "electron-updater": "^6.8.9",
     "music-metadata": "^11.15.0",
     "node-id3": "^0.2.9",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.3",
     "sql.js": "^1.11.0",
     "webdav": "^5.7.0",
-    "zustand": "^4.5.0"
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
@@ -38,19 +38,19 @@
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.6",
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
     "@types/sql.js": "^1.4.9",
-    "@vitejs/plugin-react": "^4.3.1",
-    "@vitest/coverage-v8": "^3.2.7",
+    "@vitejs/plugin-react": "^5.2.0",
+    "@vitest/coverage-v8": "^4.1.11",
     "electron": "^31.3.1",
-    "electron-builder": "^24.13.3",
-    "electron-vite": "^2.3.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
     "jsdom": "^26.1.0",
     "playwright": "^1.62.1",
-    "sharp": "^0.32.6",
-    "typescript": "^5.5.4",
-    "vite": "^5.4.0",
-    "vitest": "^3.2.7"
+    "sharp": "^0.35.4",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.6",
+    "vitest": "^4.1.11"
   }
 }
