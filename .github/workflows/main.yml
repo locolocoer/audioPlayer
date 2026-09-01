@@ -46,6 +46,20 @@ jobs:
         run: xvfb-run -a npm run test:e2e
         continue-on-error: true
 
+      - name: Print E2E error context (via ::error:: annotation)
+        if: steps.e2e.outcome == 'failure'
+        run: |
+          set +e
+          for f in e2e-results/*/error-context.md; do
+            [ -f "$f" ] || continue
+            MSG=$(head -c 4000 "$f" | sed 's/%/%25/g; s/\r//g; s/\n/%0A/g')
+            echo "::error file=$(basename "$f")::$MSG"
+            echo "::group::full error-context $f"
+            cat "$f"
+            echo "::endgroup::"
+          done
+          exit 0
+
       - name: Upload E2E diagnostics (error context + trace)
         if: always()
         uses: actions/upload-artifact@v4
