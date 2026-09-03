@@ -76,7 +76,7 @@ function createSplash(): void {
 
 function closeSplash(): void {
   if (!splashWindow) return
-  const wait = Math.max(0, 700 - (Date.now() - splashShownAt))
+  const wait = Math.max(0, 1500 - (Date.now() - splashShownAt))
   const doClose = (): void => { splashWindow?.close(); splashWindow = null }
   if (wait > 0) setTimeout(doClose, wait)
   else doClose()
