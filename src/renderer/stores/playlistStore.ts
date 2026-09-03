@@ -35,6 +35,8 @@ interface PlaylistState {
   persistPlaylistTracks: (tracks: MusicFile[]) => void
   // 播放列表 = 唯一播放队列：点歌时若在列表则定位播放，否则追加到列表并播放
   playInPlaylist: (track: MusicFile) => void
+  // 替换播放列表内容（模板播放如心情电台/随机/智能列表用）
+  replacePlaylistTracks: (tracks: MusicFile[]) => void
 }
 
 function parseIds(trackIds: string): number[] {
@@ -349,5 +351,14 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
       st.addPlaylistTracks([track])
       usePlayerStore.getState().playFromPlaylist(get().playlistTracks, track)
     }
+  },
+
+  // 替换播放列表内容（模板播放如心情电台/随机专辑/智能列表/收藏播放等）
+  replacePlaylistTracks: (tracks: MusicFile[]) => {
+    const st = get()
+    if (st.playlistId === null) return
+    set({ playlistTracks: tracks })
+    usePlayerStore.getState().syncPlaylist(tracks)
+    get().persistPlaylistTracks(tracks)
   }
 }))

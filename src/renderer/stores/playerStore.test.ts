@@ -54,27 +54,17 @@ beforeEach(() => {
   })
 })
 
-describe('tempQueue 临时队列语义', () => {
-  it('playSelection 设置临时队列并标记 tempQueue', () => {
+describe('playSelection 模板播放 => 替换播放列表', () => {
+  it('playSelection 将播放列表替换为选中的歌曲并播放', () => {
     usePlayerStore.getState().playSelection([tracks[1], tracks[2]])
     const s = usePlayerStore.getState()
-    expect(s.queue).toEqual([tracks[1], tracks[2]])
-    expect(s.playlist).toEqual([])
-    expect(s.tempQueue).toBe(true)
+    expect(usePlaylistStore.getState().playlistTracks).toEqual([tracks[1], tracks[2]])
+    expect(s.playlist).toEqual([tracks[1], tracks[2]])
+    expect(s.tempQueue).toBe(false)
     expect(s.currentTrack).toEqual(tracks[1])
   })
 
-  it('tempQueue 期间 syncPlaylist 不覆盖正在听的队列', () => {
-    usePlayerStore.getState().playSelection([tracks[1], tracks[2]])
-    // 播放列表变更（如外部加入歌曲）不应劫持临时队列
-    usePlayerStore.getState().syncPlaylist([tracks[0], tracks[1], tracks[2]])
-    const s = usePlayerStore.getState()
-    expect(s.queue).toEqual([tracks[1], tracks[2]])
-    expect(s.playlist).toEqual([])
-    expect(s.tempQueue).toBe(true)
-  })
-
-  it('playFromPlaylist 激活播放列表并清除 tempQueue', () => {
+  it('playFromPlaylist 激活指定播放列表并定位播放', () => {
     usePlayerStore.getState().playFromPlaylist([tracks[0], tracks[1], tracks[2]], tracks[2])
     const s = usePlayerStore.getState()
     expect(s.playlist).toEqual([tracks[0], tracks[1], tracks[2]])
@@ -82,7 +72,7 @@ describe('tempQueue 临时队列语义', () => {
     expect(s.currentTrack).toEqual(tracks[2])
   })
 
-  it('退出临时队列后 syncPlaylist 正常同步播放列表', () => {
+  it('syncPlaylist 正常同步播放列表（无临时队列劫持）', () => {
     usePlayerStore.getState().playFromPlaylist([tracks[0], tracks[1]], tracks[0])
     usePlayerStore.getState().syncPlaylist([tracks[0], tracks[1], tracks[2]])
     expect(usePlayerStore.getState().playlist).toEqual([tracks[0], tracks[1], tracks[2]])

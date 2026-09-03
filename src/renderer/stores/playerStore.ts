@@ -163,9 +163,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   playSelection: (tracks: MusicFile[], first?: MusicFile) => {
     if (tracks.length === 0) return
-    // 临时队列模式：避免后续播放列表同步劫持该队列
-    set({ queue: tracks, playlist: [], tempQueue: true })
-    get().requestPlay(first || tracks[0])
+    // 播放列表 = 唯一队列：模板播放（心情电台/随机专辑/智能列表/收藏播放等）替换播放列表并播放
+    usePlaylistStore.getState().replacePlaylistTracks(tracks)
+    get().playFromPlaylist(tracks, first || tracks[0])
   },
 
   // 从固定播放列表开始播放（激活播放列表模式）
