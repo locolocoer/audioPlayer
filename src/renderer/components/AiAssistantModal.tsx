@@ -372,6 +372,17 @@ export default function AiAssistantModal({ onClose }: AiAssistantModalProps): JS
           <div className="ai-chat-hint">
             <div className="ai-chat-hint-icon">🎵</div>
             <p>{t('ai.assistantHint')}</p>
+            <div className="ai-suggestions">
+              {[
+                t('ai.suggestion.playSimilar'),
+                t('ai.suggestion.top'),
+                t('ai.suggestion.runPlaylist')
+              ].map((q) => (
+                <button key={q} type="button" className="ai-suggestion-chip" onClick={() => setInput(q)}>
+                  {q}
+                </button>
+              ))}
+            </div>
           </div>
         )}
         {messages.map((m, i) => (

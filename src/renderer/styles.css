@@ -3468,6 +3468,34 @@ body {
   opacity: 0.7;
 }
 
+/* 空态示例问题：点击填入输入框 */
+.ai-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  max-width: 340px;
+  margin-top: 4px;
+}
+
+.ai-suggestion-chip {
+  padding: 5px 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--text-secondary) 8%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.15s;
+}
+
+.ai-suggestion-chip:hover {
+  color: var(--accent-hover);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  transform: translateY(-1px);
+}
+
 .ai-chat-msg {
   display: flex;
   align-items: flex-end;
