@@ -39,6 +39,10 @@ test.beforeEach(async () => {
     proc.stderr?.on('data', capture)
   } catch { /* ignore */ }
   win = await app.firstWindow()
+  // 启动界面（splash）可能先出现：等待主窗口（标题 = 飞鱼音乐）
+  if ((await win.title().catch(() => '')) !== '飞鱼音乐') {
+    win = await app.waitForEvent('window')
+  }
   await win.waitForLoadState('domcontentloaded')
   await dismissStartupModal(win)
 })
