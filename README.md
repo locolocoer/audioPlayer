@@ -2,7 +2,7 @@
 
 一款基于 Electron 的桌面音乐播放器，支持 WebDAV 云端与本地文件夹两种音乐源，内置完整的播放、歌词、封面、收藏、播放列表与统计体系。
 
-当前版本：**v1.5.8**（详见 [CHANGELOG](./CHANGELOG.md)）
+当前版本：**v1.5.9**（详见 [CHANGELOG](./CHANGELOG.md)）
 
 ---
 
