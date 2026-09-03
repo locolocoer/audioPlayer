@@ -11,7 +11,7 @@ import Visualizer from '../components/Visualizer'
 import Modal from '../components/Modal'
 import { parseLrc, activeLyricIndex } from '../utils/lrc'
 import { getCoverCached, setCoverCached, coverCacheKey } from '../utils/coverCache'
-import { useT } from '../i18n'
+import { useT, useI18nStore } from '../i18n'
 
 export default function PlayerPage(): JSX.Element {
   const t = useT()
@@ -39,6 +39,12 @@ export default function PlayerPage(): JSX.Element {
   const [aiMood, setAiMood] = useState<{ tags: string[]; summary: string } | null>(null)
   const [aiMoodBusy, setAiMoodBusy] = useState(false)
   const [aiMoodErr, setAiMoodErr] = useState('')
+  // 歌词翻译：默认关闭；按界面语言判断，歌词已是目标语言则不翻译
+  const uiLang = useI18nStore((s) => s.lang)
+  const [translateOn, setTranslateOn] = useState(false)
+  const [translatedLines, setTranslatedLines] = useState<string[] | null>(null)
+  const [translating, setTranslating] = useState(false)
+  const [translateMsg, setTranslateMsg] = useState('')
   const loadedRef = useRef(0)
   const activeIdxRef = useRef(-1)
   // 切歌竞态守卫：每次换歌递增，异步回调只接受最新一代的结果
@@ -180,6 +186,11 @@ export default function PlayerPage(): JSX.Element {
     loadedRef.current = 0
     activeIdxRef.current = -1
     loadGenRef.current++
+    // 切歌重置歌词翻译开关
+    setTranslateOn(false)
+    setTranslatedLines(null)
+    setTranslateMsg('')
+    setTranslating(false)
   }, [currentTrack?.id])
 
   const analyzeMood = async (): Promise<void> => {
@@ -216,6 +227,44 @@ export default function PlayerPage(): JSX.Element {
     } catch {
       setAiMoodErr(t('ai.failed'))
     }
+  }
+
+  // 歌词是否已是目标语言（zh：含中文；en：无中文）
+  const isLyricsInTargetLang = (text: string): boolean => {
+    const hasChinese = /[\u4e00-\u9fff]/.test(text)
+    return uiLang === 'zh' ? hasChinese : !hasChinese
+  }
+
+  const toggleTranslate = async (): Promise<void> => {
+    if (translateOn) {
+      setTranslateOn(false)
+      setTranslatedLines(null)
+      setTranslateMsg('')
+      return
+    }
+    setTranslateOn(true)
+    if (!lrcText) { setTranslateMsg(t('lyrics.none')); return }
+    const plain = lyrics.map((l) => l.text).join('\n')
+    if (isLyricsInTargetLang(plain)) {
+      setTranslateMsg(t('ai.translateSame', { lang: uiLang === 'zh' ? '中文' : 'English' }))
+      setTranslatedLines(null)
+      return
+    }
+    const target = uiLang === 'zh' ? '中文' : '英文'
+    setTranslating(true)
+    setTranslateMsg('')
+    const r = await window.api.ai.chat([{ role: 'user', content: plain }], {
+      system: `把以下歌词逐行翻译成${target}，保持每行与原文一一对应，只输出译文（每行一条，用换行分隔），不要任何其他文字或原文编号。`,
+      maxTokens: 2000,
+      temperature: 0.3
+    })
+    setTranslating(false)
+    if (!r.ok || !r.text) {
+      setTranslateMsg(r.error === 'not-configured' ? t('ai.notConfigured') : t('ai.translateFailed'))
+      return
+    }
+    const lines = r.text.split('\n').map((s) => s.trim()).filter(Boolean)
+    setTranslatedLines(lyrics.map((_l, i) => lines[i] || ''))
   }
 
   // 按当前歌曲情绪，从曲库中找出已分析出相同情绪的歌曲组成队列播放
@@ -321,7 +370,10 @@ export default function PlayerPage(): JSX.Element {
                 <div className="lyrics-spacer" />
                 {lyrics.map((line, idx) => (
                   <div key={idx} data-idx={idx} className={`lyrics-line${activeIndex === idx ? ' active' : ''}`}>
-                    {line.text}
+                    <span>{line.text}</span>
+                    {translateOn && translatedLines && translatedLines[idx] && (
+                      <span className="lyrics-trans">{translatedLines[idx]}</span>
+                    )}
                   </div>
                 ))}
                 <div className="lyrics-spacer" />
@@ -341,6 +393,11 @@ export default function PlayerPage(): JSX.Element {
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>
                   {aiMoodBusy ? t('common.loading') : (aiMood ? t('ai.moodAgain') : t('ai.mood'))}
                 </button>
+                <button className={`lyrics-btn${translateOn ? ' primary' : ''}`} onClick={toggleTranslate} disabled={translating || !lrcText} title={t('ai.translate')}>
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12.87 15.07l-2.54-2.51.03-.03c1.74-1.94 2.98-4.17 3.71-6.53H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/></svg>
+                  {translating ? t('ai.translating') : (translateOn ? t('ai.translateOff') : t('ai.translate'))}
+                </button>
+                {translateMsg && <span className="lrc-search-msg">{translateMsg}</span>}
                 {lrcSearchMsg && <span className={`lrc-search-msg${lrcMsgSuccess ? ' success' : ''}`}>{lrcSearchMsg}</span>}
               </div>
               {aiMood && (
