@@ -35,6 +35,7 @@ const zh: Dict = {
   'queue.title': '接下来播放',
   'queue.remove': '从队列移除',
   'queue.empty': '队列为空',
+  'queue.clear': '清空队列',
   'queue.more': '… 共 {total} 首，从当前曲目起显示前 {view} 首',
 
   // 收藏 / 最近
@@ -512,6 +513,7 @@ const en: Dict = {
   'queue.title': 'Up Next',
   'queue.remove': 'Remove from queue',
   'queue.empty': 'Queue is empty',
+  'queue.clear': 'Clear queue',
   'queue.more': '… {total} tracks total, showing {view} from current',
 
   'favorites.search': 'Search favorites...',

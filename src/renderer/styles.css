@@ -1267,6 +1267,12 @@ body {
   font-weight: 600;
 }
 
+.queue-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .queue-list {
   flex: 1;
   overflow-y: auto;
