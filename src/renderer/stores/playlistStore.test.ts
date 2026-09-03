@@ -156,10 +156,11 @@ describe('playInPlaylist 播放列表 = 唯一播放队列', () => {
     expect(usePlayerStore.getState().currentTrack).toEqual(tracks[0])
   })
 
-  it('歌不在播放列表：追加到列表并定位播放', () => {
+  it('歌不在播放列表：插入到队首并定位播放', () => {
     usePlaylistStore.getState().playInPlaylist(tracks[2])
-    expect(usePlaylistStore.getState().playlistTracks).toEqual([tracks[0], tracks[1], tracks[2]])
-    expect(usePlayerStore.getState().playlist).toEqual([tracks[0], tracks[1], tracks[2]])
+    // 插入到队首：tracks[2] 在最前
+    expect(usePlaylistStore.getState().playlistTracks).toEqual([tracks[2], tracks[0], tracks[1]])
+    expect(usePlayerStore.getState().playlist).toEqual([tracks[2], tracks[0], tracks[1]])
     expect(usePlayerStore.getState().currentTrack).toEqual(tracks[2])
     expect(window.api.playlist.save).toHaveBeenCalled()
   })
