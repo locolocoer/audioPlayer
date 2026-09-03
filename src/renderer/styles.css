@@ -3886,6 +3886,16 @@ body {
   max-width: 100%;
 }
 
+.fsl-trans {
+  max-width: 82vw;
+  font-size: clamp(18px, 3vw, 34px);
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.72);
+  line-height: 1.4;
+  word-break: break-word;
+  text-align: center;
+}
+
 .fsl-prev,
 .fsl-next {
   font-size: clamp(20px, 3vw, 40px);

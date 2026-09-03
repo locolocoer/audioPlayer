@@ -45,6 +45,8 @@ export default function PlayerPage(): JSX.Element {
   const [translatedLines, setTranslatedLines] = useState<string[] | null>(null)
   const [translating, setTranslating] = useState(false)
   const [translateMsg, setTranslateMsg] = useState('')
+  // 歌词翻译缓存：按歌曲（webdavId+path）缓存译文，开关/切回同一首歌不重复请求 AI
+  const transCache = useRef(new Map<string, string[]>())
   const loadedRef = useRef(0)
   const activeIdxRef = useRef(-1)
   // 切歌竞态守卫：每次换歌递增，异步回调只接受最新一代的结果
@@ -237,13 +239,21 @@ export default function PlayerPage(): JSX.Element {
 
   const toggleTranslate = async (): Promise<void> => {
     if (translateOn) {
+      // 关闭只隐藏译文，缓存保留；再次开启直接复用
       setTranslateOn(false)
-      setTranslatedLines(null)
-      setTranslateMsg('')
       return
     }
     setTranslateOn(true)
     if (!lrcText) { setTranslateMsg(t('lyrics.none')); return }
+    if (!currentTrack) return
+    const key = `${currentTrack.webdavId}:${currentTrack.path}`
+    // 已缓存过该歌翻译 → 直接显示，不重新请求 AI
+    const cached = transCache.current.get(key)
+    if (cached) {
+      setTranslatedLines(cached)
+      setTranslateMsg('')
+      return
+    }
     const plain = lyrics.map((l) => l.text).join('\n')
     if (isLyricsInTargetLang(plain)) {
       setTranslateMsg(t('ai.translateSame', { lang: uiLang === 'zh' ? '中文' : 'English' }))
@@ -264,7 +274,9 @@ export default function PlayerPage(): JSX.Element {
       return
     }
     const lines = r.text.split('\n').map((s) => s.trim()).filter(Boolean)
-    setTranslatedLines(lyrics.map((_l, i) => lines[i] || ''))
+    const aligned = lyrics.map((_l, i) => lines[i] || '')
+    transCache.current.set(key, aligned)
+    setTranslatedLines(aligned)
   }
 
   // 按当前歌曲情绪，从曲库中找出已分析出相同情绪的歌曲组成队列播放
@@ -458,6 +470,9 @@ export default function PlayerPage(): JSX.Element {
                     <span key={i} className={i < litCount ? 'fsl-lit' : ''}>{ch === ' ' ? '\u00A0' : ch}</span>
                   ))}
                 </div>
+                {translateOn && translatedLines?.[Math.max(0, activeIndex)] && (
+                  <div className="fsl-trans">{translatedLines[Math.max(0, activeIndex)]}</div>
+                )}
                 <div className="fsl-next">{activeIndex + 1 < lyrics.length ? lyrics[activeIndex + 1].text : ''}</div>
               </div>
             ) : (
