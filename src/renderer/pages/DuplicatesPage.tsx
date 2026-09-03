@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { usePlayerStore } from '../stores/playerStore'
+import { usePlaylistStore } from '../stores/playlistStore'
 import { useMusicStore } from '../stores/musicStore'
 import { useToastStore } from '../stores/toastStore'
 import { useT } from '../i18n'
@@ -30,7 +30,6 @@ function extOf(filename: string): string {
 
 export default function DuplicatesPage(): JSX.Element {
   const t = useT()
-  const { requestPlay, setQueue } = usePlayerStore()
   const configs = useMusicStore((s) => s.configs)
   const addToast = useToastStore((s) => s.addToast)
   const [groups, setGroups] = useState<DuplicateGroup[]>([])
@@ -54,9 +53,8 @@ export default function DuplicatesPage(): JSX.Element {
     return webdavId
   }
 
-  const playTrack = (track: MusicFile, list: MusicFile[]): void => {
-    setQueue(list)
-    requestPlay(track)
+  const playTrack = (track: MusicFile): void => {
+    usePlaylistStore.getState().playInPlaylist(track)
   }
 
   const setDefault = async (track: MusicFile): Promise<void> => {
@@ -99,7 +97,7 @@ export default function DuplicatesPage(): JSX.Element {
                 <span className="album-meta">{t('duplicates.versions', { n: g.trackCount })}</span>
               </div>
               {g.tracks.map((tr) => (
-                <div key={tr.id} className="duplicate-row" onClick={() => playTrack(tr, g.tracks)}>
+                <div key={tr.id} className="duplicate-row" onClick={() => playTrack(tr)}>
                   <div className="duplicate-info">
                     <span className="duplicate-artist">{tr.artist || t('common.unknown')}</span>
                     <span className="album-meta">{sourceName(tr.webdavId)}</span>

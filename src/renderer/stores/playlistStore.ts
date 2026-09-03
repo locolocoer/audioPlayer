@@ -33,6 +33,8 @@ interface PlaylistState {
   reorderManyPlaylist: (ids: number[], toIndex: number) => void
   clearPlaylistTracks: () => void
   persistPlaylistTracks: (tracks: MusicFile[]) => void
+  // 播放列表 = 唯一播放队列：点歌时若在列表则定位播放，否则追加到列表并播放
+  playInPlaylist: (track: MusicFile) => void
 }
 
 function parseIds(trackIds: string): number[] {
@@ -335,5 +337,17 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
     set({ playlistTracks: [] })
     usePlayerStore.getState().syncPlaylist([])
     get().persistPlaylistTracks([])
+  },
+
+  // 播放列表 = 唯一播放队列：点歌时若在列表则定位播放，否则追加到列表并播放
+  playInPlaylist: (track: MusicFile) => {
+    const st = get()
+    if (st.playlistTracks.some((t) => t.id === track.id)) {
+      usePlayerStore.getState().playFromPlaylist(st.playlistTracks, track)
+    } else {
+      // 加入播放列表（内部会 syncPlaylist 到播放器），再以更新后的列表定位播放
+      st.addPlaylistTracks([track])
+      usePlayerStore.getState().playFromPlaylist(get().playlistTracks, track)
+    }
   }
 }))

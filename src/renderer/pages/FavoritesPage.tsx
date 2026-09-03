@@ -52,7 +52,6 @@ export default function FavoritesPage(): JSX.Element {
   const favorites = useMusicStore((s) => s.favorites)
   const loadFavorites = useMusicStore((s) => s.loadFavorites)
   const allTracks = useMusicStore((s) => s.tracks)
-  const { requestPlay, setQueue } = usePlayerStore()
   const addToast = useToastStore((s) => s.addToast)
   const playlists = usePlaylistStore((s) => s.playlists)
   const activeId = usePlaylistStore((s) => s.activeId)
@@ -119,8 +118,7 @@ export default function FavoritesPage(): JSX.Element {
       return sortDir === 'asc' ? cmp : -cmp
     })
     const handleRowClick = (track: MusicFile): void => {
-      setQueue(sorted)
-      requestPlay(track)
+      usePlaylistStore.getState().playInPlaylist(track)
     }
     return (
       <div className="page" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>

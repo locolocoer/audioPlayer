@@ -1,6 +1,5 @@
 import { useState, useMemo, useCallback } from 'react'
 import { usePlaylistStore } from '../stores/playlistStore'
-import { usePlayerStore } from '../stores/playerStore'
 import { useToastStore } from '../stores/toastStore'
 import MusicList from '../components/MusicList'
 import AddSongsModal from '../components/AddSongsModal'
@@ -20,7 +19,6 @@ export default function PlaylistPage(): JSX.Element {
   const reorderManyPlaylist = usePlaylistStore((s) => s.reorderManyPlaylist)
   const clearPlaylistTracks = usePlaylistStore((s) => s.clearPlaylistTracks)
   const addTracksToPlaylist = usePlaylistStore((s) => s.addTracksToPlaylist)
-  const { playFromPlaylist } = usePlayerStore()
   const addToast = useToastStore((s) => s.addToast)
   const [sortField, setSortField] = useState<SortField>('order')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
@@ -63,9 +61,9 @@ export default function PlaylistPage(): JSX.Element {
   }, [playlistTracks, sortField, sortDir])
 
   const handleRowClick = useCallback((track: MusicFile) => {
-    // 激活播放列表模式并播放（避免覆盖用户可能正在听的临时队列语义混乱）
-    playFromPlaylist(playlistTracks, track)
-  }, [playFromPlaylist, playlistTracks])
+    // 播放列表 = 唯一播放队列：在播放列表页点歌，歌已在列表，定位播放
+    usePlaylistStore.getState().playInPlaylist(track)
+  }, [])
 
   // 拖拽回调：把 filtered 中的行索引/选中 id 映射回 playlistTracks 的索引，避免搜索筛选时错位
   const wrapReorder = useCallback((from: number, to: number) => {

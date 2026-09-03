@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo, useCallback, useRef, useLayoutEffect } from 'react'
 import { useMusicStore } from '../stores/musicStore'
 import { usePlayerStore } from '../stores/playerStore'
+import { usePlaylistStore } from '../stores/playlistStore'
 import { useToastStore } from '../stores/toastStore'
 import { useT } from '../i18n'
 import { useVirtualWindow } from '../hooks/useVirtualWindow'
@@ -87,7 +88,6 @@ function AlbumCover({ album, tracks }: { album: string; tracks: MusicFile[] }): 
 
 export default function LibraryPage(): JSX.Element {
   const { tracks, loadTracks, configs, loadConfigs } = useMusicStore()
-  const { requestPlay, setQueue } = usePlayerStore()
   const t = useT()
   const addToast = useToastStore((s) => s.addToast)
   const [pickerTracks, setPickerTracks] = useState<MusicFile[] | null>(null)
@@ -433,16 +433,14 @@ export default function LibraryPage(): JSX.Element {
   // 文件夹子目录虚拟化（固定行高 52px）
   const folderWin = useVirtualWindow(folderData.subdirs.length, 52)
 
-  const handleRowClick = useCallback((track: typeof tracks[0]) => {
-    setQueue(filtered)
-    requestPlay(track)
-  }, [filtered, requestPlay, setQueue])
+  // 播放列表 = 唯一播放队列：从音乐库点歌，若在播放列表则定位，否则追加到播放列表并播放
+  const handleRowClick = useCallback((track: MusicFile) => {
+    usePlaylistStore.getState().playInPlaylist(track)
+  }, [])
 
-  // 文件夹视图点击播放：队列用当前文件夹内的排序结果，而不是全库 filtered
   const handleFolderRowClick = useCallback((track: MusicFile) => {
-    setQueue(sortedFolderFiles)
-    requestPlay(track)
-  }, [sortedFolderFiles, requestPlay, setQueue])
+    usePlaylistStore.getState().playInPlaylist(track)
+  }, [])
 
   const backToBrowse = useCallback(() => {
     setBrowseAlbum(null)

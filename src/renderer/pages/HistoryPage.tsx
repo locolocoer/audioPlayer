@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
-import { usePlayerStore } from '../stores/playerStore'
+import { usePlaylistStore } from '../stores/playlistStore'
 import { useT } from '../i18n'
 import type { MusicFile } from '../../main/types'
 
@@ -27,7 +27,6 @@ function formatDuration(secs: number): string {
 
 export default function HistoryPage(): JSX.Element {
   const t = useT()
-  const { requestPlay, setQueue } = usePlayerStore()
   const [entries, setEntries] = useState<HistoryEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<'all' | 'unique'>('all')
@@ -76,9 +75,8 @@ export default function HistoryPage(): JSX.Element {
   }
 
   const playEntry = useCallback((entry: HistoryEntry) => {
-    setQueue(entries.map((e) => e.track))
-    requestPlay(entry.track)
-  }, [entries, requestPlay, setQueue])
+    usePlaylistStore.getState().playInPlaylist(entry.track)
+  }, [])
 
   return (
     <div className="page" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>

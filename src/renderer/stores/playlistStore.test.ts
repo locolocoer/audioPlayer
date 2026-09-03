@@ -147,3 +147,20 @@ describe('loadPlaylists 旧数据迁移', () => {
     expect(window.api.playlist.save).toHaveBeenCalledWith(expect.objectContaining({ id: 2, kind: 'favorite' }))
   })
 })
+
+describe('playInPlaylist 播放列表 = 唯一播放队列', () => {
+  it('歌已在播放列表：定位播放，列表不变', () => {
+    usePlaylistStore.getState().playInPlaylist(tracks[0])
+    expect(usePlaylistStore.getState().playlistTracks).toEqual([tracks[0], tracks[1]])
+    expect(usePlayerStore.getState().playlist).toEqual([tracks[0], tracks[1]])
+    expect(usePlayerStore.getState().currentTrack).toEqual(tracks[0])
+  })
+
+  it('歌不在播放列表：追加到列表并定位播放', () => {
+    usePlaylistStore.getState().playInPlaylist(tracks[2])
+    expect(usePlaylistStore.getState().playlistTracks).toEqual([tracks[0], tracks[1], tracks[2]])
+    expect(usePlayerStore.getState().playlist).toEqual([tracks[0], tracks[1], tracks[2]])
+    expect(usePlayerStore.getState().currentTrack).toEqual(tracks[2])
+    expect(window.api.playlist.save).toHaveBeenCalled()
+  })
+})

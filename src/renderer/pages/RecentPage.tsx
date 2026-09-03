@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
-import { usePlayerStore } from '../stores/playerStore'
+import { usePlaylistStore } from '../stores/playlistStore'
 import MusicList from '../components/MusicList'
 import { useT } from '../i18n'
 import type { MusicFile } from '../../main/types'
@@ -9,7 +9,6 @@ type SortDir = 'asc' | 'desc'
 
 export default function RecentPage(): JSX.Element {
   const t = useT()
-  const { requestPlay, setQueue } = usePlayerStore()
   const [tracks, setTracks] = useState<MusicFile[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -31,10 +30,9 @@ export default function RecentPage(): JSX.Element {
     )
   }, [tracks, search])
 
-  const handleRowClick = useCallback((track: typeof tracks[0]) => {
-    setQueue(filtered)
-    requestPlay(track)
-  }, [filtered, requestPlay, setQueue])
+  const handleRowClick = useCallback((track: MusicFile) => {
+    usePlaylistStore.getState().playInPlaylist(track)
+  }, [])
 
   return (
     <div className="page" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
