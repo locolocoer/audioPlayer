@@ -37,50 +37,6 @@ const MAX_WINDOW_WIDTH = 1600
 let mainWindow: BrowserWindow | null = null
 let miniWindow: BrowserWindow | null = null
 let lyricsWindow: BrowserWindow | null = null
-let splashWindow: BrowserWindow | null = null
-let splashShownAt = 0
-
-// 启动界面（splash）：品牌 logo + 加载动画，主窗口就绪后关闭
-const SPLASH_HTML = `<!doctype html><html><head><meta charset="utf-8"><style>
-body{margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:linear-gradient(160deg,#0e1017,#14161f);font-family:'PingFang SC','Microsoft YaHei','Segoe UI',system-ui,sans-serif;user-select:none;overflow:hidden}
-.splash{display:flex;flex-direction:column;align-items:center;gap:16px;color:#f2f4f9}
-.logo{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#e94560,#ff6b81);box-shadow:0 8px 24px rgba(233,69,96,0.35);animation:pulse 1.8s ease-in-out infinite}
-.logo svg{width:30px;height:30px;fill:#fff}
-h1{margin:0;font-size:19px;font-weight:600;letter-spacing:3px}
-.loader{display:flex;gap:6px}
-.loader i{width:6px;height:6px;background:#e94560;border-radius:50%;animation:bounce 1s ease-in-out infinite}
-.loader i:nth-child(2){animation-delay:0.15s}
-.loader i:nth-child(3){animation-delay:0.3s}
-@keyframes bounce{0%,100%{opacity:0.3;transform:translateY(0)}50%{opacity:1;transform:translateY(-4px)}}
-@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
-</style></head><body><div class="splash">
-<div class="logo"><svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg></div>
-<h1>飞鱼音乐</h1>
-<div class="loader"><i></i><i></i><i></i></div>
-</div></body></html>`
-
-function createSplash(): void {
-  splashShownAt = Date.now()
-  splashWindow = new BrowserWindow({
-    width: 320,
-    height: 220,
-    frame: false,
-    resizable: false,
-    movable: false,
-    alwaysOnTop: false,
-    backgroundColor: '#0e1017',
-    webPreferences: { sandbox: true }
-  })
-  splashWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(SPLASH_HTML))
-}
-
-function closeSplash(): void {
-  if (!splashWindow) return
-  const wait = Math.max(0, 1500 - (Date.now() - splashShownAt))
-  const doClose = (): void => { splashWindow?.close(); splashWindow = null }
-  if (wait > 0) setTimeout(doClose, wait)
-  else doClose()
-}
 let tray: Tray | null = null
 const tempDir = path.join(os.tmpdir(), 'audioplayer-cache')
 const coversDir = path.join(app.getPath('userData'), 'covers')
@@ -318,11 +274,7 @@ function createWindow(): void {
       nodeIntegration: false
     }
   })
-  mainWindow.on('ready-to-show', () => {
-    mainWindow?.show()
-    // 主窗口就绪后关闭启动界面
-    closeSplash()
-  })
+  mainWindow.on('ready-to-show', () => mainWindow?.show())
 
   mainWindow.on('closed', () => { mainWindow = null })
 
@@ -944,8 +896,6 @@ app.whenReady().then(async () => {
   console.log('[Player] 飞鱼音乐启动中...')
   app.setAppUserModelId('com.feiYuMusic.app')
   Menu.setApplicationMenu(null)
-  // 先显示启动界面，再做初始化（数据库/注册），主窗口就绪后关闭
-  createSplash()
   await initDatabase()
   loadAppSettings()
   loadAiConfig()
