@@ -62,6 +62,7 @@ export default function PlayerBar(): JSX.Element {
   const volume = usePlayerStore((s) => s.volume)
   const playbackRate = usePlayerStore((s) => s.playbackRate)
   const setPlaybackRate = usePlayerStore((s) => s.setPlaybackRate)
+  const volumeAuto = usePlayerStore((s) => s.volumeAuto)
   const playMode = usePlayerStore((s) => s.playMode)
   const loopA = usePlayerStore((s) => s.loopA)
   const loopB = usePlayerStore((s) => s.loopB)
@@ -301,6 +302,14 @@ export default function PlayerBar(): JSX.Element {
           </svg>
           <input type="range" min="0" max="1" step="0.05" value={volume} onChange={handleVolumeChange} />
         </div>
+        <button
+          className={`btn-icon${volumeAuto ? ' active' : ''}`}
+          onClick={() => usePlayerStore.getState().toggleVolumeAuto()}
+          title={t('player.volumeAuto')}
+          style={{ color: volumeAuto ? 'var(--accent)' : undefined }}
+        >
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.06A6 6 0 0 1 18 12a6 6 0 0 1-4 5.65v2.06A8 8 0 0 0 20 12a8 8 0 0 0-6-8.8z"/></svg>
+        </button>
       </div>
     </div>
   )

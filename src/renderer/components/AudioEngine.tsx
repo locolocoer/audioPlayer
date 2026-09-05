@@ -196,12 +196,47 @@ export default function AudioEngine(): JSX.Element {
     const audio = audioRef.current
     if (!audio) return
     if (volumeGainRef.current) {
-      volumeGainRef.current.gain.value = volume
+      // 自动音量开启时，/实际音量由 AGC 控制（此处只保底）
+      if (!usePlayerStore.getState().volumeAuto) volumeGainRef.current.gain.value = volume
       audio.volume = 1
     } else {
       audio.volume = volume
     }
   }, [volume])
+
+  // 音量自动平衡（AGC）：播放时按实际响度平滑补偿音量，避免忽大忽小；默认关闭
+  const volumeAuto = usePlayerStore((s) => s.volumeAuto)
+  const analyser = useAudioGraphStore((s) => s.analyser)
+  useEffect(() => {
+    if (!volumeAuto) {
+      // 关闭自动音量：恢复用户设定的音量
+      const audio = audioRef.current
+      const v = usePlayerStore.getState().volume
+      if (volumeGainRef.current) volumeGainRef.current.gain.value = v
+      else if (audio) audio.volume = v
+      return
+    }
+    if (!analyser) return
+    const time = new Uint8Array(analyser.fftSize)
+    let raf = 0
+    let smoothed = 1
+    const tick = (): void => {
+      raf = requestAnimationFrame(tick)
+      analyser.getByteTimeDomainData(time)
+      let sum = 0
+      for (let i = 0; i < time.length; i++) { const v = (time[i] - 128) / 128; sum += v * v }
+      const rms = Math.sqrt(sum / time.length)
+      // 目标响度 ~0.18（约 -15dBFS RMS），偏离时补偿，限幅防止过调
+      let target = 0.18 / Math.max(0.02, rms)
+      target = Math.max(0.6, Math.min(1.8, target))
+      smoothed = smoothed * 0.85 + target * 0.15
+      const val = usePlayerStore.getState().volume * smoothed
+      if (volumeGainRef.current) volumeGainRef.current.gain.value = val
+      else { const a = audioRef.current; if (a) a.volume = val }
+    }
+    tick()
+    return () => cancelAnimationFrame(raf)
+  }, [volumeAuto, analyser])
 
   useEffect(() => {
     const audio = audioRef.current

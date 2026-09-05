@@ -14,6 +14,7 @@ interface PlayerState {
   currentTime: number
   duration: number
   volume: number
+  volumeAuto: boolean
   playbackRate: number
   playMode: PlayMode
   queue: MusicFile[]
@@ -39,6 +40,7 @@ interface PlayerState {
   next: () => void
   prev: () => void
   setVolume: (v: number) => void
+  toggleVolumeAuto: () => void
   setPlaybackRate: (rate: number) => void
   setCurrentTime: (t: number) => void
   setDuration: (d: number) => void
@@ -87,6 +89,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   currentTime: 0,
   duration: 0,
   volume: getStoredVolume(),
+  volumeAuto: localStorage.getItem('player_volumeAuto') === '1',
   playbackRate: getStoredRate(),
   playMode: getStoredMode(),
   queue: [],
@@ -248,6 +251,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   setVolume: (v: number) => {
     localStorage.setItem('player_volume', String(v))
     set({ volume: v })
+  },
+
+  toggleVolumeAuto: () => {
+    const next = !get().volumeAuto
+    localStorage.setItem('player_volumeAuto', next ? '1' : '0')
+    set({ volumeAuto: next })
   },
   setPlaybackRate: (rate: number) => {
     const r = Number.isFinite(rate) ? Math.max(0.5, Math.min(2, rate)) : 1
