@@ -110,7 +110,7 @@ function useOssFeed(): void {
   currentFeed = 'oss'
   autoUpdater.setFeedURL({
     provider: 'generic',
-    url: 'https://fryappstore.oss-cn-beijing.aliyuncs.com/leetcodestudio/'
+    url: 'https://fryappstore.oss-cn-beijing.aliyuncs.com/frymusic/'
   })
 }
 

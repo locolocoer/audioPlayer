@@ -157,7 +157,7 @@ jobs:
           curl -sL https://gosspublic.alicdn.com/ossutil/1.7.18/ossutil64 -o ossutil
           chmod +x ossutil
           ./ossutil config -e oss-cn-beijing.aliyuncs.com -i "$OSS_ACCESS_KEY_ID" -k "$OSS_ACCESS_KEY_SECRET"
-          # 按版本建立二级目录，latest*.yml 保留在 leetcodestudio/ 根目录作为稳定的更新指针
+          # 按版本建立二级目录，latest*.yml 保留在 frymusic/ 根目录作为稳定的更新指针
           VERSION="${GITHUB_REF_NAME#v}"
           mkdir -p "artifacts/v${VERSION}"
           for f in artifacts/*; do
@@ -167,9 +167,9 @@ jobs:
               *) mv "$f" "artifacts/v${VERSION}/" ;;
             esac
           done
-          # feed 文件里的安装包路径改写为 leetcodestudio/v${VERSION}/ 前缀（相对 latest.yml 所在目录）
+          # feed 文件里的安装包路径改写为 frymusic/v${VERSION}/ 前缀（相对 latest.yml 所在目录）
           for yml in artifacts/latest*.yml; do
             [ -f "$yml" ] || continue
-            sed -i -E "s#(url|path): #\1: leetcodestudio/v${VERSION}/#" "$yml"
+            sed -i -E "s#(url|path): #\1: frymusic/v${VERSION}/#" "$yml"
           done
-          ./ossutil cp -rf artifacts/ oss://fryappstore/leetcodestudio/
+          ./ossutil cp -rf artifacts/ oss://fryappstore/frymusic/
