@@ -167,9 +167,12 @@ jobs:
               *) mv "$f" "artifacts/v${VERSION}/" ;;
             esac
           done
-          # feed 文件里的安装包路径改写为 frymusic/v${VERSION}/ 前缀（相对 latest.yml 所在目录）
+          # feed 内的安装包路径相对于 feedURL（已含 frymusic/），只需加 vX.Y.Z/ 前缀
           for yml in artifacts/latest*.yml; do
             [ -f "$yml" ] || continue
-            sed -i -E "s#(url|path): #\1: frymusic/v${VERSION}/#" "$yml"
+            sed -i -E "s#(url|path): #\1: v${VERSION}/#" "$yml"
           done
+          # 新地址：fryappstore 桶的 frymusic/ 目录
           ./ossutil cp -rf artifacts/ oss://fryappstore/frymusic/
+          # 过渡期：同时上传旧桶（frymusic 桶根），让 ≤v1.5.9 的老用户也能检测到本次更新
+          ./ossutil cp -rf artifacts/ oss://frymusic/
