@@ -79,6 +79,18 @@ describe('playSelection 模板播放 => 替换播放列表', () => {
   })
 })
 
+describe('音量自动平衡开关', () => {
+  it('toggleVolumeAuto 切换并持久化到 localStorage', () => {
+    usePlayerStore.setState({ volumeAuto: false })
+    usePlayerStore.getState().toggleVolumeAuto()
+    expect(usePlayerStore.getState().volumeAuto).toBe(true)
+    expect(localStorage.getItem('player_volumeAuto')).toBe('1')
+    usePlayerStore.getState().toggleVolumeAuto()
+    expect(usePlayerStore.getState().volumeAuto).toBe(false)
+    expect(localStorage.getItem('player_volumeAuto')).toBe('0')
+  })
+})
+
 describe('播放列表模式下队列操作路由到播放列表（不误删收藏）', () => {
   it('removeQueueItem 删除播放列表曲目而非收藏列表', () => {
     usePlayerStore.getState().playFromPlaylist([tracks[0], tracks[1]], tracks[0])

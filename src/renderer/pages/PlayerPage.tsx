@@ -10,6 +10,7 @@ import Equalizer from '../components/Equalizer'
 import Visualizer from '../components/Visualizer'
 import Modal from '../components/Modal'
 import { parseLrc, activeLyricIndex } from '../utils/lrc'
+import { isLyricsInTargetLang } from '../utils/lyricsLang'
 import { getCoverCached, setCoverCached, coverCacheKey } from '../utils/coverCache'
 import { useT, useI18nStore } from '../i18n'
 
@@ -231,12 +232,6 @@ export default function PlayerPage(): JSX.Element {
     }
   }
 
-  // 歌词是否已是目标语言（zh：含中文；en：无中文）
-  const isLyricsInTargetLang = (text: string): boolean => {
-    const hasChinese = /[\u4e00-\u9fff]/.test(text)
-    return uiLang === 'zh' ? hasChinese : !hasChinese
-  }
-
   const toggleTranslate = async (): Promise<void> => {
     if (translateOn) {
       // 关闭只隐藏译文，缓存保留；再次开启直接复用
@@ -255,7 +250,7 @@ export default function PlayerPage(): JSX.Element {
       return
     }
     const plain = lyrics.map((l) => l.text).join('\n')
-    if (isLyricsInTargetLang(plain)) {
+    if (isLyricsInTargetLang(plain, uiLang)) {
       setTranslateMsg(t('ai.translateSame', { lang: uiLang === 'zh' ? '中文' : 'English' }))
       setTranslatedLines(null)
       return
