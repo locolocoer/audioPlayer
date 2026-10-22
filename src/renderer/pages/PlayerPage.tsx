@@ -245,6 +245,9 @@ export default function PlayerPage(): JSX.Element {
     // 已缓存过该歌翻译 → 直接显示，不重新请求 AI
     const cached = transCache.current.get(key)
     if (cached) {
+      // LRU：命中即刷新到最新
+      transCache.current.delete(key)
+      transCache.current.set(key, cached)
       setTranslatedLines(cached)
       setTranslateMsg('')
       return
@@ -271,6 +274,11 @@ export default function PlayerPage(): JSX.Element {
     const lines = r.text.split('\n').map((s) => s.trim()).filter(Boolean)
     const aligned = lyrics.map((_l, i) => lines[i] || '')
     transCache.current.set(key, aligned)
+    // 限制缓存规模：超过 100 首淘汰最早歌词，避免长会话内存无限增长
+    if (transCache.current.size > 100) {
+      const oldest = transCache.current.keys().next().value
+      if (oldest !== undefined) transCache.current.delete(oldest)
+    }
     setTranslatedLines(aligned)
   }
 
