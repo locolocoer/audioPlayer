@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback, useDeferredValue } from 'react'
 import { usePlaylistStore } from '../stores/playlistStore'
 import MusicList from '../components/MusicList'
 import { useT } from '../i18n'
@@ -20,15 +20,17 @@ export default function RecentPage(): JSX.Element {
     }).catch(() => setLoading(false))
   }, [])
 
+  const deferredSearch = useDeferredValue(search)
+
   const filtered = useMemo(() => {
-    if (!search) return tracks
-    const q = search.toLowerCase()
+    if (!deferredSearch) return tracks
+    const q = deferredSearch.toLowerCase()
     return tracks.filter((t) =>
       t.title.toLowerCase().includes(q) ||
       t.artist.toLowerCase().includes(q) ||
       t.album.toLowerCase().includes(q)
     )
-  }, [tracks, search])
+  }, [tracks, deferredSearch])
 
   const handleRowClick = useCallback((track: MusicFile) => {
     usePlaylistStore.getState().playInPlaylist(track)
