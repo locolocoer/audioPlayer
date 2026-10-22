@@ -13,6 +13,30 @@ function formatTime(secs: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
+// 进度条独立组件：只订阅 currentTime/duration，避免时间更新导致整个 PlayerBar 重渲染
+function PlayerProgress(): JSX.Element {
+  const currentTime = usePlayerStore((s) => s.currentTime)
+  const duration = usePlayerStore((s) => s.duration)
+  const handleProgressClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const bar = e.currentTarget
+    const rect = bar.getBoundingClientRect()
+    const pct = (e.clientX - rect.left) / rect.width
+    const store = usePlayerStore.getState()
+    if (store.duration) {
+      store.seek(Math.max(0, Math.min(store.duration, pct * store.duration)))
+    }
+  }, [])
+  return (
+    <div className="progress-area">
+      <span className="time">{formatTime(currentTime)}</span>
+      <div className="progress-bar" onClick={handleProgressClick}>
+        <div className="progress-fill" style={{ width: `${duration ? (currentTime / duration) * 100 : 0}%` }} />
+      </div>
+      <span className="time">{formatTime(duration)}</span>
+    </div>
+  )
+}
+
 const RATES = [1, 1.25, 1.5, 2, 0.75, 0.5]
 
 function BarCover({ track }: { track: { webdavId: string; path: string } }): JSX.Element {
@@ -57,8 +81,6 @@ export default function PlayerBar(): JSX.Element {
   const isPlaying = usePlayerStore((s) => s.isPlaying)
   const isLoading = usePlayerStore((s) => s.isLoading)
   const loadError = usePlayerStore((s) => s.loadError)
-  const currentTime = usePlayerStore((s) => s.currentTime)
-  const duration = usePlayerStore((s) => s.duration)
   const volume = usePlayerStore((s) => s.volume)
   const playbackRate = usePlayerStore((s) => s.playbackRate)
   const setPlaybackRate = usePlayerStore((s) => s.setPlaybackRate)
@@ -129,16 +151,6 @@ export default function PlayerBar(): JSX.Element {
 
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     usePlayerStore.getState().setVolume(parseFloat(e.target.value))
-  }, [])
-
-  const handleProgressClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const bar = e.currentTarget
-    const rect = bar.getBoundingClientRect()
-    const pct = (e.clientX - rect.left) / rect.width
-    const store = usePlayerStore.getState()
-    if (store.duration) {
-      store.seek(Math.max(0, Math.min(store.duration, pct * store.duration)))
-    }
   }, [])
 
   const handleToggleFavorite = useCallback(() => {
@@ -282,13 +294,7 @@ export default function PlayerBar(): JSX.Element {
             )}
           </div>
         </div>
-        <div className="progress-area">
-          <span className="time">{formatTime(currentTime)}</span>
-          <div className="progress-bar" onClick={handleProgressClick}>
-            <div className="progress-fill" style={{ width: `${duration ? (currentTime / duration) * 100 : 0}%` }} />
-          </div>
-          <span className="time">{formatTime(duration)}</span>
-        </div>
+        <PlayerProgress />
       </div>
 
       <div className="player-bar-end">

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback, useRef, useLayoutEffect } from 'react'
+import { useEffect, useState, useMemo, useCallback, useRef, useLayoutEffect, useDeferredValue } from 'react'
 import { useMusicStore } from '../stores/musicStore'
 import { usePlayerStore } from '../stores/playerStore'
 import { usePlaylistStore } from '../stores/playlistStore'
@@ -200,10 +200,12 @@ export default function LibraryPage(): JSX.Element {
     return tracks
   }, [tracks, browseAlbum, browseArtist])
 
+  const deferredSearch = useDeferredValue(search)
+
   const filtered = useMemo(() => {
     let result = baseTracks
-    if (search) {
-      const q = search.toLowerCase()
+    if (deferredSearch) {
+      const q = deferredSearch.toLowerCase()
       result = result.filter((t) =>
         t.title.toLowerCase().includes(q) ||
         t.artist.toLowerCase().includes(q) ||
@@ -237,7 +239,7 @@ export default function LibraryPage(): JSX.Element {
       return sortDir === 'asc' ? cmp : -cmp
     })
     return result
-  }, [baseTracks, search, filterConfig, sortField, sortDir, tagFilters, aiTags])
+  }, [baseTracks, deferredSearch, filterConfig, sortField, sortDir, tagFilters, aiTags])
 
   // 全部已打标标签（按数量排序，取前 20 用于筛选）
   const allTags = useMemo(() => {
