@@ -5,6 +5,7 @@ import { usePlaylistStore } from '../stores/playlistStore'
 import { usePlayerStore } from '../stores/playerStore'
 import { useToastStore } from '../stores/toastStore'
 import { useT } from '../i18n'
+import { selectContextTracks } from '../utils/aiContext'
 import type { MusicFile } from '../../main/types'
 
 interface ChatMsg {
@@ -217,15 +218,15 @@ export default function AiAssistantModal({ onClose }: AiAssistantModalProps): JS
     saveHistory(messages)
   }, [messages])
 
-  const buildSystem = (): string => {
+  const buildSystem = (query: string): string => {
     const all = useMusicStore.getState().tracks
-    const top = [...all]
-      .sort((a, b) => (b.playCount || 0) - (a.playCount || 0))
-      .slice(0, 20)
-      .map((x, i) => `${i + 1}. ${x.title || x.filename} - ${x.artist || ''}（${x.playCount || 0}次）`)
+    // 根据问题检索相关曲库歌曲（无匹配时退回热门），让 AI 基于真实曲库推荐而不是凭空猜
+    const relevant = selectContextTracks(all, query, 40)
+    const list = relevant
+      .map((x, i) => `${i + 1}. ${x.title || x.filename} - ${x.artist || ''}${x.album ? `（${x.album}）` : ''}`)
       .join('\n')
     const playlists = usePlaylistStore.getState().playlists.map((p) => p.name).join('、') || t('playlist.empty')
-    return `${t('ai.assistantSystem')}\n${t('ai.librarySummary', { n: all.length })}\n${t('ai.topPlayed')}:\n${top || t('stats.noData')}\n${t('ai.userPlaylists')}：${playlists}\n\n${t('ai.actionRule')}\n\n${t('ai.plainTextRule')}`
+    return `${t('ai.assistantSystem')}\n${t('ai.librarySummary', { n: all.length })}\n${t('ai.relevantTracks')}:\n${list || t('stats.noData')}\n${t('ai.userPlaylists')}：${playlists}\n\n${t('ai.actionRule')}\n\n${t('ai.plainTextRule')}`
   }
 
   const handleAssistantReply = (fullText: string): void => {
@@ -321,7 +322,7 @@ export default function AiAssistantModal({ onClose }: AiAssistantModalProps): JS
     try {
       window.api.ai.chatStream(
         buildContext(next),
-        { system: buildSystem(), maxTokens: 4096, temperature: 0.8 }
+        { system: buildSystem(text), maxTokens: 4096, temperature: 0.8 }
       )
     } catch (err) {
       ended = true

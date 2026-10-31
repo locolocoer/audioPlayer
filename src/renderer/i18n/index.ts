@@ -489,6 +489,7 @@ const zh: Dict = {
   'ai.noneMatched': '曲库中没有找到匹配的歌曲',
   'ai.librarySummary': '用户本地曲库共 {n} 首歌曲。',
   'ai.topPlayed': '播放最多的歌曲',
+  'ai.relevantTracks': '与你问题相关的曲库歌曲（推荐时优先从这些选）',
   'ai.userPlaylists': '用户的歌单',
 }
 
@@ -953,6 +954,7 @@ const en: Dict = {
   'ai.noneMatched': 'No matching tracks found in your library',
   'ai.librarySummary': 'The user\'s local library has {n} tracks.',
   'ai.topPlayed': 'Most played tracks',
+  'ai.relevantTracks': 'Relevant library tracks (prefer recommending from these)',
   'ai.userPlaylists': 'User playlists',
 }
 
