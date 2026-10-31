@@ -66,37 +66,66 @@ interface AiAssistantModalProps {
 }
 
 // 解析 AI 回复中的动作块并返回展示文本
-function parseActions(text: string): { display: string; plays: AiTrack[]; playlist: { name: string; tracks: AiTrack[] } | null } {
+interface ParsedActions {
+  display: string
+  plays: AiTrack[]
+  playlist: { name: string; tracks: AiTrack[] } | null
+  favorite: { name: string; tracks: AiTrack[] } | null
+  addToPlaylist: AiTrack[]
+}
+
+function toTracks(arr: unknown): AiTrack[] {
+  if (!Array.isArray(arr)) return []
+  return arr
+    .filter((x: unknown) => !!x && typeof (x as AiTrack).title === 'string')
+    .map((x: AiTrack) => ({ title: x.title, artist: x.artist || '' }))
+}
+
+function parseActions(text: string): ParsedActions {
   const plays: AiTrack[] = []
   let playlist: { name: string; tracks: AiTrack[] } | null = null
+  let favorite: { name: string; tracks: AiTrack[] } | null = null
+  const addToPlaylist: AiTrack[] = []
   let display = text
   const playRe = /<play>([\s\S]*?)<\/play>/g
   let m: RegExpExecArray | null
   while ((m = playRe.exec(text)) !== null) {
     try {
-      const arr = JSON.parse(m[1])
-      if (Array.isArray(arr)) {
-        for (const x of arr) {
-          if (x && typeof x.title === 'string') plays.push({ title: x.title, artist: typeof x.artist === 'string' ? x.artist : '' })
-        }
-      }
+      for (const x of toTracks(JSON.parse(m[1]))) plays.push(x)
     } catch { /* ignore */ }
   }
   const plRe = /<playlist name="([^"]*)">([\s\S]*?)<\/playlist>/
   const pl = plRe.exec(text)
   if (pl) {
     try {
-      const arr = JSON.parse(pl[2])
-      if (Array.isArray(arr)) {
-        playlist = {
-          name: pl[1] || '',
-          tracks: arr.filter((x: unknown) => !!x && typeof (x as AiTrack).title === 'string').map((x: AiTrack) => ({ title: x.title, artist: x.artist || '' }))
-        }
-      }
+      const tracks = toTracks(JSON.parse(pl[2]))
+      if (tracks.length > 0) playlist = { name: pl[1] || '', tracks }
     } catch { /* ignore */ }
   }
-  display = text.replace(/<play>[\s\S]*?<\/play>/g, '').replace(/<playlist[\s\S]*?<\/playlist>/g, '').trim()
-  return { display, plays, playlist }
+  // 加入收藏夹（可选 name 指定收藏夹名）
+  const favRe = /<favorite(?:\s+name="([^"]*)")?>([\s\S]*?)<\/favorite>/
+  const fav = favRe.exec(text)
+  if (fav) {
+    try {
+      const tracks = toTracks(JSON.parse(fav[2]))
+      if (tracks.length > 0) favorite = { name: fav[1] || '', tracks }
+    } catch { /* ignore */ }
+  }
+  // 加入当前播放列表（单一列表）
+  const addRe = /<addtoplaylist>([\s\S]*?)<\/addtoplaylist>/g
+  let am: RegExpExecArray | null
+  while ((am = addRe.exec(text)) !== null) {
+    try {
+      for (const x of toTracks(JSON.parse(am[1]))) addToPlaylist.push(x)
+    } catch { /* ignore */ }
+  }
+  display = text
+    .replace(/<play>[\s\S]*?<\/play>/g, '')
+    .replace(/<playlist[\s\S]*?<\/playlist>/g, '')
+    .replace(/<favorite[\s\S]*?<\/favorite>/g, '')
+    .replace(/<addtoplaylist>[\s\S]*?<\/addtoplaylist>/g, '')
+    .trim()
+  return { display, plays, playlist, favorite, addToPlaylist }
 }
 
 function normalize(s: string): string {
@@ -230,7 +259,7 @@ export default function AiAssistantModal({ onClose }: AiAssistantModalProps): JS
   }
 
   const handleAssistantReply = (fullText: string): void => {
-    const { display, plays, playlist } = parseActions(fullText)
+    const { display, plays, playlist, favorite, addToPlaylist } = parseActions(fullText)
     const displayMsg = display || fullText
     // 歌曲候选：优先 <play> 动作块，否则从回复文本提取（"- 歌名" 列表行）
     const candidates = plays.length > 0 ? plays : extractTracksFromText(displayMsg)
@@ -257,6 +286,30 @@ export default function AiAssistantModal({ onClose }: AiAssistantModalProps): JS
           usePlaylistStore.getState().addTracks(plMatched)
           useToastStore.getState().addToast(t('ai.playlistCreated', { name: playlist.name || t('ai.playlistDefault'), n: plMatched.length }), 'success')
         })
+      }
+    }
+    // 加入收藏夹：优先指定名称的收藏夹，否则用第一个收藏夹
+    if (favorite && favorite.tracks.length > 0) {
+      const favMatched = matchTracks(favorite.tracks)
+      if (favMatched.length > 0) {
+        const st = usePlaylistStore.getState()
+        const favs = st.playlists.filter((p) => p.kind === 'favorite')
+        const target = (favorite.name && favs.find((p) => p.name === favorite.name)) || favs[0]
+        if (target) {
+          st.addTracksToPlaylist(target.id, favMatched).then((n) => {
+            useToastStore.getState().addToast(t('ai.favorited', { name: target.name, n: n || favMatched.length }), 'success')
+          })
+        } else {
+          useToastStore.getState().addToast(t('ai.favoriteNoList'), 'info')
+        }
+      }
+    }
+    // 加入当前播放列表（单一列表）
+    if (addToPlaylist.length > 0) {
+      const addMatched = matchTracks(addToPlaylist)
+      if (addMatched.length > 0) {
+        usePlaylistStore.getState().addPlaylistTracks(addMatched)
+        useToastStore.getState().addToast(t('ai.addedToPlaylist', { n: addMatched.length }), 'success')
       }
     }
   }

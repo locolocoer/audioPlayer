@@ -4,6 +4,7 @@ import { usePlaylistStore } from '../stores/playlistStore'
 import { useMusicStore } from '../stores/musicStore'
 import { useToastStore } from '../stores/toastStore'
 import { useT } from '../i18n'
+import { selectContextTracks } from '../utils/aiContext'
 import type { MusicFile } from '../../main/types'
 
 interface AiPlaylistModalProps {
@@ -31,9 +32,8 @@ export default function AiPlaylistModal({ onClose }: AiPlaylistModalProps): JSX.
     setError('')
     setResult(null)
     const all = useMusicStore.getState().tracks
-    // 曲库上下文：优先播放过的歌，控制 token 消耗（最多 1500 首）
-    const sorted = [...all].sort((a, b) => (b.playCount || 0) - (a.playCount || 0))
-    const pool = sorted.slice(0, 1500)
+    // 曲库上下文：按描述检索相关歌曲 + 热门补足，最多 300 首（替代全塞 1500 首，省约 80% token）
+    const pool = selectContextTracks(all, desc, 300, true)
     const catalog = pool.map((x) => `${x.title || x.filename}\t${x.artist || ''}`).join('\n')
     const system = `你是音乐歌单策划。用户曲库歌单如下（每行"歌名\t歌手"）：\n${catalog}\n\n请根据用户描述从该列表中挑选 10-30 首合适的歌，输出严格 JSON（不要任何其他文字）：{"name":"歌单名","description":"一句话说明","tracks":[{"title":"歌名","artist":"歌手"}]}`
     const r = await window.api.ai.chat([{ role: 'user', content: desc.trim() }], { system, maxTokens: 1500, temperature: 0.8 })

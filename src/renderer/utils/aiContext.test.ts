@@ -58,4 +58,18 @@ describe('selectContextTracks 为 AI 挑选相关曲库上下文', () => {
   it('limit 生效', () => {
     expect(selectContextTracks(tracks, '', 1)).toHaveLength(1)
   })
+
+  it('fillHot=true 时用热门补足到 limit（相关结果排前面）', () => {
+    const r = selectContextTracks(tracks, '陈奕迅', 4, true)
+    expect(r).toHaveLength(4)
+    expect(r[0].artist).toBe('陈奕迅')
+    expect(r[1].artist).toBe('陈奕迅')
+    expect(r.slice(2)).toHaveLength(2)
+  })
+
+  it('fillHot=false 时只返回匹配结果，不补热门', () => {
+    const r = selectContextTracks(tracks, '陈奕迅', 4, false)
+    expect(r).toHaveLength(2)
+    expect(r.every((t) => t.artist === '陈奕迅')).toBe(true)
+  })
 })
