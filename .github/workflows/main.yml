@@ -167,7 +167,5 @@ jobs:
             [ -f "$yml" ] || continue
             sed -i -E "s#(url|path): #\1: v${VERSION}/#" "$yml"
           done
-          # 新地址：fryappstore 桶的 frymusic/ 目录
+          # 新地址：fryappstore 桶的 frymusic/ 目录（旧桶 frymusic 已删除，不再上传）
           ./ossutil cp -rf artifacts/ oss://fryappstore/frymusic/
-          # 过渡期：同时上传旧桶（frymusic 桶根），让 ≤v1.5.9 的老用户也能检测到本次更新
-          ./ossutil cp -rf artifacts/ oss://frymusic/
