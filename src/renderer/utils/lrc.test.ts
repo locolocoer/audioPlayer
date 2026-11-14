@@ -33,6 +33,15 @@ describe('parseLrc', () => {
       { time: 2, text: '重复句' }
     ])
   })
+
+  it('纯文本歌词（无时间标签）按行赋递增时间，跳过空行', () => {
+    const result = parseLrc('第一行\n第二行\n\n第三行')
+    expect(result).toEqual([
+      { time: 0, text: '第一行' },
+      { time: 4, text: '第二行' },
+      { time: 8, text: '第三行' }
+    ])
+  })
 })
 
 describe('activeLyricIndex', () => {
