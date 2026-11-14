@@ -827,8 +827,9 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 36px;
-  flex-wrap: nowrap;
+  height: auto;
+  min-height: 36px;
+  flex-wrap: wrap;
   min-width: 0;
 }
 
@@ -843,7 +844,7 @@ body {
 
 .library-controls .search-input,
 .library-controls .filter-select {
-  flex-shrink: 1;
+  flex-shrink: 0;
   min-width: 0;
 }
 
@@ -854,7 +855,8 @@ body {
   background: var(--bg-secondary);
   color: var(--text-primary);
   font-size: 13px;
-  width: 170px;
+  width: 210px;
+  min-width: 140px;
   outline: none;
 }
 

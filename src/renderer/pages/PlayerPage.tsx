@@ -85,13 +85,24 @@ export default function PlayerPage(): JSX.Element {
 
   const lyrics = useMemo(() => parseLrc(lrcText), [lrcText])
   const activeIndex = useMemo(() => activeLyricIndex(lyrics, currentTime), [lyrics, currentTime])
+  // 逐字高亮只在全屏歌词下需要，非全屏跳过计算（每 250ms 一次，省无谓开销）
   const litCount = useMemo(() => {
-    if (activeIndex < 0) return 0
+    if (!fullscreenLyrics || activeIndex < 0) return 0
     const start = lyrics[activeIndex].time
     const next = activeIndex + 1 < lyrics.length ? lyrics[activeIndex + 1].time : start + 5000
     const span = Math.max(0.1, next - start)
     return Math.floor(Math.max(0, Math.min(1, (currentTime - start) / span)) * Array.from(lyrics[activeIndex].text).length)
-  }, [lyrics, activeIndex, currentTime])
+  }, [fullscreenLyrics, lyrics, activeIndex, currentTime])
+
+  // 歌词行缓存：activeIndex 不变时（500ms 内大多数时间）复用上次的 JSX，避免每帧重建
+  const lyricsLines = useMemo(() => lyrics.map((line, idx) => (
+    <div key={idx} data-idx={idx} className={`lyrics-line${activeIndex === idx ? ' active' : ''}`}>
+      <span>{line.text}</span>
+      {translateOn && translatedLines && translatedLines[idx] && (
+        <span className="lyrics-trans">{translatedLines[idx]}</span>
+      )}
+    </div>
+  )), [lyrics, activeIndex, translateOn, translatedLines])
 
   const configs = useMusicStore((s) => s.configs)
   const isLocalTrack = currentTrack ? configs.find((c) => c.id === currentTrack.webdavId)?.sourceType === 'local' : false
@@ -383,14 +394,7 @@ export default function PlayerPage(): JSX.Element {
                 style={{ fontSize: lyricsFontSize, textAlign: lyricsAlign }}
               >
                 <div className="lyrics-spacer" />
-                {lyrics.map((line, idx) => (
-                  <div key={idx} data-idx={idx} className={`lyrics-line${activeIndex === idx ? ' active' : ''}`}>
-                    <span>{line.text}</span>
-                    {translateOn && translatedLines && translatedLines[idx] && (
-                      <span className="lyrics-trans">{translatedLines[idx]}</span>
-                    )}
-                  </div>
-                ))}
+                {lyricsLines}
                 <div className="lyrics-spacer" />
               </div>
               <div className="lyrics-actions">

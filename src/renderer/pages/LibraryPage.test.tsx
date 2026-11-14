@@ -53,7 +53,7 @@ describe('LibraryPage 音乐库', () => {
 
   it('搜索过滤歌曲', async () => {
     render(<LibraryPage />)
-    const input = screen.getByPlaceholderText('按歌名、歌手、专辑搜索...') as HTMLInputElement
+    const input = screen.getByPlaceholderText('搜索歌名、歌手、专辑') as HTMLInputElement
     fireEvent.change(input, { target: { value: '晴天' } })
     expect(screen.getByText('晴天')).toBeInTheDocument()
     expect(screen.queryByText('Hello')).not.toBeInTheDocument()
