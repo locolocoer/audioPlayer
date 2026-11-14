@@ -6,7 +6,16 @@ export interface UpdateNote {
 }
 
 export const UPDATE_NOTES: Record<string, UpdateNote> = {
-  '1.7.0': {
+  '1.7.1': {
+    fixed: [
+      '修复音乐库搜索框被工具栏挤压导致占位文字显示不全'
+    ],
+    changed: [
+      '播放页性能优化：歌词行缓存、全屏逐字仅全屏时计算',
+      '补充核心 store 与歌词解析测试；CI 移除 macOS 打包（仅 Windows 与 Linux）'
+    ]
+  },
+'1.7.0': {
     added: [
       'AI 助手按问题检索曲库真实歌曲作为上下文，推荐更准；新增「加入收藏夹」「加入播放列表」动作'
     ],
